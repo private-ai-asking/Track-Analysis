@@ -1,0 +1,4 @@
+[submodule "cli_bench"]
+	path = track_analysis/components/cli_bench
+	url = https://github.com/LordMartron94/CLI-Bench
+	branch = main
