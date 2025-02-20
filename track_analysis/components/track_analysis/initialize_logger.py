@@ -29,6 +29,6 @@ def get_logger() -> HoornLogger:
 
     return HoornLogger(
         outputs=[file_output, DefaultHoornLogOutput(max_separator_length=max_sep_length)],
-        min_level=LogType.DEBUG,
+        min_level=LogType.TRACE,
         separator_root="TrackAnalysis",
         max_separator_length=max_sep_length)
