@@ -2,3 +2,7 @@
 	path = track_analysis/components/cli_bench
 	url = https://github.com/LordMartron94/CLI-Bench
 	branch = main
+[submodule "MD.Common.Python"]
+	path = track_analysis/components/md_common_python
+	url = https://github.com/LordMartron94/py-common
+	branch = main
