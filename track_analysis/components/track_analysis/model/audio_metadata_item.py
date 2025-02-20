@@ -3,7 +3,7 @@ import typing
 import pydantic
 
 
-class AudioInfoModel(pydantic.BaseModel):
+class AudioMetadataItem(pydantic.BaseModel):
     """
     AudioInfoModel represents the structure of audio metadata.
     """
