@@ -2,11 +2,20 @@ from pathlib import Path
 from typing import Union, List
 
 import mutagen
+import pydantic
+from mutagen import flac
+from mutagen.flac import FLAC
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 
 from track_analysis.components.track_analysis.model.audio_info import AudioInfo
 from track_analysis.components.track_analysis.model.audio_metadata_item import AudioMetadataItem
+
+
+class StreamInfoModel(pydantic.BaseModel):
+    duration: float
+    bitrate: float
+    sample_rate: float
 
 
 class TagExtractor:
@@ -30,6 +39,31 @@ class TagExtractor:
             self._logger.error(f"Error loading file {file_path}: {e}")
             return None
 
+    def _get_stream_info(self, audio_file: Path) -> StreamInfoModel:
+        if audio_file.suffix == ".flac":
+            flac_file = FLAC(audio_file)
+            stream_info_raw: flac.StreamInfo = flac_file.info
+            return StreamInfoModel(
+                duration=round(stream_info_raw.length, 4),
+                bitrate=stream_info_raw.bitrate / 1000,
+                sample_rate=stream_info_raw.sample_rate / 1000
+            )
+        else:
+            self._logger.warning(f"Unable to read stream info from audio: {audio_file}", separator=self._module_separator)
+            return StreamInfoModel(duration=0, bitrate=0, sample_rate=0)
+
+    def _get_artists(self, file: mutagen.File) -> List[str]:
+        artists = file.get('artists', "Unknown")
+        if artists == "Unknown":
+            artists = file.get('artist', "Unknown")
+        if artists == "Unknown":
+            artists = file.get('albumartist', ["Unknown"])
+
+        return artists
+
+    def _format_list(self, ls: List[str]):
+        return ", ".join(ls)
+
     def extract(self, audio_file: Path) -> AudioInfo:
         """
         Extracts mp3 tags from the given audio file.
@@ -45,12 +79,19 @@ class TagExtractor:
         metadata: List[AudioMetadataItem] = []
 
         file: mutagen.File = self._load_file(audio_file)
+        file_info: StreamInfoModel = self._get_stream_info(audio_file)
+
+        artists = self._get_artists(file)
+        artists = self._format_list(artists)
+
+        album_artists = file.get('albumartist', ["Unknown"])
+        album_artists = self._format_list(album_artists)
 
         # Basic Metadata
         metadata.append(AudioMetadataItem(header="Title", description="The track title.", value=file.get('title', ["Unknown"])[0]))
         metadata.append(AudioMetadataItem(header="Album", description="The album where this track is part of.", value=file.get('album', ["Unknown"])[0]))
-        metadata.append(AudioMetadataItem(header="Artist(s)", description="The track artists.", value=file.get('artist', "Unknown")))
-        metadata.append(AudioMetadataItem(header="Album Artist(s)", description="The album artists.", value=file.get('albumartist', "Unknown")))
+        metadata.append(AudioMetadataItem(header="Artist(s)", description="The track artists.", value=artists))
+        metadata.append(AudioMetadataItem(header="Album Artist(s)", description="The album artists.", value=album_artists))
         metadata.append(AudioMetadataItem(header="Label", description="The label associated with the track.", value=file.get('label', ["Unknown"])[0]))
 
         metadata.append(AudioMetadataItem(header="Release Year", description="The original year this track was released.", value=file.get('originalyear', ["Unknown"])[0]))
@@ -60,6 +101,11 @@ class TagExtractor:
         metadata.append(AudioMetadataItem(header="BPM", description="The tempo of the track.", value=file.get('bpm', ["Unknown"])[0]))
         metadata.append(AudioMetadataItem(header="Energy Level", description="The energy level of the track.", value=file.get('energylevel', ["Unknown"])[0]))
         metadata.append(AudioMetadataItem(header="Key", description="The camelot key of the track.", value=file.get('initialkey', ["Unknown"])[0]))
+
+        # Stream Info
+        metadata.append(AudioMetadataItem(header="Duration", description="The duration of the track in seconds.", value=file_info.duration))
+        metadata.append(AudioMetadataItem(header="Bitrate", description="The bitrate of the track in kbps.", value=file_info.bitrate))
+        metadata.append(AudioMetadataItem(header="Sample Rate", description="The sample rate of the track in Hz.", value=file_info.sample_rate))
 
         self._logger.trace(f"Finished extracting mp3 tags from {audio_file}", separator=self._module_separator)
         return AudioInfo(metadata=metadata)

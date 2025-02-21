@@ -24,14 +24,14 @@ class App:
         cmd.add_command(["make_csv", "mc"], "Makes a CSV file from the extracted metadata.", self._make_csv)
         cmd.start_listen_loop()
 
-    def _debug_extract_tags(self, tag_extractor: TagExtractor):
+    def _debug_extract_tags(self):
         def _always_true_validator(_: str) -> (bool, str):
             return True, ""
 
         # W:\media\music\[02] organized\[01] hq\Classical\Ludovico Einaudi\Elegy For The Arctic\01 Elegy for the Arctic.flac
         file_to_check: str = self._user_input_helper.get_user_input("Please enter the path to the audio file you want to extract:", str, validator_func=_always_true_validator)
 
-        result: AudioInfo = tag_extractor.extract(Path(file_to_check))
+        result: AudioInfo =self._tag_extractor.extract(Path(file_to_check))
 
         for metadata_item in result.metadata:
             self._logger.info(f"{metadata_item.header} - {metadata_item.description}: {metadata_item.value}")
