@@ -4,6 +4,8 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 from track_analysis.components.track_analysis.model.audio_info import AudioInfo
+from track_analysis.components.track_analysis.model.audio_metadata_item import AudioMetadataItem
+from track_analysis.components.track_analysis.model.header import Header
 from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
 
 
@@ -23,6 +25,15 @@ class GetAudioMetadata(IPipe):
             audio_info.append(self._tag_extractor.extract(track_path))
             self._logger.trace(f"Extracted audio metadata for: {track_path}", separator=self._separator)
             self._logger.debug(f"Extracted audio metadata: {audio_info}", separator=self._separator)
+
+            album_cost = 0
+
+            for album_cost_info in data.album_costs:
+                if audio_info[-1].get_album_title() == album_cost_info.Album_Title:
+                    album_cost = album_cost_info.Album_Cost
+                    break
+
+            audio_info[-1].metadata.append(AudioMetadataItem(header=Header.Album_Cost, description="The cost of the album this track is a part of.", value=album_cost))
 
         data.audio_info = audio_info
 

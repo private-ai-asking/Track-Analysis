@@ -13,6 +13,7 @@ class Header(Enum):
 
     Genre = "Genre"
     Bought = "Bought"
+    Album_Cost = "Album Cost"
 
     BPM = "BPM"
     Energy_Level = "Energy Level"
