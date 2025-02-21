@@ -19,7 +19,7 @@ def _get_user_local_appdata_dir() -> Path:
     raise ValueError("Unsupported operating system")
 
 def get_logger() -> HoornLogger:
-    max_sep_length = 30
+    max_sep_length = 40
 
     file_output: FileHoornLogOutput = FileHoornLogOutput(
         log_directory=_get_user_local_appdata_dir().joinpath("Track Analysis", "logs"),

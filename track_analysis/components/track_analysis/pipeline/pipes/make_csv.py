@@ -18,7 +18,7 @@ class MakeCSV(IPipe):
 
         self._logger.trace("Extracting all unique headers...", separator=self._separator)
         for track_metadata in data.audio_info[0].metadata:
-            all_headers.add(track_metadata.header)
+            all_headers.add(track_metadata.header.value)
 
         headers = sorted(list(all_headers))
         self._logger.trace("Successfully extracted all unique headers.", separator=self._separator)
@@ -33,7 +33,7 @@ class MakeCSV(IPipe):
                 track_metadata = track.metadata
 
                 row = []
-                header_value_map = {item.header: item.value for item in track_metadata}
+                header_value_map = {item.header.value: item.value for item in track_metadata}
                 for header in headers:
                     row.append(header_value_map.get(header, ""))
 
