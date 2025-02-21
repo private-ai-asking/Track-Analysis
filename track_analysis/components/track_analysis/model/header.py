@@ -24,3 +24,4 @@ class Header(Enum):
     Sample_Rate = "Sample Rate"
     Peak_To_RMS = "Dynamic Range (peak-to-RMS)"
     Crest_Factor = "Crest Factor"
+    Bit_Depth = "Bit Depth"

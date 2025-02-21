@@ -1,3 +1,4 @@
 mutagen
 numpy
 librosa
+soundfile

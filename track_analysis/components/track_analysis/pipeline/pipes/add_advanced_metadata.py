@@ -12,6 +12,8 @@ from track_analysis.components.track_analysis.model.audio_metadata_item import A
 from track_analysis.components.track_analysis.model.header import Header
 from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
 
+import soundfile
+
 class StreamInfoModel(pydantic.BaseModel):
     duration: float
     bitrate: float
@@ -63,6 +65,24 @@ class AddAdvancedMetadata(IPipe):
 
         return dynamic_range, crest_factor
 
+    def _get_bit_depth(self, audio_file: Path):
+        info = soundfile.info(audio_file)
+        if info.subtype == 'PCM_16':
+            bit_depth = 16
+        elif info.subtype == 'PCM_24':
+            bit_depth = 24
+        elif info.subtype == 'PCM_32':
+            bit_depth = 32
+        elif info.subtype == 'FLOAT':
+            bit_depth = 32
+        elif info.subtype == 'DOUBLE':
+            bit_depth = 64
+        else:
+            bit_depth = 0
+            self._logger.warning(f"Unhandled subtype: {info.subtype} for track: {audio_file}", separator=self._separator)
+
+        return bit_depth
+
     def flow(self, data: PipelineContextModel) -> PipelineContextModel:
         self._logger.trace("Adding advanced metadata...", separator=self._separator)
 
@@ -76,6 +96,7 @@ class AddAdvancedMetadata(IPipe):
             track.metadata.append(AudioMetadataItem(header=Header.Sample_Rate, description="The sample rate of the track in Hz.", value=file_info.sample_rate))
             track.metadata.append(AudioMetadataItem(header=Header.Peak_To_RMS, description="The peak-to-RMS dynamic range of the track in dB.", value=dynamic_range))
             track.metadata.append(AudioMetadataItem(header=Header.Crest_Factor, description="The crest factor of the track.", value=crest_factor))
+            track.metadata.append(AudioMetadataItem(header=Header.Bit_Depth, description="The bit depth of the track in bits.", value=self._get_bit_depth(track.path)))
             self._logger.trace(f"Finished adding metadata for track: {track.path}", separator=self._separator)
 
         self._logger.trace("Finished adding advanced metadata.", separator=self._separator)
