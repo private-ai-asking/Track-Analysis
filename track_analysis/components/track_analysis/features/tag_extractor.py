@@ -69,6 +69,7 @@ class TagExtractor:
         metadata.append(AudioMetadataItem(header=Header.Release_Date, description="The original date this track was released.", value=file.get('originaldate', ["Unknown"])[0]))
 
         metadata.append(AudioMetadataItem(header=Header.Genre, description="The genre of the music.", value=file.get('genre', ["Unknown"])[0]))
+        metadata.append(AudioMetadataItem(header=Header.Bought, description="Whether the track was bought or not.", value=True if "[01] hq" in str(audio_file) else False))
 
         # Sonic Metadata
         metadata.append(AudioMetadataItem(header=Header.BPM, description="The tempo of the track.", value=file.get('bpm', ["Unknown"])[0]))

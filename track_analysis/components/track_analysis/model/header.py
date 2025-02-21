@@ -12,6 +12,7 @@ class Header(Enum):
     Release_Date = "Release Date"
 
     Genre = "Genre"
+    Bought = "Bought"
 
     BPM = "BPM"
     Energy_Level = "Energy Level"
