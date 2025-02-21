@@ -1,7 +1,10 @@
 from pathlib import Path
+from pprint import pprint
 from typing import Union, List
 
+import librosa
 import mutagen
+import numpy as np
 import pydantic
 from mutagen import flac
 from mutagen.flac import FLAC
@@ -61,8 +64,57 @@ class TagExtractor:
 
         return artists
 
+    def _standardize_artists(self, ls: List[str]) -> List[str]:
+        to_standardize = [
+            {
+                "To": "Damian \"Jr. Gong\" Marley",
+                "From": [
+                    "Damian \"Jr. Gong\" Marley",
+                    "Damian Jr. Gong Marley",
+                    "Damian “Jr. Gong” Marley"
+                ]
+            }
+        ]
+        standardized: List[str] = []
+
+        for item in ls:
+            for standardize in to_standardize:
+                if item in standardize["From"]:
+                    item = standardize["To"]
+                    break
+            standardized.append(item)
+
+        return standardized
+
     def _format_list(self, ls: List[str]):
         return ", ".join(ls)
+
+    def _calculate_dynamic_range(self, audio_file: Path) -> float:
+        """Calculates the peak-to-RMS dynamic range of an audio signal.
+
+         Args:
+             audio_file (str): Path to the audio file.
+
+         Returns:
+             float: The dynamic range in dB, or None if an error occurs.
+         """
+        try:
+            y, sr = librosa.load(audio_file)  # Load the audio
+        except Exception as e:
+            print(f"Error loading audio file: {e}")
+            return 0
+
+        peak_amplitude = np.max(np.abs(y))
+        rms_amplitude = np.sqrt(np.mean(y**2))
+
+        if rms_amplitude == 0:  # Avoid division by zero
+            return float('inf') if peak_amplitude > 0 else -float('inf')
+        dynamic_range = 20 * np.log10(peak_amplitude / rms_amplitude)
+
+        print(dynamic_range)
+        exit()
+
+        return dynamic_range
 
     def extract(self, audio_file: Path) -> AudioInfo:
         """
@@ -87,6 +139,11 @@ class TagExtractor:
         album_artists = file.get('albumartist', ["Unknown"])
         album_artists = self._format_list(album_artists)
 
+        dynamic_range = self._calculate_dynamic_range(audio_file)
+
+        print(dynamic_range)
+        exit()
+
         # Basic Metadata
         metadata.append(AudioMetadataItem(header="Title", description="The track title.", value=file.get('title', ["Unknown"])[0]))
         metadata.append(AudioMetadataItem(header="Album", description="The album where this track is part of.", value=file.get('album', ["Unknown"])[0]))
@@ -97,6 +154,8 @@ class TagExtractor:
         metadata.append(AudioMetadataItem(header="Release Year", description="The original year this track was released.", value=file.get('originalyear', ["Unknown"])[0]))
         metadata.append(AudioMetadataItem(header="Release Date", description="The original date this track was released.", value=file.get('originaldate', ["Unknown"])[0]))
 
+        metadata.append(AudioMetadataItem(header="Genre", description="The genre of the music.", value=file.get('genre', ["Unknown"])[0]))
+
         # Sonic Metadata
         metadata.append(AudioMetadataItem(header="BPM", description="The tempo of the track.", value=file.get('bpm', ["Unknown"])[0]))
         metadata.append(AudioMetadataItem(header="Energy Level", description="The energy level of the track.", value=file.get('energylevel', ["Unknown"])[0]))
@@ -106,6 +165,7 @@ class TagExtractor:
         metadata.append(AudioMetadataItem(header="Duration", description="The duration of the track in seconds.", value=file_info.duration))
         metadata.append(AudioMetadataItem(header="Bitrate", description="The bitrate of the track in kbps.", value=file_info.bitrate))
         metadata.append(AudioMetadataItem(header="Sample Rate", description="The sample rate of the track in Hz.", value=file_info.sample_rate))
+        metadata.append(AudioMetadataItem(header="Dynamic Range", description="The peak-to-RMS dynamic range of the track in dB.", value=dynamic_range))
 
         self._logger.trace(f"Finished extracting mp3 tags from {audio_file}", separator=self._module_separator)
         return AudioInfo(metadata=metadata)
