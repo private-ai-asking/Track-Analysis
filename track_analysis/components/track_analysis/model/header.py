@@ -22,4 +22,5 @@ class Header(Enum):
     Duration = "Duration"
     Bitrate = "Bitrate"
     Sample_Rate = "Sample Rate"
-    Dynamic_Range = "Dynamic Range"
+    Peak_To_RMS = "Dynamic Range (peak-to-RMS)"
+    Crest_Factor = "Crest Factor"

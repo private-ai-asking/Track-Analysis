@@ -38,7 +38,7 @@ class AddAdvancedMetadata(IPipe):
             self._logger.warning(f"Unable to read stream info from audio: {audio_file}", separator=self._separator)
             return StreamInfoModel(duration=0, bitrate=0, sample_rate=0)
 
-    def _calculate_dynamic_range(self, audio_file: Path) -> float:
+    def _calculate_dynamic_range_and_crest_factor(self, audio_file: Path) -> (float, float):
         """Calculates the peak-to-RMS dynamic range of an audio signal.
 
          Args:
@@ -51,7 +51,7 @@ class AddAdvancedMetadata(IPipe):
             y, sr = librosa.load(audio_file)  # Load the audio
         except Exception as e:
             print(f"Error loading audio file: {e}")
-            return 0
+            return 0, 0
 
         peak_amplitude = np.max(np.abs(y))
         rms_amplitude = np.sqrt(np.mean(y**2))
@@ -59,8 +59,9 @@ class AddAdvancedMetadata(IPipe):
         if rms_amplitude == 0:
             return float('inf') if peak_amplitude > 0 else -float('inf')
         dynamic_range = 20 * np.log10(peak_amplitude / rms_amplitude)
+        crest_factor = peak_amplitude / rms_amplitude
 
-        return dynamic_range
+        return dynamic_range, crest_factor
 
     def flow(self, data: PipelineContextModel) -> PipelineContextModel:
         self._logger.trace("Adding advanced metadata...", separator=self._separator)
@@ -68,12 +69,13 @@ class AddAdvancedMetadata(IPipe):
         for track in data.audio_info:
             self._logger.trace(f"Adding metadata for track: {track.path}...", separator=self._separator)
             file_info: StreamInfoModel = self._get_stream_info(track.path)
-            dynamic_range = self._calculate_dynamic_range(track.path)
+            dynamic_range, crest_factor = self._calculate_dynamic_range_and_crest_factor(track.path)
 
             track.metadata.append(AudioMetadataItem(header=Header.Duration, description="The duration of the track in seconds.", value=file_info.duration))
             track.metadata.append(AudioMetadataItem(header=Header.Bitrate, description="The bitrate of the track in kbps.", value=file_info.bitrate))
             track.metadata.append(AudioMetadataItem(header=Header.Sample_Rate, description="The sample rate of the track in Hz.", value=file_info.sample_rate))
-            track.metadata.append(AudioMetadataItem(header=Header.Dynamic_Range, description="The peak-to-RMS dynamic range of the track in dB.", value=dynamic_range))
+            track.metadata.append(AudioMetadataItem(header=Header.Peak_To_RMS, description="The peak-to-RMS dynamic range of the track in dB.", value=dynamic_range))
+            track.metadata.append(AudioMetadataItem(header=Header.Crest_Factor, description="The crest factor of the track.", value=crest_factor))
             self._logger.trace(f"Finished adding metadata for track: {track.path}", separator=self._separator)
 
         self._logger.trace("Finished adding advanced metadata.", separator=self._separator)
