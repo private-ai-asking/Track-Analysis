@@ -73,7 +73,7 @@ class AddAdvancedMetadata(IPipe):
 
             cmd = ["ffprobe", '-v', 'error', '-show_format', '-show_streams', '-of', 'json', audio_file_path]
             self._logger.debug(f"Running command: {' '.join(cmd)}", separator=self._separator)
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
 
             if result.returncode == 0:
                 try:
