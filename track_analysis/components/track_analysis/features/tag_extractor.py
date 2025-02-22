@@ -22,13 +22,13 @@ class TagExtractor:
     def _load_file(self, file_path: Path) -> Union[mutagen.File, None]:
         self._logger.trace(f"Loading file from: {file_path}.", separator=self._module_separator)
 
-        try:
-            file = mutagen.File(str(file_path))
-            self._logger.trace(f"Successfully loaded file: {file_path}.", separator=self._module_separator)
-            return file
-        except mutagen.MutagenError as e:
-            self._logger.error(f"Error loading file {file_path}: {e}")
-            return None
+        file = mutagen.File(str(file_path))
+        self._logger.trace(f"Successfully loaded file: {file_path}.", separator=self._module_separator)
+
+        if not file:
+            self._logger.error(f"Error loading file {file_path}.")
+
+        return file
 
     def _get_artists(self, file: mutagen.File) -> List[str]:
         artists = file.get('artists', "Unknown")

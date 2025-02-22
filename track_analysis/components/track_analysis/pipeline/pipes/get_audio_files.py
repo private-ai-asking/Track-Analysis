@@ -16,7 +16,7 @@ class GetAudioFiles(IPipe):
     def flow(self, data: PipelineContextModel) -> PipelineContextModel:
         self._logger.trace("Getting audio file paths.", separator=self._separator)
 
-        track_paths = self._file_handler.get_children_paths_fast(data.source_dir, ".flac", recursive=True)
+        track_paths = self._file_handler.get_children_paths_fast(data.source_dir, [".flac", ".mp3", ".opus"], recursive=True)
 
         if DEBUG:
             data.audio_file_paths = track_paths[:10]
