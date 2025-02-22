@@ -1,4 +1,5 @@
 from pathlib import Path
+from pprint import pprint
 from typing import Union, List
 import mutagen
 
@@ -22,7 +23,7 @@ class TagExtractor:
     def _load_file(self, file_path: Path) -> Union[mutagen.File, None]:
         self._logger.trace(f"Loading file from: {file_path}.", separator=self._module_separator)
 
-        file = mutagen.File(str(file_path))
+        file = mutagen.File(str(file_path), easy=True)
         self._logger.trace(f"Successfully loaded file: {file_path}.", separator=self._module_separator)
 
         if not file:
@@ -58,6 +59,9 @@ class TagExtractor:
         artists = self._get_artists(file)
         album_artists = file.get('albumartist', ["Unknown"])
 
+        release_date = file.get('originaldate', ["Unknown"])[0]
+        release_year = file.get('originalyear', ["Unknown"])[0] if not release_date else release_date[:4]
+
         # Basic Metadata
         metadata.append(AudioMetadataItem(header=Header.Title, description="The track title.", value=file.get('title', ["Unknown"])[0]))
         metadata.append(AudioMetadataItem(header=Header.Album, description="The album where this track is part of.", value=file.get('album', ["Unknown"])[0]))
@@ -65,8 +69,8 @@ class TagExtractor:
         metadata.append(AudioMetadataItem(header=Header.Album_Artists, description="The album artists.", value=album_artists))
         metadata.append(AudioMetadataItem(header=Header.Label, description="The label associated with the track.", value=file.get('label', ["Unknown"])[0]))
 
-        metadata.append(AudioMetadataItem(header=Header.Release_Year, description="The original year this track was released.", value=file.get('originalyear', ["Unknown"])[0]))
-        metadata.append(AudioMetadataItem(header=Header.Release_Date, description="The original date this track was released.", value=file.get('originaldate', ["Unknown"])[0]))
+        metadata.append(AudioMetadataItem(header=Header.Release_Year, description="The original year this track was released.", value=release_year))
+        metadata.append(AudioMetadataItem(header=Header.Release_Date, description="The original date this track was released.", value=release_date))
 
         metadata.append(AudioMetadataItem(header=Header.Genre, description="The genre of the music.", value=file.get('genre', ["Unknown"])[0]))
         metadata.append(AudioMetadataItem(header=Header.Bought, description="Whether the track was bought or not.", value=True if "[01] hq" in str(audio_file) else False))

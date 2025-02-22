@@ -77,6 +77,7 @@ class App:
         album_costs = self._add_album_cost(album_costs, "Alina", 13.59)
         album_costs = self._add_album_cost(album_costs, "Divenire", 16.29)
         album_costs = self._add_album_cost(album_costs, "Elements", 20.69)
+        album_costs = self._add_album_cost(album_costs, "Memoryhouse", 10.79)
 
         album_costs = self._add_album_cost(album_costs, "Halfway Tree", 13.59)
         album_costs = self._add_album_cost(album_costs, "Welcome to Jamrock", 13.59)
