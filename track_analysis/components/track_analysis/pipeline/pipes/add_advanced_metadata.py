@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -12,13 +13,13 @@ from track_analysis.components.track_analysis.model.audio_metadata_item import A
 from track_analysis.components.track_analysis.model.header import Header
 from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
 
-import soundfile
-
 class StreamInfoModel(pydantic.BaseModel):
     duration: float
     bitrate: float
     sample_rate: float
     bit_depth: int
+    channels: int
+    format: str
 
 
 class AddAdvancedMetadata(IPipe):
@@ -80,12 +81,14 @@ class AddAdvancedMetadata(IPipe):
                 except json.JSONDecodeError as e:
                     self._logger.warning(f"Error decoding JSON from ffprobe output: {e}", separator=self._separator)
                     self._logger.warning(f"ffprobe output: {result.stdout}", separator=self._separator)
-                    return StreamInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0)
+                    return StreamInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0, channels=0, format="")
 
                 duration = 0.0
                 bitrate = 0
                 sample_rate = 0
                 bit_depth = 0
+                channels = 0
+                audio_format = ""
 
                 if 'format' in info:
                     if 'duration' in info['format']:
@@ -113,19 +116,25 @@ class AddAdvancedMetadata(IPipe):
                                 self._logger.warning(f"Could not convert bit_depth to int. Raw bit_depth: {stream['bits_per_sample']}", separator=self._separator)
                         if 'sample_fmt' in stream and bit_depth == 0:
                             bit_depth = self._get_bit_depth_from_format(stream['sample_fmt'])
+                            audio_format = stream["sample_fmt"]
+                        if 'channels' in stream:
+                            try:
+                                channels = int(stream['channels'])
+                            except ValueError:
+                                self._logger.warning(f"Could not convert channels to int. Raw channels: {stream['channels']}", separator=self._separator)
 
-                return StreamInfoModel(duration=duration, bitrate=bitrate/1000, sample_rate=sample_rate/1000, bit_depth=bit_depth)
+                return StreamInfoModel(duration=duration, bitrate=bitrate/1000, sample_rate=sample_rate/1000, bit_depth=bit_depth, channels=channels, format=audio_format)
 
             else:
                 self._logger.warning(f"ffprobe error: {result.stderr}", separator=self._separator)
-                return StreamInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0)
+                return StreamInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0, channels=0, format="")
 
         except FileNotFoundError:
             self._logger.error("ffprobe not found. Please install FFmpeg.", separator=self._separator)
-            return StreamInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0)
+            return StreamInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0, channels=0, format="")
         except Exception as e:
             self._logger.warning(f"An unexpected error occurred: {e}", separator=self._separator)
-            return StreamInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0)
+            return StreamInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0, channels=0, format="")
 
     def _calculate_dynamic_range_and_crest_factor(self, audio_file: Path) -> (float, float):
         """Calculates the peak-to-RMS dynamic range of an audio signal.
@@ -152,6 +161,12 @@ class AddAdvancedMetadata(IPipe):
 
         return dynamic_range, crest_factor
 
+    def _calculate_max_data_per_second(self, stream_info: StreamInfoModel) -> float:
+        """Calculates the data rate per second in bits."""
+        if stream_info.sample_rate == 0 or stream_info.bit_depth == 0 or stream_info.channels == 0:
+            return 0.0
+        return (stream_info.sample_rate * 1000) * stream_info.bit_depth * stream_info.channels
+
     def flow(self, data: PipelineContextModel) -> PipelineContextModel:
         self._logger.trace("Adding advanced metadata...", separator=self._separator)
 
@@ -159,6 +174,13 @@ class AddAdvancedMetadata(IPipe):
             self._logger.trace(f"Adding metadata for track: {track.path}...", separator=self._separator)
             file_info: StreamInfoModel = self._get_stream_info(track.path)
             dynamic_range, crest_factor = self._calculate_dynamic_range_and_crest_factor(track.path)
+            max_data_per_second = self._calculate_max_data_per_second(file_info)
+
+            file_size_bytes = os.path.getsize(track.path)
+            file_size_bits = file_size_bytes * 8  # Convert bytes to bits
+            actual_data_rate = file_size_bits / file_info.duration if file_info.duration > 0 else 0
+
+            efficiency = (actual_data_rate / max_data_per_second) * 100 if max_data_per_second > 0 else 0
 
             track.metadata.append(AudioMetadataItem(header=Header.Duration, description="The duration of the track in seconds.", value=file_info.duration))
             track.metadata.append(AudioMetadataItem(header=Header.Bitrate, description="The bitrate of the track in kbps.", value=file_info.bitrate))
@@ -166,6 +188,10 @@ class AddAdvancedMetadata(IPipe):
             track.metadata.append(AudioMetadataItem(header=Header.Peak_To_RMS, description="The peak-to-RMS dynamic range of the track in dB.", value=dynamic_range))
             track.metadata.append(AudioMetadataItem(header=Header.Crest_Factor, description="The crest factor of the track.", value=crest_factor))
             track.metadata.append(AudioMetadataItem(header=Header.Bit_Depth, description="The bit depth of the track in bits.", value=file_info.bit_depth))
+            track.metadata.append(AudioMetadataItem(header=Header.Max_Data_Per_Second, description="The max data rate per second in bits.", value=max_data_per_second/1000))
+            track.metadata.append(AudioMetadataItem(header=Header.Actual_Data_Rate, description="The actual data rate per second in bits.", value=actual_data_rate/1000))
+            track.metadata.append(AudioMetadataItem(header=Header.Efficiency, description="The efficiency of data usage.", value=efficiency))
+            track.metadata.append(AudioMetadataItem(header=Header.Format, description="The audio format of the track.", value=file_info.format))
             self._logger.trace(f"Finished adding metadata for track: {track.path}", separator=self._separator)
 
         self._logger.trace("Finished adding advanced metadata.", separator=self._separator)

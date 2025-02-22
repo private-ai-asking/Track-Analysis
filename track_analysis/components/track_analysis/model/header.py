@@ -7,6 +7,7 @@ class Header(Enum):
     Artists = "Artist(s)"
     Album_Artists = "Album Artist(s)"
     Label = "Label"
+    Extension = "Audio File Extension"
 
     Release_Year = "Release Year"
     Release_Date = "Release Date"
@@ -25,3 +26,7 @@ class Header(Enum):
     Peak_To_RMS = "Dynamic Range (peak-to-RMS)"
     Crest_Factor = "Crest Factor"
     Bit_Depth = "Bit Depth"
+    Max_Data_Per_Second = "Max Data Per Second (Kilobits)"
+    Actual_Data_Rate = "Actual Data Rate (Kilobits)"
+    Efficiency = "Data Efficiency"
+    Format = "Audio Format"
