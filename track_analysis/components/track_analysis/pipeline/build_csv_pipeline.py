@@ -4,6 +4,7 @@ from track_analysis.components.md_common_python.py_common.patterns import AbPipe
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
 from track_analysis.components.track_analysis.pipeline.pipes.add_advanced_metadata import AddAdvancedMetadata
+from track_analysis.components.track_analysis.pipeline.pipes.get_invalid_cache import GetInvalidCache
 from track_analysis.components.track_analysis.pipeline.pipes.filter_files import FilterFiles
 from track_analysis.components.track_analysis.pipeline.pipes.get_album_costs import GetAlbumCosts
 from track_analysis.components.track_analysis.pipeline.pipes.get_audio_files import GetAudioFiles
@@ -22,12 +23,13 @@ class BuildCSVPipeline(AbPipeline):
 
     def build_pipeline(self):
         def __exit_if_no_files_to_process(context: PipelineContextModel) -> bool:
-            return len(context.filtered_audio_file_paths) <= 0
+            return len(context.filtered_audio_file_paths) <= 0 and len(context.invalid_cached_paths) <= 0
 
         self._add_step(GetAlbumCosts())
         self._add_step(LoadCache(self._logger))
         self._add_step(GetAudioFiles(self._logger, self._filehandler))
         self._add_step(FilterFiles(self._logger))
+        self._add_step(GetInvalidCache(self._logger))
         self._add_exit_check(__exit_if_no_files_to_process)
         self._add_step(GetAudioMetadata(self._logger, self._tag_extractor))
         self._add_step(AddAdvancedMetadata(self._logger))

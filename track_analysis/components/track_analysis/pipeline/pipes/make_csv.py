@@ -32,8 +32,16 @@ class MakeCSV(IPipe):
 
         self._logger.trace("Extracting all unique headers...", separator=self._separator)
 
-        for track_metadata in data.generated_audio_info[0].metadata:
-            all_headers.add(track_metadata.header.value)
+        if len(data.generated_audio_info) <= 0 and len(data.loaded_audio_info_cache) <= 0:
+            self._logger.warning("No audio data found.", separator=self._separator)
+            return data
+
+        try:
+            for track_metadata in data.generated_audio_info[0].metadata:
+                all_headers.add(track_metadata.header.value)
+        except IndexError:
+            for track_metadata in data.loaded_audio_info_cache[0].metadata:
+                all_headers.add(track_metadata.header.value)
 
         headers = sorted(list(all_headers))
         self._logger.trace("Successfully extracted all unique headers.", separator=self._separator)
@@ -45,6 +53,10 @@ class MakeCSV(IPipe):
             writer.writerow(headers)
 
             for track in data.loaded_audio_info_cache:
+                if track.path in data.invalid_cached_paths:
+                    self._logger.debug(f"Skipping invalid cached path: {track.path}", separator=self._separator)
+                    continue
+
                 self._write_row(track, headers, writer)
 
             for track in data.generated_audio_info:
