@@ -1,5 +1,4 @@
 from pathlib import Path
-from pprint import pprint
 from typing import Union, List
 import mutagen
 
@@ -60,7 +59,7 @@ class TagExtractor:
         album_artists = file.get('albumartist', ["Unknown"])
 
         release_date = file.get('originaldate', ["Unknown"])[0]
-        release_year = file.get('originalyear', ["Unknown"])[0] if not release_date else release_date[:4]
+        release_year = file.get('originalyear', ["Unknown"])[0] if (not release_date or release_date == "Unknown") else release_date[:4]
 
         # Basic Metadata
         metadata.append(AudioMetadataItem(header=Header.Title, description="The track title.", value=file.get('title', ["Unknown"])[0]))
