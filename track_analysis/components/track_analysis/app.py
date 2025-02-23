@@ -3,11 +3,12 @@ from pathlib import Path
 from track_analysis.components.md_common_python.py_common.cli_framework import CommandLineInterface
 from track_analysis.components.md_common_python.py_common.handlers import FileHandler
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
-from track_analysis.components.track_analysis.features.data_generator import DataGenerator
+from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 from track_analysis.components.track_analysis.model.audio_info import AudioInfo
 from track_analysis.components.track_analysis.model.header import Header
@@ -24,6 +25,7 @@ class App:
         self._file_handler: FileHandler = FileHandler()
         self._audio_file_handler: AudioFileHandler = AudioFileHandler(logger)
         self._audio_calculator: AudioCalculator = AudioCalculator(logger)
+        self._time_utils: TimeUtils = TimeUtils()
         self._logger = logger
 
     def run(self):
@@ -35,7 +37,7 @@ class App:
         cmd.start_listen_loop()
 
     def _generate_new_data(self):
-        data_generator: DataGenerator = DataGenerator(self._logger, self._audio_file_handler, self._audio_calculator)
+        data_generator: DataGenerator = DataGenerator(self._logger, self._audio_file_handler, self._audio_calculator, self._time_utils)
         data_generator.generate_data([Header.True_Peak])
 
 
