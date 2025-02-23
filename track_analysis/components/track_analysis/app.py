@@ -1,6 +1,4 @@
 from pathlib import Path
-from pprint import pprint
-from typing import List
 
 from track_analysis.components.md_common_python.py_common.cli_framework import CommandLineInterface
 from track_analysis.components.md_common_python.py_common.handlers import FileHandler
@@ -8,17 +6,11 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
-from track_analysis.components.track_analysis.model.album_cost import AlbumCostModel
 from track_analysis.components.track_analysis.model.audio_info import AudioInfo
-from track_analysis.components.track_analysis.model.audio_metadata_item import AudioMetadataItem
-from track_analysis.components.track_analysis.model.header import Header
-from track_analysis.components.track_analysis.pipeline.pipeline import Pipeline
+from track_analysis.components.track_analysis.pipeline.build_csv_pipeline import BuildCSVPipeline
+
+from track_analysis.components.track_analysis.pipeline.locate_paths_pipeline import LocatePathsPipeline
 from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
-from track_analysis.components.track_analysis.pipeline.pipes.get_audio_files import GetAudioFiles
-from track_analysis.components.track_analysis.pipeline.pipes.get_metadata import GetAudioMetadata
-from track_analysis.components.track_analysis.pipeline.pipes.load_cache import LoadCache
-from track_analysis.components.track_analysis.pipeline.pipes.make_csv import MakeCSV
-from track_analysis.components.track_analysis.pipeline.pipes.preprocess_data import PreprocessData
 
 
 class App:
@@ -35,10 +27,6 @@ class App:
         cmd.add_command(["add_path_to_metadata", "apm"], "Adds the path of a file to the metadata.", self._add_path_to_metadata)
         cmd.start_listen_loop()
 
-    def _add_album_cost(self, album_costs: List[AlbumCostModel], title: str, cost: float) -> List[AlbumCostModel]:
-        album_costs.append(AlbumCostModel(Album_Title=title, Album_Cost=cost))
-        return album_costs
-
     def _debug_extract_tags(self):
         def _always_true_validator(_: str) -> (bool, str):
             return True, ""
@@ -53,100 +41,24 @@ class App:
             self._logger.info(f"{metadata_item.header} - {metadata_item.description}: {metadata_item.value}")
 
     def _add_path_to_metadata(self):
-        context = PipelineContextModel(
-            source_dir=ROOT_MUSIC_LIBRARY,
-            output_file_path=OUTPUT_DIRECTORY.joinpath("data.csv"),
-            album_costs=[]
-        )
-
-        context = LoadCache(self._logger).flow(context)
-        context = GetAudioFiles(self._logger, self._file_handler).flow(context)
-        context = GetAudioMetadata(self._logger, self._tag_extractor).flow(context)
-        context = PreprocessData(self._logger).flow(context)
-
-        cache: List[AudioInfo] = context.loaded_audio_info_cache
-        generated_metadata: List[AudioInfo] = context.generated_audio_info
-
-        updated_rows: List[AudioInfo] = []
-
-        for cached_track_info in cache:
-            cached_track_title = cached_track_info.get_track_title()
-            cached_album_title = cached_track_info.get_album_title()
-            cached_artist_name = cached_track_info.get_track_artist()
-
-            for generated_track_info in generated_metadata:
-                if (
-                    generated_track_info.get_track_title() == cached_track_title and
-                    generated_track_info.get_album_title() == cached_album_title and
-                    generated_track_info.get_track_artist() == cached_artist_name
-                ):
-                    updated_metadata = []
-
-                    for metadata_item_original in cached_track_info.metadata:
-                        updated_metadata.append(metadata_item_original.model_copy(deep=True))
-
-                    updated_metadata.append(AudioMetadataItem(header=Header.Audio_Path, description="The path of the track.", value=str(generated_track_info.path)))
-
-                    updated_rows.append(AudioInfo(path=generated_track_info.path, metadata=updated_metadata))
-                    break
-
-        context.generated_audio_info = updated_rows
-
-        MakeCSV(self._logger).flow(context)
-
-
-
-    def _make_csv(self):
-        album_costs = []
-
-        album_costs = self._add_album_cost(album_costs, "Classical Best", 10.49)
-        album_costs = self._add_album_cost(album_costs, "The Hours (Music from the Motion Picture)", 12.49)
-        album_costs = self._add_album_cost(album_costs, "Old Friends New Friends", 20.39)
-
-        album_costs = self._add_album_cost(album_costs, "Musica baltica", 15.19)
-        album_costs = self._add_album_cost(album_costs, "Prehension", 16.29)
-        album_costs = self._add_album_cost(album_costs, "Solipsism", 13.59)
-
-        album_costs = self._add_album_cost(album_costs, "The Blue Notebooks (20 Year Edition)", 16.29)
-        album_costs = self._add_album_cost(album_costs, "In a Time Lapse", 16.29)
-        album_costs = self._add_album_cost(album_costs, "Una mattina", 16.29)
-        album_costs = self._add_album_cost(album_costs, "Eden Roc", 16.29)
-        album_costs = self._add_album_cost(album_costs, "I Giorni", 16.29)
-        album_costs = self._add_album_cost(album_costs, "Le onde", 16.29)
-
-        album_costs = self._add_album_cost(album_costs, "Lead Thou Me On: Hymns and Inspiration", 9.49)
-        album_costs = self._add_album_cost(album_costs, "Lux", 13.59)
-        album_costs = self._add_album_cost(album_costs, "Eventide", 13.59)
-        album_costs = self._add_album_cost(album_costs, "Light and Gold", 30.79)
-        album_costs = self._add_album_cost(album_costs, "De la taberna a la Corte", 12.59)
-        album_costs = self._add_album_cost(album_costs, "Edvard Grieg a capella", 10.49)
-        album_costs = self._add_album_cost(album_costs, "Edvard Grieg - Essential Orchestral Works", 5.79)
-        album_costs = self._add_album_cost(album_costs, "The Young Beethoven", 10.79)
-        album_costs = self._add_album_cost(album_costs, "The Young Messiah", 10.79)
-        album_costs = self._add_album_cost(album_costs, "Ode To Joy", 10.79)
-        album_costs = self._add_album_cost(album_costs, "Satie: Gymnopédies; Gnossienne", 8.59)
-        album_costs = self._add_album_cost(album_costs, "The Very Best of Arvo Pärt", 9.29)
-        album_costs = self._add_album_cost(album_costs, "Elegy for the Arctic", 1.99)
-        album_costs = self._add_album_cost(album_costs, "Alina", 13.59)
-        album_costs = self._add_album_cost(album_costs, "Divenire", 16.29)
-        album_costs = self._add_album_cost(album_costs, "Elements", 20.69)
-        album_costs = self._add_album_cost(album_costs, "Memoryhouse", 10.79)
-
-        album_costs = self._add_album_cost(album_costs, "Halfway Tree", 13.59)
-        album_costs = self._add_album_cost(album_costs, "Welcome to Jamrock", 13.59)
-        album_costs = self._add_album_cost(album_costs, "Mr. Marley", 13.59)
-        album_costs = self._add_album_cost(album_costs, "Distant Relatives", 13.59)
-        album_costs = self._add_album_cost(album_costs, "Rapture", 6.49)
-        album_costs = self._add_album_cost(album_costs, "Stony Hill", 23.99)
-        album_costs = self._add_album_cost(album_costs, "A Matter of Time", 8.99)
-
         pipeline_context = PipelineContextModel(
             source_dir=ROOT_MUSIC_LIBRARY,
             output_file_path=OUTPUT_DIRECTORY.joinpath("data.csv"),
-            album_costs=album_costs
         )
 
-        pipeline = Pipeline(self._logger, self._file_handler, self._tag_extractor)
+        pipeline = LocatePathsPipeline(self._logger, self._file_handler, self._tag_extractor)
+        pipeline.build_pipeline()
+        pipeline.flow(pipeline_context)
+
+        self._logger.info("Paths have been successfully matched.")
+
+    def _make_csv(self):
+        pipeline_context = PipelineContextModel(
+            source_dir=ROOT_MUSIC_LIBRARY,
+            output_file_path=OUTPUT_DIRECTORY.joinpath("data.csv")
+        )
+
+        pipeline = BuildCSVPipeline(self._logger, self._file_handler, self._tag_extractor)
         pipeline.build_pipeline()
         pipeline.flow(pipeline_context)
 

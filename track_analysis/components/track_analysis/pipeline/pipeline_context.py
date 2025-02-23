@@ -11,9 +11,9 @@ class PipelineContextModel(pydantic.BaseModel):
     source_dir: Path
     output_file_path: Path
     loaded_audio_info_cache: Optional[List[AudioInfo]] = []
-    album_costs: List[AlbumCostModel] = []
 
     # Generated Along the Line
+    album_costs: Optional[List[AlbumCostModel]] = []
     all_audio_file_paths: Optional[List[Path]] = []
     filtered_audio_file_paths: Optional[List[Path]] = []
     generated_audio_info: Optional[List[AudioInfo]] = []
