@@ -1,8 +1,9 @@
-import time
 from typing import List
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.md_common_python.py_common.patterns import AbPipeline
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
+from track_analysis.components.md_common_python.py_common.time_handling.time_utils import time_operation
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
@@ -27,6 +28,13 @@ class DataGenerator:
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
+    def _flow_pipeline(self, pipeline: AbPipeline, data: PipelineContextModel):
+        @time_operation(logger=self._logger, time_utils=self._time_utils, separator=self._separator)
+        def flow_wrapper():
+            pipeline.flow(data)
+
+        flow_wrapper()
+
     def generate_data(self, headers: List[Header], batch_size: int=64):
         context = PipelineContextModel(
             source_dir=ROOT_MUSIC_LIBRARY,
@@ -34,11 +42,7 @@ class DataGenerator:
         )
 
         self._logger.trace("Generating data.", separator=self._separator)
-        start_time = time.time()
 
         pipeline = DataGenerationPipeline(self._logger, headers, self._audio_file_handler, self._audio_calculator, batch_size)
         pipeline.build_pipeline()
-        pipeline.flow(context)
-
-        elapsed = time.time() - start_time
-        self._logger.info(f"Data generation completed in {self._time_utils.format_time(elapsed)}.", separator=self._separator)
+        self._flow_pipeline(pipeline, context)
