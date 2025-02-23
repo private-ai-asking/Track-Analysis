@@ -9,7 +9,8 @@ from track_analysis.components.track_analysis.model.audio_info import AudioInfo
 
 class PipelineContextModel(pydantic.BaseModel):
     source_dir: Path
-    output_file_path: Path
+    main_data_output_file_path: Path
+
     loaded_audio_info_cache: Optional[List[AudioInfo]] = []
 
     # Generated Along the Line

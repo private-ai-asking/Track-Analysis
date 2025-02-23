@@ -28,15 +28,15 @@ class LoadCache(IPipe):
     def flow(self, data: PipelineContextModel) -> PipelineContextModel:
         self._logger.trace("Loading cache if existing...", separator=self._separator)
 
-        if not data.output_file_path.exists() or not data.output_file_path.is_file():
+        if not data.main_data_output_file_path.exists() or not data.main_data_output_file_path.is_file():
             return data
 
         self._logger.trace("Cache exists, proceeding to load...", separator=self._separator)
 
         loaded_tracks: List[AudioInfo] = []
-        num_lines = self._count_csv_rows(data.output_file_path)
+        num_lines = self._count_csv_rows(data.main_data_output_file_path)
 
-        with open(data.output_file_path, "r", newline='', encoding="utf8") as csvfile:
+        with open(data.main_data_output_file_path, "r", newline='', encoding="utf8") as csvfile:
             reader = csv.reader(csvfile)
 
             header = next(reader)

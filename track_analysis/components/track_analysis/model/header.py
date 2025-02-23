@@ -35,3 +35,9 @@ class Header(Enum):
     Format = "Audio Format"
     Loudness = "Integrated LUFS"
     True_Peak = "True Peak (dBPT)"
+
+    # ============= USED BY TIME SERIES =============
+    Track_ID = "Track ID"
+    Timestamp = "Timestamp"
+    Value = "Value"
+    Type = "Type"
