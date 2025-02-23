@@ -105,13 +105,14 @@ class DataGenerator:
 
             for track in batch:
                 batch_results.append(self.__process_track(track))
+                
+                worker_context.increase_processed_tracks_number_thread_safe(1)
                 processed_tracks = worker_context.get_processed_tracks_number_thread_safe()
 
                 self._logger.info(
                     f"Processed {processed_tracks}/{worker_context.tracks_to_process_number} ({round(processed_tracks / worker_context.tracks_to_process_number * 100, 4)}%) tracks.",
                     separator=self._separator
                 )
-                worker_context.increase_processed_tracks_number_thread_safe(1)
 
             worker_context.extend_processed_tracks_threadsafe(batch_results)
 
