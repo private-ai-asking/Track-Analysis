@@ -1,6 +1,8 @@
 from pathlib import Path
 
+import librosa
 import pydantic
+from numpy import ndarray
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.apis.ffprobe_client import FFprobeClient
@@ -11,10 +13,16 @@ from track_analysis.components.track_analysis.util.audio_format_converter import
 class AudioStreamsInfoModel(pydantic.BaseModel):
     duration: float
     bitrate: float
-    sample_rate: float
+    sample_rate_kHz: float
+    sample_rate_Hz: float
     bit_depth: int
     channels: int
     format: str
+    samples_librosa: ndarray
+
+    model_config = {
+        "arbitrary_types_allowed": True
+    }
 
 
 class AudioFileHandler:
@@ -40,26 +48,31 @@ class AudioFileHandler:
         """
         try:
             info = self._ffprobe_client.run_ffprobe(str(audio_file))
-            return self._extract_audio_info(info)
+            return self._extract_audio_info(info, audio_file)
 
         except FileNotFoundError:
             self._logger.error("ffprobe not found. Please install FFmpeg.", separator=self._separator)
-            return AudioStreamsInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0, channels=0, format="")
+            return AudioStreamsInfoModel(duration=0.0, bitrate=0, sample_rate_kHz=0, sample_rate_Hz=0, bit_depth=0, channels=0, format="")
         except FFprobeError as e:
             self._logger.warning(f"ffprobe error: {e}", separator=self._separator)
-            return AudioStreamsInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0, channels=0, format="")
+            return AudioStreamsInfoModel(duration=0.0, bitrate=0, sample_rate_kHz=0, sample_rate_Hz=0, bit_depth=0, channels=0, format="")
         except Exception as e:
             self._logger.warning(f"An unexpected error occurred: {e}", separator=self._separator)
-            return AudioStreamsInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0, channels=0, format="")
+            return AudioStreamsInfoModel(duration=0.0, bitrate=0, sample_rate_kHz=0, sample_rate_Hz=0, bit_depth=0, channels=0, format="")
 
-    def _extract_audio_info(self, info: dict) -> AudioStreamsInfoModel:
+    def _extract_audio_info(self, info: dict, audio_file: Path) -> AudioStreamsInfoModel:
         """Extracts audio information from ffprobe output."""
         duration = self._extract_duration(info)
         bitrate = self._extract_bitrate(info)
         sample_rate, bit_depth, audio_format, channels = self._extract_stream_info(info)
 
-        return AudioStreamsInfoModel(duration=duration, bitrate=bitrate / 1000, sample_rate=sample_rate / 1000,
-                                     bit_depth=bit_depth, channels=channels, format=audio_format)
+        samples_librosa, sr = librosa.load(audio_file, sr=None)
+
+        if sr != sample_rate:
+            self._logger.warning(f"Librosa reported a different sample rate than ffprobe for: {audio_file}, {sr} vs {sample_rate}.", separator=self._separator)
+
+        return AudioStreamsInfoModel(duration=duration, bitrate=bitrate / 1000, sample_rate_kHz=sample_rate / 1000, sample_rate_Hz=sample_rate,
+                                     bit_depth=bit_depth, channels=channels, format=audio_format, samples_librosa=samples_librosa)
 
     def _extract_duration(self, info: dict) -> float:
         """Extracts duration from the ffprobe 'format' section."""

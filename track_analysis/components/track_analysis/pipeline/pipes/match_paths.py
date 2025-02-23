@@ -48,6 +48,6 @@ class MatchPaths(IPipe):
         unmatched_rows: int = len(generated_metadata) - len(updated_rows)
         self._logger.warning(f"Number of unmatched tracks: {unmatched_rows}")
 
-        data.generated_audio_info = updated_rows
+        data.loaded_audio_info_cache = updated_rows
 
         return data

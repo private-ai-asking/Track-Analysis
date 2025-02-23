@@ -38,7 +38,7 @@ class GetAlbumCosts(IPipe):
         album_costs = self._add_album_cost(album_costs, "The Young Beethoven", 10.79)
         album_costs = self._add_album_cost(album_costs, "The Young Messiah", 10.79)
         album_costs = self._add_album_cost(album_costs, "Ode To Joy", 10.79)
-        album_costs = self._add_album_cost(album_costs, "Satie: Gymnopédies; Gnossienne", 8.59)
+        album_costs = self._add_album_cost(album_costs, "Satie: Gymnopédies; Gnossiennes", 8.59)
         album_costs = self._add_album_cost(album_costs, "The Very Best of Arvo Pärt", 9.29)
         album_costs = self._add_album_cost(album_costs, "Elegy for the Arctic", 1.99)
         album_costs = self._add_album_cost(album_costs, "Alina", 13.59)
