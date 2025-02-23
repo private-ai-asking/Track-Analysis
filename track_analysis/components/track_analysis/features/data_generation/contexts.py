@@ -7,6 +7,8 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
+from track_analysis.components.track_analysis.features.data_generation.track_processor_interface import \
+    ITrackProcessorStrategy
 from track_analysis.components.track_analysis.model.audio_info import AudioInfo
 from track_analysis.components.track_analysis.model.header import Header
 
@@ -16,6 +18,7 @@ class BatchContext(pydantic.BaseModel):
 
     processed_tracks_number: int
     processed_tracks: List[AudioInfo]
+    associated_track_processor: ITrackProcessorStrategy
 
     def __init__(self, /, **data: Any):
         super().__init__(**data)

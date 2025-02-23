@@ -1,13 +1,15 @@
-from typing import List
+from typing import List, Dict, Union
 
 from track_analysis.components.md_common_python.py_common.multithreading.thread_manager import ThreadManagerConfig, \
     ThreadManager
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.data_generation.contexts import DataGenerationPipeContext, \
     DataGenerationPipeConfiguration, BatchContext
+from track_analysis.components.track_analysis.features.data_generation.track_processor_interface import \
+    ITrackProcessorStrategy
+from track_analysis.components.track_analysis.features.data_generation.track_processors.true_peak_processor import \
+    TruePeakTrackProcessor
 from track_analysis.components.track_analysis.model.audio_info import AudioInfo
-from track_analysis.components.track_analysis.model.audio_metadata_item import AudioMetadataItem
 from track_analysis.components.track_analysis.model.header import Header
 from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
 
@@ -30,24 +32,23 @@ class DataGenerationPipe(IPipe):
         self._thread_manager: ThreadManager = ThreadManager(self._logger, thread_config)
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
-    def __process_track(self, cached_track_info: AudioInfo) -> AudioInfo:
-        """Processes a single track and returns the updated AudioInfo."""
-        file_info: AudioStreamsInfoModel = self._audio_file_handler.get_audio_streams_info(cached_track_info.path)
-        true_peak = self._audio_calculator.calculate_true_peak(file_info.sample_rate_Hz, file_info.samples_librosa)
+    def __get_track_processor(self, header: Header) -> Union[ITrackProcessorStrategy, None]:
+        processor_mapping: Dict[Header, ITrackProcessorStrategy] = {
+            Header.True_Peak: TruePeakTrackProcessor(self._logger, self._audio_file_handler, self._audio_calculator)
+        }
 
-        updated_metadata = []
+        processor = processor_mapping.get(header, None)
 
-        for metadata_item_original in cached_track_info.metadata:
-            updated_metadata.append(metadata_item_original.model_copy(deep=True))
+        if processor is None:
+            self._logger.warning(f"No processor found for header - unsupported: {header}.", separator=self._separator)
 
-        updated_metadata.append(AudioMetadataItem(header=Header.True_Peak, description="", value=true_peak))
-        return AudioInfo(path=cached_track_info.path, metadata=updated_metadata, timeseries_data=cached_track_info.timeseries_data)
+        return processor
 
     def __handle_batch(self, batch: List[AudioInfo], worker_context: BatchContext):
         batch_results: List[AudioInfo] = []
 
         for track in batch:
-            batch_results.append(self.__process_track(track))
+            batch_results.append(worker_context.associated_track_processor.process_track(track))
 
             worker_context.increase_processed_tracks_number_thread_safe(1)
             processed_tracks = worker_context.get_processed_tracks_number_thread_safe()
@@ -60,22 +61,28 @@ class DataGenerationPipe(IPipe):
         worker_context.extend_processed_tracks_threadsafe(batch_results)
 
     def flow(self, context: PipelineContextModel) -> PipelineContextModel:
-        cache: List[AudioInfo] = context.loaded_audio_info_cache
+        for header in self._configuration.headers_to_fill:
+            track_processor = self.__get_track_processor(header)
+            if track_processor is None:
+                continue
+            else:
+                cache: List[AudioInfo] = context.loaded_audio_info_cache
 
-        worker_context: BatchContext = BatchContext(
-            tracks_to_process_number = len(cache),
-            processed_tracks_number = 0,
-            processed_tracks  = []
-        )
+                worker_context: BatchContext = BatchContext(
+                    tracks_to_process_number = len(cache),
+                    processed_tracks_number = 0,
+                    processed_tracks  = [],
+                    associated_track_processor = track_processor,
+                )
 
-        # Split the work into batches
-        batches: List[List[AudioInfo]] = []
-        for i in range(0, worker_context.tracks_to_process_number, self._configuration.batch_size):
-            batches.append(cache[i : i + self._configuration.batch_size])
+                # Split the work into batches
+                batches: List[List[AudioInfo]] = []
+                for i in range(0, worker_context.tracks_to_process_number, self._configuration.batch_size):
+                    batches.append(cache[i : i + self._configuration.batch_size])
 
-        self._thread_manager.work_batches(batches, worker_context)
+                self._thread_manager.work_batches(batches, worker_context)
 
-        updated_rows = worker_context.processed_tracks
+                updated_rows = worker_context.processed_tracks
 
-        context.loaded_audio_info_cache = updated_rows
+                context.loaded_audio_info_cache = updated_rows
         return context
