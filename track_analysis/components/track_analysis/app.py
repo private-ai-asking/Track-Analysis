@@ -60,13 +60,13 @@ class App:
         def process_track(cached_track_info: AudioInfo) -> AudioInfo:
             """Processes a single track and returns the updated AudioInfo."""
             file_info: AudioStreamsInfoModel = self._audio_file_handler.get_audio_streams_info(cached_track_info.path)
-            lufs = self._audio_calculator.calculate_lufs(file_info.sample_rate_Hz, file_info.samples_librosa)
+            true_peak = self._audio_calculator.calculate_true_peak(file_info.sample_rate_Hz, file_info.samples_librosa)
             updated_metadata = []
 
             for metadata_item_original in cached_track_info.metadata:
                 updated_metadata.append(metadata_item_original.model_copy(deep=True))
 
-            updated_metadata.append(AudioMetadataItem(header=Header.Loudness, description="The loudness measurement in LUFS.", value=lufs))
+            updated_metadata.append(AudioMetadataItem(header=Header.True_Peak, description="", value=true_peak))
             return AudioInfo(path=cached_track_info.path, metadata=updated_metadata)
 
         def worker(batch: List[AudioInfo]):

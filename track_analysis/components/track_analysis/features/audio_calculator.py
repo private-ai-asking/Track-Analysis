@@ -1,3 +1,4 @@
+import librosa
 import numpy as np
 import pyloudnorm
 from numpy import ndarray
@@ -55,3 +56,16 @@ class AudioCalculator:
 
         self._logger.debug(f"Calculated Loudness: {loudness}", separator=self._separator)
         return loudness
+
+    def calculate_true_peak(self, sample_rate: float, samples: ndarray, oversampling_rate: int = 4) -> float:
+        # Oversample the audio
+        samples_resampled = librosa.resample(samples, orig_sr=sample_rate, target_sr=sample_rate*oversampling_rate)
+
+        # Calculate the peak amplitude
+        peak_amplitude = np.max(np.abs(samples_resampled))
+
+        # Convert to dBFS
+        true_peak_dbfs = 20 * np.log10(peak_amplitude)
+
+        self._logger.debug(f"Calculated True Peak (dBPT: {true_peak_dbfs}", separator=self._separator)
+        return true_peak_dbfs

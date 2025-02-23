@@ -32,3 +32,4 @@ class Header(Enum):
     Efficiency = "Data Efficiency"
     Format = "Audio Format"
     Loudness = "Integrated LUFS"
+    True_Peak = "True Peak (dBPT)"

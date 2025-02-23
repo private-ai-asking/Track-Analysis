@@ -27,6 +27,7 @@ class AddAdvancedMetadata(IPipe):
             dynamic_range, crest_factor = self._audio_calculator.calculate_dynamic_range_and_crest_factor(file_info.samples_librosa)
             max_data_per_second = self._audio_calculator.calculate_max_data_per_second(file_info)
             lufs = self._audio_calculator.calculate_lufs(file_info.sample_rate_Hz, file_info.samples_librosa)
+            true_peak = self._audio_calculator.calculate_true_peak(file_info.sample_rate_Hz, file_info.samples_librosa)
 
             file_size_bytes = os.path.getsize(track.path)
             file_size_bits = file_size_bytes * 8  # Convert bytes to bits
@@ -45,6 +46,7 @@ class AddAdvancedMetadata(IPipe):
             track.metadata.append(AudioMetadataItem(header=Header.Efficiency, description="The efficiency of data usage.", value=efficiency))
             track.metadata.append(AudioMetadataItem(header=Header.Format, description="The audio format of the track.", value=file_info.format))
             track.metadata.append(AudioMetadataItem(header=Header.Loudness, description="The loudness measurement in LUFS.", value=lufs))
+            track.metadata.append(AudioMetadataItem(header=Header.True_Peak, description="The true peak measurement in dBFS.", value=true_peak))
             self._logger.trace(f"Finished adding metadata for track: {track.path}", separator=self._separator)
 
         self._logger.trace("Finished adding advanced metadata.", separator=self._separator)
