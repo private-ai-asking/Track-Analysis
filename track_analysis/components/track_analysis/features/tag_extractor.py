@@ -1,3 +1,4 @@
+import uuid
 from pathlib import Path
 from typing import Union, List
 import mutagen
@@ -60,6 +61,11 @@ class TagExtractor:
 
         release_date = file.get('originaldate', ["Unknown"])[0]
         release_year = file.get('originalyear', ["Unknown"])[0] if (not release_date or release_date == "Unknown") else release_date[:4]
+
+        uid = uuid.uuid4()
+
+        # Relational purposes
+        metadata.append(AudioMetadataItem(header=Header.UUID, description="Unique identifier for the track.", value=str(uid)))
 
         # Basic Metadata
         metadata.append(AudioMetadataItem(header=Header.Title, description="The track title.", value=file.get('title', ["Unknown"])[0]))

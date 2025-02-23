@@ -2,6 +2,8 @@ from enum import Enum
 
 
 class Header(Enum):
+    UUID = "UUID"
+
     Title = "Title"
     Album = "Album"
     Artists = "Artist(s)"
