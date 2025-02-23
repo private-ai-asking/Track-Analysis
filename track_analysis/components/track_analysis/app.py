@@ -1,4 +1,5 @@
 from pathlib import Path
+from pprint import pprint
 from typing import List
 
 from track_analysis.components.md_common_python.py_common.cli_framework import CommandLineInterface
@@ -9,8 +10,15 @@ from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRAR
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 from track_analysis.components.track_analysis.model.album_cost import AlbumCostModel
 from track_analysis.components.track_analysis.model.audio_info import AudioInfo
+from track_analysis.components.track_analysis.model.audio_metadata_item import AudioMetadataItem
+from track_analysis.components.track_analysis.model.header import Header
 from track_analysis.components.track_analysis.pipeline.pipeline import Pipeline
 from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.components.track_analysis.pipeline.pipes.get_audio_files import GetAudioFiles
+from track_analysis.components.track_analysis.pipeline.pipes.get_metadata import GetAudioMetadata
+from track_analysis.components.track_analysis.pipeline.pipes.load_cache import LoadCache
+from track_analysis.components.track_analysis.pipeline.pipes.make_csv import MakeCSV
+from track_analysis.components.track_analysis.pipeline.pipes.preprocess_data import PreprocessData
 
 
 class App:
@@ -24,6 +32,7 @@ class App:
         cmd: CommandLineInterface = CommandLineInterface(self._logger)
         cmd.add_command(["extract_tags_debug", "etd"], "Debugs the extract tags function.", self._debug_extract_tags)
         cmd.add_command(["make_csv", "mc"], "Makes a CSV file from the extracted metadata.", self._make_csv)
+        cmd.add_command(["add_path_to_metadata", "apm"], "Adds the path of a file to the metadata.", self._add_path_to_metadata)
         cmd.start_listen_loop()
 
     def _add_album_cost(self, album_costs: List[AlbumCostModel], title: str, cost: float) -> List[AlbumCostModel]:
@@ -42,6 +51,50 @@ class App:
 
         for metadata_item in result.metadata:
             self._logger.info(f"{metadata_item.header} - {metadata_item.description}: {metadata_item.value}")
+
+    def _add_path_to_metadata(self):
+        context = PipelineContextModel(
+            source_dir=ROOT_MUSIC_LIBRARY,
+            output_file_path=OUTPUT_DIRECTORY.joinpath("data.csv"),
+            album_costs=[]
+        )
+
+        context = LoadCache(self._logger).flow(context)
+        context = GetAudioFiles(self._logger, self._file_handler).flow(context)
+        context = GetAudioMetadata(self._logger, self._tag_extractor).flow(context)
+        context = PreprocessData(self._logger).flow(context)
+
+        cache: List[AudioInfo] = context.loaded_audio_info_cache
+        generated_metadata: List[AudioInfo] = context.generated_audio_info
+
+        updated_rows: List[AudioInfo] = []
+
+        for cached_track_info in cache:
+            cached_track_title = cached_track_info.get_track_title()
+            cached_album_title = cached_track_info.get_album_title()
+            cached_artist_name = cached_track_info.get_track_artist()
+
+            for generated_track_info in generated_metadata:
+                if (
+                    generated_track_info.get_track_title() == cached_track_title and
+                    generated_track_info.get_album_title() == cached_album_title and
+                    generated_track_info.get_track_artist() == cached_artist_name
+                ):
+                    updated_metadata = []
+
+                    for metadata_item_original in cached_track_info.metadata:
+                        updated_metadata.append(metadata_item_original.model_copy(deep=True))
+
+                    updated_metadata.append(AudioMetadataItem(header=Header.Audio_Path, description="The path of the track.", value=str(generated_track_info.path)))
+
+                    updated_rows.append(AudioInfo(path=generated_track_info.path, metadata=updated_metadata))
+                    break
+
+        context.generated_audio_info = updated_rows
+
+        MakeCSV(self._logger).flow(context)
+
+
 
     def _make_csv(self):
         album_costs = []
@@ -96,3 +149,5 @@ class App:
         pipeline = Pipeline(self._logger, self._file_handler, self._tag_extractor)
         pipeline.build_pipeline()
         pipeline.flow(pipeline_context)
+
+        self._logger.info("CSV has been successfully created.")

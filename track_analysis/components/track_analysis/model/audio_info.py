@@ -15,3 +15,13 @@ class AudioInfo(pydantic.BaseModel):
         for metadata_item in self.metadata:
             if metadata_item.header == Header.Album:
                 return metadata_item.value
+
+    def get_track_title(self) -> str:
+        for metadata_item in self.metadata:
+            if metadata_item.header == Header.Title:
+                return metadata_item.value
+
+    def get_track_artist(self) -> str:
+        for metadata_item in self.metadata:
+            if metadata_item.header == Header.Artists:
+                return metadata_item.value
