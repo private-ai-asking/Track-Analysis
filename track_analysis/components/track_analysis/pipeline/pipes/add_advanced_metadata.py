@@ -170,7 +170,7 @@ class AddAdvancedMetadata(IPipe):
     def flow(self, data: PipelineContextModel) -> PipelineContextModel:
         self._logger.trace("Adding advanced metadata...", separator=self._separator)
 
-        for track in data.audio_info:
+        for track in data.generated_audio_info:
             self._logger.trace(f"Adding metadata for track: {track.path}...", separator=self._separator)
             file_info: StreamInfoModel = self._get_stream_info(track.path)
             dynamic_range, crest_factor = self._calculate_dynamic_range_and_crest_factor(track.path)

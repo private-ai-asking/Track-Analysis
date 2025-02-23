@@ -5,3 +5,4 @@ ROOT_MUSIC_LIBRARY: Path = Path("W:\media\music\[02] organized") # NORMAL
 OUTPUT_DIRECTORY: Path = Path("X:\Track Analysis\output")
 
 DEBUG: bool = False
+VERBOSE: bool = False

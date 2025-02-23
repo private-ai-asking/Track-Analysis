@@ -41,7 +41,7 @@ class PreprocessData(IPipe):
     def flow(self, data: PipelineContextModel) -> PipelineContextModel:
         self._logger.trace("Preprocessing data...", separator=self._separator)
 
-        for track in data.audio_info:
+        for track in data.generated_audio_info:
             for metadata_item in track.metadata:
                 if metadata_item.header == Header.Artists:
                     self._logger.debug(f"Preprocessing old value: {metadata_item.value}", separator=self._separator)

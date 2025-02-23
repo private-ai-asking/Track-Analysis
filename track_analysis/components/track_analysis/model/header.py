@@ -8,6 +8,7 @@ class Header(Enum):
     Album_Artists = "Album Artist(s)"
     Label = "Label"
     Extension = "Audio File Extension"
+    Audio_Path = "Audio Path"
 
     Release_Year = "Release Year"
     Release_Date = "Release Date"
