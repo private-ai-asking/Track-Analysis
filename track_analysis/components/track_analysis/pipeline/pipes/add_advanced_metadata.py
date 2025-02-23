@@ -1,140 +1,24 @@
-import json
 import os
-import subprocess
 from pathlib import Path
 
 import librosa
 import numpy as np
-import pydantic
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
+from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler, AudioStreamsInfoModel
 from track_analysis.components.track_analysis.model.audio_metadata_item import AudioMetadataItem
 from track_analysis.components.track_analysis.model.header import Header
 from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
 
-class StreamInfoModel(pydantic.BaseModel):
-    duration: float
-    bitrate: float
-    sample_rate: float
-    bit_depth: int
-    channels: int
-    format: str
-
 
 class AddAdvancedMetadata(IPipe):
-    def __init__(self, logger: HoornLogger):
+    def __init__(self, logger: HoornLogger, audio_file_handler: AudioFileHandler):
         self._separator = "AddAdvancedMetadataPipe"
 
         self._logger = logger
+        self._audio_file_handler = audio_file_handler
         self._logger.trace("Successfully initialized pipe.", separator=self._separator)
-
-    def _get_bit_depth_from_format(self, sample_format: str) -> int:
-        """
-        Gets the bit depth from the FFmpeg sample format string.
-
-        Args:
-            sample_format: The FFmpeg sample format string (e.g., "s16le", "flt", "dbl").
-
-        Returns:
-            The bit depth as an integer (e.g., 16, 32, 64), or None if the format is unknown or invalid.
-        """
-        format_lower = sample_format.lower()
-
-        if format_lower.startswith("s") or format_lower.startswith("u"):
-            try:
-                bits = int(format_lower[1:3])
-                return bits
-            except ValueError:
-                pass
-
-        elif format_lower.startswith("flt"):
-            return 32
-        elif format_lower.startswith("dbl"):
-            return 64
-        elif format_lower.startswith("s32p"):
-            return 32
-        elif format_lower.startswith("s16p"):
-            return 16
-        elif format_lower.startswith("u8"):
-            return 8
-        elif format_lower.startswith("s8"):
-            return 8
-
-        # Add more formats as needed (e.g., planar formats, other integer sizes)
-        # Be sure to handle potential errors (e.g., invalid format strings).
-
-        self._logger.warning(f"Unsupported format for bit depth extraction: {format_lower}", separator=self._separator)
-        return 0
-
-    def _get_stream_info(self, audio_file: Path) -> StreamInfoModel:
-        try:
-            audio_file_path = str(audio_file)
-
-            cmd = ["ffprobe", '-v', 'error', '-show_format', '-show_streams', '-of', 'json', audio_file_path]
-            self._logger.debug(f"Running command: {' '.join(cmd)}", separator=self._separator)
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
-
-            if result.returncode == 0:
-                try:
-                    info = json.loads(result.stdout)
-                except json.JSONDecodeError as e:
-                    self._logger.warning(f"Error decoding JSON from ffprobe output: {e}", separator=self._separator)
-                    self._logger.warning(f"ffprobe output: {result.stdout}", separator=self._separator)
-                    return StreamInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0, channels=0, format="")
-
-                duration = 0.0
-                bitrate = 0
-                sample_rate = 0
-                bit_depth = 0
-                channels = 0
-                audio_format = ""
-
-                if 'format' in info:
-                    if 'duration' in info['format']:
-                        try:
-                            duration = float(info['format']['duration'])
-                        except ValueError:
-                            self._logger.warning(f"Could not convert duration to float. Raw duration: {info['format']['duration']}", separator=self._separator)
-                    if 'bit_rate' in info['format']:
-                        try:
-                            bitrate = int(info['format']['bit_rate'])
-                        except ValueError:
-                            self._logger.warning(f"Could not convert bitrate to int. Raw bitrate: {info['format']['bit_rate']}", separator=self._separator)
-
-                if 'streams' in info:
-                    for stream in info['streams']:
-                        if 'sample_rate' in stream:
-                            try:
-                                sample_rate = int(stream['sample_rate'])
-                            except ValueError:
-                                self._logger.warning(f"Could not convert sample_rate to int. Raw sample_rate: {stream['sample_rate']}", separator=self._separator)
-                        if 'bits_per_sample' in stream:
-                            try:
-                                bit_depth = int(stream['bits_per_sample'])
-                            except ValueError:
-                                self._logger.warning(f"Could not convert bit_depth to int. Raw bit_depth: {stream['bits_per_sample']}", separator=self._separator)
-                        if 'sample_fmt' in stream and bit_depth == 0:
-                            bit_depth = self._get_bit_depth_from_format(stream['sample_fmt'])
-                            audio_format = stream["sample_fmt"]
-                        if 'channels' in stream:
-                            try:
-                                channels = int(stream['channels'])
-                            except ValueError:
-                                self._logger.warning(f"Could not convert channels to int. Raw channels: {stream['channels']}", separator=self._separator)
-
-                return StreamInfoModel(duration=duration, bitrate=bitrate/1000, sample_rate=sample_rate/1000, bit_depth=bit_depth, channels=channels, format=audio_format)
-
-            else:
-                self._logger.warning(f"ffprobe error: {result.stderr}", separator=self._separator)
-                return StreamInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0, channels=0, format="")
-
-        except FileNotFoundError:
-            self._logger.error("ffprobe not found. Please install FFmpeg.", separator=self._separator)
-            return StreamInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0, channels=0, format="")
-        except Exception as e:
-            self._logger.warning(f"An unexpected error occurred: {e}", separator=self._separator)
-            return StreamInfoModel(duration=0.0, bitrate=0, sample_rate=0, bit_depth=0, channels=0, format="")
 
     def _calculate_dynamic_range_and_crest_factor(self, audio_file: Path) -> (float, float):
         """Calculates the peak-to-RMS dynamic range of an audio signal.
@@ -146,7 +30,7 @@ class AddAdvancedMetadata(IPipe):
              float: The dynamic range in dB, or None if an error occurs.
          """
         try:
-            y, sr = librosa.load(audio_file)  # Load the audio
+            y, sr = librosa.load(audio_file)
         except Exception as e:
             print(f"Error loading audio file: {e}")
             return 0, 0
@@ -161,7 +45,7 @@ class AddAdvancedMetadata(IPipe):
 
         return dynamic_range, crest_factor
 
-    def _calculate_max_data_per_second(self, stream_info: StreamInfoModel) -> float:
+    def _calculate_max_data_per_second(self, stream_info: AudioStreamsInfoModel) -> float:
         """Calculates the data rate per second in bits."""
         if stream_info.sample_rate == 0 or stream_info.bit_depth == 0 or stream_info.channels == 0:
             return 0.0
@@ -172,7 +56,7 @@ class AddAdvancedMetadata(IPipe):
 
         for track in data.generated_audio_info:
             self._logger.trace(f"Adding metadata for track: {track.path}...", separator=self._separator)
-            file_info: StreamInfoModel = self._get_stream_info(track.path)
+            file_info: AudioStreamsInfoModel = self._audio_file_handler.get_audio_streams_info(track.path)
             dynamic_range, crest_factor = self._calculate_dynamic_range_and_crest_factor(track.path)
             max_data_per_second = self._calculate_max_data_per_second(file_info)
 
