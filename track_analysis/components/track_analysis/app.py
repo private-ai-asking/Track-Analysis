@@ -38,7 +38,7 @@ class App:
 
     def _generate_new_data(self):
         data_generator: DataGenerator = DataGenerator(self._logger, self._audio_file_handler, self._audio_calculator, self._time_utils)
-        data_generator.generate_data([Header.True_Peak])
+        data_generator.generate_data([Header.True_Peak], batch_size=32)
 
 
     def _debug_extract_tags(self):

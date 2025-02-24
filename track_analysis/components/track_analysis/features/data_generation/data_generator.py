@@ -43,6 +43,6 @@ class DataGenerator:
 
         self._logger.trace("Generating data.", separator=self._separator)
 
-        pipeline = DataGenerationPipeline(self._logger, headers, self._audio_file_handler, self._audio_calculator, batch_size)
+        pipeline = DataGenerationPipeline(self._logger, headers, self._audio_file_handler, self._audio_calculator, self._time_utils, batch_size)
         pipeline.build_pipeline()
         self._flow_pipeline(pipeline, context)

@@ -41,6 +41,10 @@ class BatchContext(pydantic.BaseModel):
         with self._processed_tracks_lock:
             self.processed_tracks.extend(to_extend)
 
+    model_config = {
+        "arbitrary_types_allowed": True
+    }
+
 class DataGenerationPipeConfiguration(pydantic.BaseModel):
     headers_to_fill: List[Header]
     batch_size: int
