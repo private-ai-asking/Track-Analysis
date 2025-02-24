@@ -6,3 +6,7 @@
 	path = track_analysis/components/md_common_python
 	url = https://github.com/LordMartron94/py-common
 	branch = main
+[submodule "MD.Launcher"]
+	path = track_analysis/components/md.launcher
+	url = https://github.com/LordMartron94/MD.Launcher
+	branch = main
