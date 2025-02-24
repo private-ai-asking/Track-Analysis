@@ -1,0 +1,16 @@
+{
+  "sender_id": "6a063d14-48d3-4a81-8cc2-b7dbb5d71e4e",
+  "payload": {
+    "action": "register",
+    "args": [
+      {
+        "type": "string",
+        "value": "TrackAnalysis"
+      },
+      {
+        "type": "string",
+        "value": "1.0.0"
+      }
+    ]
+  }
+}

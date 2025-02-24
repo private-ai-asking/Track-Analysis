@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from track_analysis.components.md_common_python.py_common.cli_framework import CommandLineInterface
+from track_analysis.components.md_common_python.py_common.component_registration import ComponentRegistration
 from track_analysis.components.md_common_python.py_common.handlers import FileHandler
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
@@ -26,10 +27,12 @@ class App:
         self._audio_file_handler: AudioFileHandler = AudioFileHandler(logger)
         self._audio_calculator: AudioCalculator = AudioCalculator(logger)
         self._time_utils: TimeUtils = TimeUtils()
+        self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)
         self._logger = logger
 
     def run(self):
         cmd: CommandLineInterface = CommandLineInterface(self._logger)
+        cmd.add_command(["test_registration", "tr"], "Tests the registration functionality.", self._test_registration)
         cmd.add_command(["extract_tags_debug", "etd"], "Debugs the extract tags function.", self._debug_extract_tags)
         cmd.add_command(["make_csv", "mc"], "Makes a CSV file from the extracted metadata.", self._make_csv)
         cmd.add_command(["add_path_to_metadata", "apm"], "Adds the path of a file to the metadata.", self._add_path_to_metadata)
@@ -40,6 +43,11 @@ class App:
         data_generator: DataGenerator = DataGenerator(self._logger, self._audio_file_handler, self._audio_calculator, self._time_utils)
         data_generator.generate_data([Header.True_Peak], batch_size=32)
 
+    def _test_registration(self):
+        registration_path: Path = Path("X:\\Track Analysis\\track_analysis\components\\track_analysis\\registration.json")
+        signature_path: Path = Path("X:\\Track Analysis\\track_analysis\components\\track_analysis\\component_signature.json")
+
+        self._registration.register_component(registration_path, signature_path)
 
     def _debug_extract_tags(self):
         def _always_true_validator(_: str) -> (bool, str):

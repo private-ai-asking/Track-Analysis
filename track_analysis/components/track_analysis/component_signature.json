@@ -1,0 +1,10 @@
+[
+  {
+    "name": "shutdown",
+    "signature": {
+      "num_of_args": 0,
+      "type_of_args": [],
+      "response_types": ["void"]
+    }
+  }
+]
