@@ -10,3 +10,7 @@
 	path = track_analysis/components/md.launcher
 	url = https://github.com/LordMartron94/MD.Launcher
 	branch = main
+[submodule "MD.Logging"]
+	path = track_analysis/components/md.logging
+	url = https://github.com/LordMartron94/CBA-Logger
+	branch = main
