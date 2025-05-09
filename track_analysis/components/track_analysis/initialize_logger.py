@@ -24,7 +24,7 @@ def get_logger() -> HoornLogger:
     max_sep_length = 65
 
     file_output: FileHoornLogOutput = FileHoornLogOutput(
-        log_directory=_get_user_local_appdata_dir().joinpath("Track Analysis", "logs"),
+        log_directory=_get_user_local_appdata_dir().joinpath("TrackAnalysis", "logs"),
         max_logs_to_keep=10,
         max_separator_length=max_sep_length
     )

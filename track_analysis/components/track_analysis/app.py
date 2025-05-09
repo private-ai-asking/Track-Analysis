@@ -1,4 +1,9 @@
+import cProfile
+import pstats
 from pathlib import Path
+from pstats import Stats
+
+import speedscope
 
 from track_analysis.components.md_common_python.py_common.cli_framework import CommandLineInterface
 from track_analysis.components.md_common_python.py_common.component_registration import ComponentRegistration
@@ -47,7 +52,8 @@ class App:
         cmd.add_command(["make_csv", "mc"], "Makes a CSV file from the extracted metadata.", self._make_csv)
         cmd.add_command(["add_path_to_metadata", "apm"], "Adds the path of a file to the metadata.", self._add_path_to_metadata)
         cmd.add_command(["generate_new_data", "gnd"], "Fills in the newly added header(s) since last cache update.", self._generate_new_data)
-        cmd.add_command(["link_scrobbles", "ls"], "Links the scrobbles to the library data.", self._link_scrobbles)
+        cmd.add_command(["link_scrobbles", "ls"], "Links the scrobbles to the library data.", self._link_scrobbles, arguments=[False])
+        cmd.add_command(["link_scrobbles-profile", "ls-p"], "Links the scrobbles to the library data but profiles the performance also.", self._link_scrobbles, arguments=[True])
         cmd.start_listen_loop()
 
     def _exit(self):
@@ -58,10 +64,22 @@ class App:
         data_generator: DataGenerator = DataGenerator(self._logger, self._audio_file_handler, self._audio_calculator, self._time_utils)
         data_generator.generate_data([Header.True_Peak], batch_size=32)
 
-    def _link_scrobbles(self) -> None:
+    def _link_scrobbles(self, profiling: bool=False) -> None:
         output_path: Path = OUTPUT_DIRECTORY.joinpath("enriched_scrobbles.csv")
 
-        self._scrobble_linker.link_scrobbles(output_path, threshold=MINIMUM_FUZZY_CONFIDENCE)
+        if not profiling:
+            self._scrobble_linker.link_scrobbles(output_path, threshold=MINIMUM_FUZZY_CONFIDENCE)
+            return
+
+        # with cProfile.Profile() as profile:
+        #     self._scrobble_linker.link_scrobbles(output_path, threshold=MINIMUM_FUZZY_CONFIDENCE)
+        #
+        # results: Stats = Stats(profile)
+        # results.sort_stats(pstats.SortKey.TIME)
+        # results.print_stats()
+
+        with speedscope.track(OUTPUT_DIRECTORY.joinpath("benchmarks/speedscope.json")):
+            self._scrobble_linker.link_scrobbles(output_path, threshold=MINIMUM_FUZZY_CONFIDENCE)
 
     def _test_registration(self):
         registration_path: Path = Path("X:\\Track Analysis\\track_analysis\components\\track_analysis\\registration.json")

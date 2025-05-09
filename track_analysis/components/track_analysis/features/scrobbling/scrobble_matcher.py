@@ -69,12 +69,10 @@ class ScrobbleMatcher:
             if score > best_score:
                 best_score, best_uuid = score, lib_row["UUID"]
         # Apply threshold
-        result = best_uuid if best_score >= threshold else None
+        result = best_uuid if best_score >= threshold else "<NO ASSOCIATED KEY>"
         # Store in cache (even None to avoid re-compute)
         try:
-            normalized_result = result if result is not None else "<NO ASSOCIATED KEY>"
-
-            self._cache_builder.set(key, normalized_result)
+            self._cache_builder.set(key, result)
             self._logger.trace(f"Cache set for key [{key}]: {result}", separator=self._separator)
         except Exception as e:
             self._logger.error(f"Failed to set cache for key [{key}]: {e}", separator=self._separator)
