@@ -3,8 +3,10 @@ from pathlib import Path
 import pandas as pd
 from pandas import DataFrame
 
+from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
+from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_matcher import ScrobbleMatcher
 
@@ -21,13 +23,13 @@ class ScrobbleLinkerService:
         self._separator: str = "ScrobbleLinker"
         self._string_utils: StringUtils = string_utils
         self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, library_data_path, scrobble_data_path, self._string_utils)
-        self._scrobble_matcher: ScrobbleMatcher = ScrobbleMatcher(logger)
+        self._scrobble_matcher: ScrobbleMatcher = ScrobbleMatcher(logger, CacheBuilder(logger, CACHE_DIRECTORY.joinpath("scrobble_cache.json"), tree_separator="||"))
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
     def _log_unmatched_amount(self, enriched_scrobble_date: pd.DataFrame) -> None:
         # Log unmatched count
-        unmatched: int = enriched_scrobble_date["track_uuid"].isna().sum()
+        unmatched: int = enriched_scrobble_date["track_uuid"].eq("<NO ASSOCIATED KEY>").sum()
         total: int = len(enriched_scrobble_date)
         self._logger.info(
             f"Linked {total - unmatched} of {total} scrobbles. {unmatched} remain unmatched.",
