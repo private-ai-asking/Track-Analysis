@@ -9,4 +9,4 @@ DATA_DIRECTORY: Path = Path("X:\Track Analysis\data")
 DEBUG: bool = True
 VERBOSE: bool = True
 
-MINIMUM_FUZZY_CONFIDENCE: float = 0.95
+MINIMUM_FUZZY_CONFIDENCE: float = 95  # 0-100

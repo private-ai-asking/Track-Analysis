@@ -6,10 +6,12 @@ from track_analysis.components.md_common_python.py_common.handlers import FileHa
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
-from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY
+from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
+    MINIMUM_FUZZY_CONFIDENCE, DATA_DIRECTORY
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
+from track_analysis.components.track_analysis.features.scrobbling.scrobble_linker import ScrobbleLinker
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 from track_analysis.components.track_analysis.model.audio_info import AudioInfo
 from track_analysis.components.track_analysis.model.header import Header
@@ -28,6 +30,11 @@ class App:
         self._audio_calculator: AudioCalculator = AudioCalculator(logger)
         self._time_utils: TimeUtils = TimeUtils()
         self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)
+        self._scrobble_linker: ScrobbleLinker = ScrobbleLinker(
+            logger,
+            library_data_path=OUTPUT_DIRECTORY.joinpath("data.csv"),
+            scrobble_data_path=DATA_DIRECTORY.joinpath("scrobbles_test.csv")
+        )
         self._logger = logger
 
     def run(self):
@@ -48,8 +55,10 @@ class App:
         data_generator: DataGenerator = DataGenerator(self._logger, self._audio_file_handler, self._audio_calculator, self._time_utils)
         data_generator.generate_data([Header.True_Peak], batch_size=32)
 
-    def _link_scrobbles(self):
-        ...
+    def _link_scrobbles(self) -> None:
+        output_path: Path = OUTPUT_DIRECTORY.joinpath("enriched_scrobbles.csv")
+
+        self._scrobble_linker.link_scrobbles(output_path, threshold=MINIMUM_FUZZY_CONFIDENCE)
 
     def _test_registration(self):
         registration_path: Path = Path("X:\\Track Analysis\\track_analysis\components\\track_analysis\\registration.json")

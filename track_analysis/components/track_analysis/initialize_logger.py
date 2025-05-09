@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from track_analysis.components.md_common_python.py_common.logging import HoornLogger, LogType, FileHoornLogOutput, \
-    DefaultHoornLogOutput
+from track_analysis.components.md_common_python.py_common.logging import HoornLogger, LogType, FileHoornLogOutput
 from track_analysis.components.md_common_python.py_common.logging.output.windowed_hoorn_log_output import \
     WindowedHoornLogOutput
 from track_analysis.components.track_analysis.constants import DEBUG, VERBOSE
