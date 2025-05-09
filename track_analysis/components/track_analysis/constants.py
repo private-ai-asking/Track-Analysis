@@ -7,6 +7,6 @@ OUTPUT_DIRECTORY: Path = Path("X:\Track Analysis\output")
 DATA_DIRECTORY: Path = Path("X:\Track Analysis\data")
 
 DEBUG: bool = True
-VERBOSE: bool = False
+VERBOSE: bool = True
 
 MINIMUM_FUZZY_CONFIDENCE: float = 0.95

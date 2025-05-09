@@ -4,6 +4,7 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
     DefaultHoornLogOutput
 from track_analysis.components.md_common_python.py_common.logging.output.windowed_hoorn_log_output import \
     WindowedHoornLogOutput
+from track_analysis.components.track_analysis.constants import DEBUG, VERBOSE
 
 
 def _get_user_local_appdata_dir() -> Path:
@@ -33,8 +34,16 @@ def get_logger() -> HoornLogger:
         max_separator_length=max_sep_length
     )
 
+    min_level: LogType = LogType.INFO
+
+    if DEBUG:
+        min_level = LogType.DEBUG
+
+        if VERBOSE:
+            min_level = LogType.TRACE
+
     return HoornLogger(
         outputs=[file_output, console_output],
-        min_level=LogType.TRACE,
+        min_level=min_level,
         separator_root="TrackAnalysis",
         max_separator_length=max_sep_length)
