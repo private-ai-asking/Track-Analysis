@@ -3,3 +3,5 @@ numpy
 librosa
 soundfile
 pyloudnorm
+pyqt5
+ansi2html

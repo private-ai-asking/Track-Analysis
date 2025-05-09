@@ -2,6 +2,8 @@ from pathlib import Path
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger, LogType, FileHoornLogOutput, \
     DefaultHoornLogOutput
+from track_analysis.components.md_common_python.py_common.logging.output.windowed_hoorn_log_output import \
+    WindowedHoornLogOutput
 
 
 def _get_user_local_appdata_dir() -> Path:
@@ -27,8 +29,12 @@ def get_logger() -> HoornLogger:
         max_separator_length=max_sep_length
     )
 
+    console_output: WindowedHoornLogOutput = WindowedHoornLogOutput(
+        max_separator_length=max_sep_length
+    )
+
     return HoornLogger(
-        outputs=[file_output, DefaultHoornLogOutput(max_separator_length=max_sep_length)],
+        outputs=[file_output, console_output],
         min_level=LogType.TRACE,
         separator_root="TrackAnalysis",
         max_separator_length=max_sep_length)
