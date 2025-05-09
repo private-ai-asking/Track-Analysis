@@ -6,12 +6,13 @@ from track_analysis.components.md_common_python.py_common.handlers import FileHa
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
+from track_analysis.components.md_common_python.py_common.utils.string_utils import StringUtils
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
     MINIMUM_FUZZY_CONFIDENCE, DATA_DIRECTORY
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
-from track_analysis.components.track_analysis.features.scrobbling.scrobble_linker import ScrobbleLinker
+from track_analysis.components.track_analysis.features.scrobbling.scrobble_linker_service import ScrobbleLinkerService
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 from track_analysis.components.track_analysis.model.audio_info import AudioInfo
 from track_analysis.components.track_analysis.model.header import Header
@@ -23,6 +24,7 @@ from track_analysis.components.track_analysis.pipeline.pipeline_context import P
 
 class App:
     def __init__(self, logger: HoornLogger):
+        self._string_utils: StringUtils = StringUtils(logger)
         self._user_input_helper: UserInputHelper = UserInputHelper(logger)
         self._tag_extractor: TagExtractor = TagExtractor(logger)
         self._file_handler: FileHandler = FileHandler()
@@ -30,10 +32,11 @@ class App:
         self._audio_calculator: AudioCalculator = AudioCalculator(logger)
         self._time_utils: TimeUtils = TimeUtils()
         self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)
-        self._scrobble_linker: ScrobbleLinker = ScrobbleLinker(
+        self._scrobble_linker: ScrobbleLinkerService = ScrobbleLinkerService(
             logger,
             library_data_path=OUTPUT_DIRECTORY.joinpath("data.csv"),
-            scrobble_data_path=DATA_DIRECTORY.joinpath("scrobbles_test.csv")
+            scrobble_data_path=DATA_DIRECTORY.joinpath("scrobbles_test.csv"),
+            string_utils=self._string_utils
         )
         self._logger = logger
 
