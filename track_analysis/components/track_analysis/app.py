@@ -15,7 +15,7 @@ from track_analysis.components.md_common_python.py_common.time_handling import T
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
 from track_analysis.components.md_common_python.py_common.utils.string_utils import StringUtils
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
-    MINIMUM_FUZZY_CONFIDENCE, DATA_DIRECTORY, BENCHMARK_DIRECTORY
+    MINIMUM_CONFIDENCE_THRESHOLD, DATA_DIRECTORY, BENCHMARK_DIRECTORY
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
@@ -33,7 +33,7 @@ from track_analysis.tests.registration_test import RegistrationTest
 
 class App:
     def __init__(self, logger: HoornLogger):
-        self._embedder: SentenceTransformer = SentenceTransformer(model_name_or_path=str(DATA_DIRECTORY / "__internal__" / "all-MiniLM-l6-v2"), device="cuda")
+        self._embedder: SentenceTransformer = SentenceTransformer(model_name_or_path=str(DATA_DIRECTORY / "__internal__" / "all-MiniLM-l6-v2-embed"), device="cuda")
 
         keys_path: Path = DATA_DIRECTORY.joinpath("__internal__", "lib_keys.pkl")
         index_path: Path = DATA_DIRECTORY.joinpath("__internal__", "lib.index")
@@ -48,14 +48,14 @@ class App:
         self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)
 
         library_data_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
-        scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles_test.csv")
+        scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles.csv")
 
         self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, library_data_path, scrobble_data_path, self._string_utils)
         self._scrobble_linker: ScrobbleLinkerService = ScrobbleLinkerService(
             logger,
             data_loader=self._scrobble_data_loader,
             string_utils=self._string_utils,
-            minimum_fuzzy_threshold=MINIMUM_FUZZY_CONFIDENCE,
+            minimum_fuzzy_threshold=MINIMUM_CONFIDENCE_THRESHOLD,
             embedder=self._embedder,
             keys_path=keys_path,
             index_path=index_path

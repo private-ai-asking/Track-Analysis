@@ -11,7 +11,7 @@ from track_analysis.components.md_common_python.py_common.cache_helpers import C
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
 from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY, CLEAR_CACHE, TEST_SAMPLE_SIZE, \
-    DATA_DIRECTORY
+    DATA_DIRECTORY, NO_MATCH_LABEL
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_matcher import ScrobbleMatcher
 
@@ -44,7 +44,7 @@ class ScrobbleLinkerService:
             CacheBuilder(logger, cache_path, tree_separator=self._combo_key),
             embedder=self._embedder,
             threshold=minimum_fuzzy_threshold,
-            key_combo=self._combo_key,
+            combo_key=self._combo_key,
             ann_k=10,
             keys_path=keys_path,
             faiss_index_path=index_path
@@ -95,7 +95,7 @@ class ScrobbleLinkerService:
 
     def _log_unmatched_amount(self, enriched_scrobble_date: pd.DataFrame) -> None:
         # Log unmatched count
-        unmatched: int = enriched_scrobble_date["track_uuid"].eq("<NO ASSOCIATED KEY>").sum()
+        unmatched: int = enriched_scrobble_date["track_uuid"].eq(NO_MATCH_LABEL).sum()
         total: int = len(enriched_scrobble_date)
         self._logger.info(
             f"Linked {total - unmatched} of {total} scrobbles. {unmatched} remain unmatched.",
@@ -108,9 +108,9 @@ class ScrobbleLinkerService:
         self._logger.info("Starting to link scrobbles...", separator=self._separator)
         self._scrobble_data_loader.load(sample_rows=TEST_SAMPLE_SIZE)
 
-        library_data: DataFrame = self._scrobble_data_loader.get_library_data()
+        # library_data: DataFrame = self._scrobble_data_loader.get_library_data()
         scrobble_data: DataFrame = self._scrobble_data_loader.get_scrobble_data()
 
-        enriched_scrobble_data: DataFrame = self._scrobble_matcher.link_scrobbles(library_data, scrobble_data)
+        enriched_scrobble_data: DataFrame = self._scrobble_matcher.link_scrobbles(scrobble_data)
         self._log_unmatched_amount(enriched_scrobble_data)
         return enriched_scrobble_data
