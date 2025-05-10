@@ -55,7 +55,6 @@ class App:
             logger,
             data_loader=self._scrobble_data_loader,
             string_utils=self._string_utils,
-            minimum_fuzzy_threshold=MINIMUM_CONFIDENCE_THRESHOLD,
             embedder=self._embedder,
             keys_path=keys_path,
             index_path=index_path
