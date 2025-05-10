@@ -1,10 +1,11 @@
 from pathlib import Path
-from typing import Union
+from typing import Union, Dict
 
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
+from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
 
 
 class ScrobbleDataLoader:
@@ -13,7 +14,9 @@ class ScrobbleDataLoader:
                  logger: HoornLogger,
                  library_data_path: Path,
                  scrobble_data_path: Path,
-                 string_utils: StringUtils):
+                 string_utils: StringUtils,
+                 scrobble_utils: ScrobbleUtility
+                 ):
         self._logger: HoornLogger = logger
         self._separator: str = "ScrobbleDataLoader"
         self._string_utils: StringUtils = string_utils
@@ -21,7 +24,11 @@ class ScrobbleDataLoader:
         self._library_data_path: Path = library_data_path
         self._scrobble_data_path: Path = scrobble_data_path
 
+        self._scrobble_utils: ScrobbleUtility = scrobble_utils
+
         self._loaded: bool = False
+
+        self._lookup_cache: Dict[str, str] = {}
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
@@ -36,7 +43,30 @@ class ScrobbleDataLoader:
 
         self._load_data(self._library_data_path, self._scrobble_data_path, sample_rows=sample_rows)
         self._normalize_data()
+        self._build_lookup()
         self._loaded = True
+
+    def get_direct_lookup(self) -> Union[Dict[str, str], None]:
+        """Builds a direct lookup between the library keycombo and its associated ID."""
+        if not self._loaded:
+            self._logger.warning("You haven't loaded the data yet!", separator=self._separator)
+            return None
+
+        return self._lookup_cache
+
+    def get_library_data(self) -> Union[pd.DataFrame, None]:
+        if not self._loaded:
+            self._logger.warning("You haven't loaded the data yet!", separator=self._separator)
+            return None
+
+        return self._library_data
+
+    def get_scrobble_data(self) -> Union[pd.DataFrame, None]:
+        if not self._loaded:
+            self._logger.warning("You haven't loaded the data yet!", separator=self._separator)
+            return None
+
+        return self._scrobble_data
 
     def _load_data(self, library_data_path: Path, scrobble_data_path: Path, sample_rows: int=None):
         self._logger.trace("Loading data...", separator=self._separator)
@@ -59,16 +89,8 @@ class ScrobbleDataLoader:
             df["_n_artist"] = df["Artist(s)"].map(self._string_utils.normalize_field)
             df["_n_album"] = df["Album"].map(self._string_utils.normalize_field)
 
-    def get_library_data(self) -> Union[pd.DataFrame, None]:
-        if not self._loaded:
-            self._logger.warning("You haven't loaded the data yet!", separator=self._separator)
-            return None
+    def _build_lookup(self):
+        def __add_to_cache(row: pd.Series):
+            self._lookup_cache[self._scrobble_utils.compute_key(row["_n_title"], row["_n_artist"], row["_n_album"])] = row["UUID"]
 
-        return self._library_data
-
-    def get_scrobble_data(self) -> Union[pd.DataFrame, None]:
-        if not self._loaded:
-            self._logger.warning("You haven't loaded the data yet!", separator=self._separator)
-            return None
-
-        return self._scrobble_data
+        self._library_data.apply(axis=1, func=lambda row: __add_to_cache(row))

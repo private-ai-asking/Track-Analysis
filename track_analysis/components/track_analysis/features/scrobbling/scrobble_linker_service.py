@@ -10,8 +10,10 @@ from track_analysis.components.md_common_python.py_common.utils import StringUti
 from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY, CLEAR_CACHE, TEST_SAMPLE_SIZE, \
     NO_MATCH_LABEL
 from track_analysis.components.track_analysis.features.scrobbling.embedding_builder import EmbeddingBuilder
+from track_analysis.components.track_analysis.features.scrobbling.scrobble_cache_builder import ScrobbleCacheBuilder
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_matcher import ScrobbleMatcher
+from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
 
 
 class ScrobbleLinkerService:
@@ -24,11 +26,13 @@ class ScrobbleLinkerService:
                  embedder: SentenceTransformer,
                  keys_path: Path,
                  index_path: Path,
+                 scrobble_utils: ScrobbleUtility,
+                 combo_key: str = "||",
                  minimum_confidence_threshold: float = 90.0):
         self._logger: HoornLogger = logger
         self._separator: str = "ScrobbleLinker"
         self._string_utils: StringUtils = string_utils
-        self._combo_key: str = "||"
+        self._combo_key: str = combo_key
         self._embedder: SentenceTransformer = embedder
         self._scrobble_data_loader: ScrobbleDataLoader = data_loader
         self._keys_path: Path = keys_path
@@ -40,9 +44,12 @@ class ScrobbleLinkerService:
         if CLEAR_CACHE:
             cache_path.unlink(missing_ok=True)
 
+        cache_builder: CacheBuilder = CacheBuilder(logger, cache_path, tree_separator=self._combo_key)
+
         self._scrobble_matcher: ScrobbleMatcher = ScrobbleMatcher(
             logger,
-            CacheBuilder(logger, cache_path, tree_separator=self._combo_key)
+            cache_builder,
+            scrobble_utils
         )
 
         self._embedding_builder: EmbeddingBuilder = EmbeddingBuilder(
@@ -53,10 +60,23 @@ class ScrobbleLinkerService:
             sample_scrobbles=TEST_SAMPLE_SIZE
         )
 
+        self._scrobble_cache_builder: ScrobbleCacheBuilder = ScrobbleCacheBuilder(
+            logger,
+            cache_builder,
+            data_loader,
+            sample_size=TEST_SAMPLE_SIZE,
+            scrobble_utils=scrobble_utils,
+            index_path=index_path,
+            embedding_model=embedder
+        )
+
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
     def build_embeddings_for_library(self) -> None:
         self._embedding_builder.build_embeddings()
+
+    def build_cache(self) -> None:
+        self._scrobble_cache_builder.build_cache()
 
     def link_scrobbles(self) -> pd.DataFrame:
         """Links scrobble data to library data by matching tracks and writing the associated Track ID

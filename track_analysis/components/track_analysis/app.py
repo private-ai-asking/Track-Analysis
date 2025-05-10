@@ -15,12 +15,13 @@ from track_analysis.components.md_common_python.py_common.time_handling import T
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
 from track_analysis.components.md_common_python.py_common.utils.string_utils import StringUtils
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
-    MINIMUM_CONFIDENCE_THRESHOLD, DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START
+    DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_linker_service import ScrobbleLinkerService
+from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 from track_analysis.components.track_analysis.model.header import Header
 from track_analysis.components.track_analysis.pipeline.build_csv_pipeline import BuildCSVPipeline
@@ -46,18 +47,23 @@ class App:
         self._audio_calculator: AudioCalculator = AudioCalculator(logger)
         self._time_utils: TimeUtils = TimeUtils()
         self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)
+        self._combo_key: str = "||"
 
         library_data_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
         scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles.csv")
+        # scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles_test.csv")
+        scrobble_utils: ScrobbleUtility = ScrobbleUtility(logger, self._combo_key)
 
-        self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, library_data_path, scrobble_data_path, self._string_utils)
+        self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, library_data_path, scrobble_data_path, self._string_utils, scrobble_utils)
         self._scrobble_linker: ScrobbleLinkerService = ScrobbleLinkerService(
             logger,
             data_loader=self._scrobble_data_loader,
             string_utils=self._string_utils,
             embedder=self._embedder,
             keys_path=keys_path,
-            index_path=index_path
+            index_path=index_path,
+            combo_key=self._combo_key,
+            scrobble_utils=scrobble_utils
         )
 
         registration_test: RegistrationTest = RegistrationTest(logger, self._registration)
@@ -89,16 +95,14 @@ class App:
 
         self._logger = logger
 
-    def _tests(self):
-        self._test_coordinator.start_test_cli()
-
     def run(self):
         cmd: CommandLineInterface = CommandLineInterface(self._logger, exit_command=self._exit)
-        cmd.add_command(["launch_tests", "lt"], "Hops into the test framework CLI.", self._tests)
+        cmd.add_command(["launch_tests", "lt"], "Hops into the test framework CLI.", self._test_coordinator.start_test_cli)
         cmd.add_command(["make_csv", "mc"], "Makes a CSV file from the extracted metadata.", self._make_csv)
         cmd.add_command(["add_path_to_metadata", "apm"], "Adds the path of a file to the metadata.", self._add_path_to_metadata)
         cmd.add_command(["generate_new_data", "gnd"], "Fills in the newly added header(s) since last cache update.", self._generate_new_data)
         cmd.add_command(["generate_embeddings", "ge"], "Generates embeddings for the library.", self._generate_embeddings)
+        cmd.add_command(["build_cache", "bc"], "Builds the cache for the library for n samples.", self._scrobble_linker.build_cache)
         cmd.add_command(["link_scrobbles", "ls"], "Links the scrobbles to the library data.", self._link_scrobbles, arguments=[False])
         cmd.add_command(["link_scrobbles-profile", "ls-p"], "Links the scrobbles to the library data but profiles the performance also.", self._link_scrobbles, arguments=[True])
         cmd.start_listen_loop()
