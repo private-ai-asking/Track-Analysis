@@ -15,7 +15,7 @@ from track_analysis.components.md_common_python.py_common.time_handling import T
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
 from track_analysis.components.md_common_python.py_common.utils.string_utils import StringUtils
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
-    MINIMUM_CONFIDENCE_THRESHOLD, DATA_DIRECTORY, BENCHMARK_DIRECTORY
+    MINIMUM_CONFIDENCE_THRESHOLD, DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
@@ -112,6 +112,9 @@ class App:
 
     def _link_scrobbles(self, profiling: bool=False) -> None:
         output_path: Path = OUTPUT_DIRECTORY.joinpath("enriched_scrobbles.csv")
+        
+        if DELETE_FINAL_DATA_BEFORE_START:
+            output_path.unlink(missing_ok=True)
 
         if not profiling:
             enriched_scrobble_data = self._scrobble_linker.link_scrobbles()

@@ -8,10 +8,13 @@ from sentence_transformers import SentenceTransformer
 from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.utils import gaussian_exponential_kernel_confidence_percentage
-from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY, NO_MATCH_LABEL
+from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY, NO_MATCH_LABEL, CLEAR_CACHE
 
 # Path for persistent embedding cache
 _EMBED_CACHE_PATH = Path(CACHE_DIRECTORY) / "scrobble_embed_cache.pkl"
+
+if CLEAR_CACHE:
+    _EMBED_CACHE_PATH.unlink(missing_ok=True)
 
 
 def load_embed_cache() -> dict:
