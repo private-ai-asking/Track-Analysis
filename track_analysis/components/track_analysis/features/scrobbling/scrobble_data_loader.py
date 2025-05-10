@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Union
 
 import pandas as pd
 
@@ -20,6 +21,8 @@ class ScrobbleDataLoader:
         self._library_data_path: Path = library_data_path
         self._scrobble_data_path: Path = scrobble_data_path
 
+        self._loaded: bool = False
+
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
     def load(self, sample_rows: int = None) -> None:
@@ -27,8 +30,13 @@ class ScrobbleDataLoader:
 
         Set sample_rows to None to disable and load everything. Only applies to scrobble data.
         """
+        if self._loaded:
+            self._logger.info("Data is already loaded. Skipping.", separator=self._separator)
+            return
+
         self._load_data(self._library_data_path, self._scrobble_data_path, sample_rows=sample_rows)
         self._normalize_data()
+        self._loaded = True
 
     def _load_data(self, library_data_path: Path, scrobble_data_path: Path, sample_rows: int=None):
         self._logger.trace("Loading data...", separator=self._separator)
@@ -51,8 +59,16 @@ class ScrobbleDataLoader:
             df["_n_artist"] = df["Artist(s)"].map(self._string_utils.normalize_field)
             df["_n_album"] = df["Album"].map(self._string_utils.normalize_field)
 
-    def get_library_data(self) -> pd.DataFrame:
+    def get_library_data(self) -> Union[pd.DataFrame, None]:
+        if not self._loaded:
+            self._logger.warning("You haven't loaded the data yet!", separator=self._separator)
+            return None
+
         return self._library_data
 
-    def get_scrobble_data(self) -> pd.DataFrame:
+    def get_scrobble_data(self) -> Union[pd.DataFrame, None]:
+        if not self._loaded:
+            self._logger.warning("You haven't loaded the data yet!", separator=self._separator)
+            return None
+
         return self._scrobble_data

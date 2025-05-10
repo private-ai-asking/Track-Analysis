@@ -21,20 +21,20 @@ class ScrobbleLinkerService:
 
     def __init__(self,
                  logger: HoornLogger,
-                 library_data_path: Path,
-                 scrobble_data_path: Path,
+                 data_loader: ScrobbleDataLoader,
                  string_utils: StringUtils,
+                 embedder: SentenceTransformer,
+                 keys_path: Path,
+                 index_path: Path,
                  minimum_fuzzy_threshold: float = 95.0):
         self._logger: HoornLogger = logger
         self._separator: str = "ScrobbleLinker"
         self._string_utils: StringUtils = string_utils
         self._combo_key: str = "||"
-        self._embedder: SentenceTransformer = SentenceTransformer(model_name_or_path=str(DATA_DIRECTORY / "__internal__" / "all-MiniLM-l6-v2"), device="cuda")
-        self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, library_data_path, scrobble_data_path, self._string_utils)
+        self._embedder: SentenceTransformer = embedder
+        self._scrobble_data_loader: ScrobbleDataLoader = data_loader
 
         cache_path: Path = CACHE_DIRECTORY.joinpath("scrobble_cache.json")
-        keys_path: Path = DATA_DIRECTORY.joinpath("__internal__", "lib_keys.pkl")
-        index_path: Path = DATA_DIRECTORY.joinpath("__internal__", "lib.index")
 
         if CLEAR_CACHE:
             cache_path.unlink(missing_ok=True)

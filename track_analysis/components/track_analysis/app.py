@@ -1,14 +1,16 @@
 from datetime import datetime
 from pathlib import Path
+from typing import List
 
-import speedscope
-from PyQt5.QtCore import QCoreApplication
+from sentence_transformers import SentenceTransformer
 from viztracer import VizTracer
 
 from track_analysis.components.md_common_python.py_common.cli_framework import CommandLineInterface
 from track_analysis.components.md_common_python.py_common.component_registration import ComponentRegistration
 from track_analysis.components.md_common_python.py_common.handlers import FileHandler
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.md_common_python.py_common.testing import TestCoordinator
+from track_analysis.components.md_common_python.py_common.testing.test_coordinator import TestConfiguration
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
 from track_analysis.components.md_common_python.py_common.utils.string_utils import StringUtils
@@ -17,6 +19,7 @@ from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRAR
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
+from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_linker_service import ScrobbleLinkerService
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 from track_analysis.components.track_analysis.model.audio_info import AudioInfo
@@ -24,10 +27,17 @@ from track_analysis.components.track_analysis.model.header import Header
 from track_analysis.components.track_analysis.pipeline.build_csv_pipeline import BuildCSVPipeline
 from track_analysis.components.track_analysis.pipeline.locate_paths_pipeline import LocatePathsPipeline
 from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.tests.embedding_test import EmbeddingTest
+from track_analysis.tests.registration_test import RegistrationTest
 
 
 class App:
     def __init__(self, logger: HoornLogger):
+        self._embedder: SentenceTransformer = SentenceTransformer(model_name_or_path=str(DATA_DIRECTORY / "__internal__" / "all-MiniLM-l6-v2"), device="cuda")
+
+        keys_path: Path = DATA_DIRECTORY.joinpath("__internal__", "lib_keys.pkl")
+        index_path: Path = DATA_DIRECTORY.joinpath("__internal__", "lib.index")
+
         self._string_utils: StringUtils = StringUtils(logger)
         self._user_input_helper: UserInputHelper = UserInputHelper(logger)
         self._tag_extractor: TagExtractor = TagExtractor(logger)
@@ -36,18 +46,49 @@ class App:
         self._audio_calculator: AudioCalculator = AudioCalculator(logger)
         self._time_utils: TimeUtils = TimeUtils()
         self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)
+
+        library_data_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
+        scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles_test.csv")
+
+        self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, library_data_path, scrobble_data_path, self._string_utils)
         self._scrobble_linker: ScrobbleLinkerService = ScrobbleLinkerService(
             logger,
-            library_data_path=OUTPUT_DIRECTORY.joinpath("data.csv"),
-            scrobble_data_path=DATA_DIRECTORY.joinpath("scrobbles.csv"),
+            data_loader=self._scrobble_data_loader,
             string_utils=self._string_utils,
-            minimum_fuzzy_threshold=MINIMUM_FUZZY_CONFIDENCE
+            minimum_fuzzy_threshold=MINIMUM_FUZZY_CONFIDENCE,
+            embedder=self._embedder,
+            keys_path=keys_path,
+            index_path=index_path
         )
+
+        registration_test: RegistrationTest = RegistrationTest(logger, self._registration)
+        embedding_test: EmbeddingTest = EmbeddingTest(logger, embedder=self._embedder, keys_path=keys_path, index_path=index_path, data_loader=self._scrobble_data_loader)
+
+        tests: List[TestConfiguration] = [
+            TestConfiguration(
+                associated_test=registration_test,
+                keyword_arguments=[],
+                command_description="Tests the registration functionality.",
+                command_keys=["test_registration", "tr"]
+            ),
+            TestConfiguration(
+                associated_test=embedding_test,
+                keyword_arguments=[10],
+                command_description="Tests the embedding similarity matcher.",
+                command_keys=["test_embeddings", "te"]
+            )
+        ]
+
+        self._test_coordinator: TestCoordinator = TestCoordinator(logger, tests)
+
         self._logger = logger
+
+    def _tests(self):
+        self._test_coordinator.start_test_cli()
 
     def run(self):
         cmd: CommandLineInterface = CommandLineInterface(self._logger, exit_command=self._exit)
-        cmd.add_command(["test_registration", "tr"], "Tests the registration functionality.", self._test_registration)
+        cmd.add_command(["launch_tests", "lt"], "Hops into the test framework CLI.", self._tests)
         cmd.add_command(["extract_tags_debug", "etd"], "Debugs the extract tags function.", self._debug_extract_tags)
         cmd.add_command(["make_csv", "mc"], "Makes a CSV file from the extracted metadata.", self._make_csv)
         cmd.add_command(["add_path_to_metadata", "apm"], "Adds the path of a file to the metadata.", self._add_path_to_metadata)
@@ -94,12 +135,6 @@ class App:
         ) as _:
             enriched_scrobble_data = self._scrobble_linker.link_scrobbles()
             enriched_scrobble_data.to_csv(output_path, index=False)
-
-    def _test_registration(self):
-        registration_path: Path = Path("X:\\Track Analysis\\track_analysis\components\\track_analysis\\registration.json")
-        signature_path: Path = Path("X:\\Track Analysis\\track_analysis\components\\track_analysis\\component_signature.json")
-
-        self._registration.register_component(registration_path, signature_path)
 
     def _debug_extract_tags(self):
         def _always_true_validator(_: str) -> (bool, str):

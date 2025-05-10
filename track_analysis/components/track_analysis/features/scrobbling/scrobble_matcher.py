@@ -8,10 +8,10 @@ from sentence_transformers import SentenceTransformer
 from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.utils import SimilarityScorer
-from track_analysis.components.track_analysis.constants import DATA_DIRECTORY
+from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
 
 # On-disk cache for scrobble embeddings
-_EMBED_CACHE_PATH = Path(DATA_DIRECTORY) / "__internal__" / "scrobble_embed_cache.pkl"
+_EMBED_CACHE_PATH = Path(CACHE_DIRECTORY) / "scrobble_embed_cache.pkl"
 
 
 def load_embed_cache() -> dict:
