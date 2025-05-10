@@ -2,6 +2,7 @@ from datetime import datetime
 from pathlib import Path
 
 import speedscope
+from PyQt5.QtCore import QCoreApplication
 from viztracer import VizTracer
 
 from track_analysis.components.md_common_python.py_common.cli_framework import CommandLineInterface
@@ -51,6 +52,7 @@ class App:
         cmd.add_command(["make_csv", "mc"], "Makes a CSV file from the extracted metadata.", self._make_csv)
         cmd.add_command(["add_path_to_metadata", "apm"], "Adds the path of a file to the metadata.", self._add_path_to_metadata)
         cmd.add_command(["generate_new_data", "gnd"], "Fills in the newly added header(s) since last cache update.", self._generate_new_data)
+        cmd.add_command(["generate_embeddings", "ge"], "Generates embeddings for the library.", self._generate_embeddings)
         cmd.add_command(["link_scrobbles", "ls"], "Links the scrobbles to the library data.", self._link_scrobbles, arguments=[False])
         cmd.add_command(["link_scrobbles-profile", "ls-p"], "Links the scrobbles to the library data but profiles the performance also.", self._link_scrobbles, arguments=[True])
         cmd.start_listen_loop()
@@ -63,6 +65,9 @@ class App:
     def _generate_new_data(self):
         data_generator: DataGenerator = DataGenerator(self._logger, self._audio_file_handler, self._audio_calculator, self._time_utils)
         data_generator.generate_data([Header.True_Peak], batch_size=32)
+
+    def _generate_embeddings(self):
+        self._scrobble_linker.build_embeddings_for_library()
 
     def _link_scrobbles(self, profiling: bool=False) -> None:
         output_path: Path = OUTPUT_DIRECTORY.joinpath("enriched_scrobbles.csv")

@@ -7,3 +7,7 @@ pyqt5
 ansi2html
 pandas
 rapidfuzz
+viztracer
+sentence-transformers
+faiss-cpu
+huggingface
