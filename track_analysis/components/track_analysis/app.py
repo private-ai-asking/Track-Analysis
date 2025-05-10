@@ -33,7 +33,7 @@ from track_analysis.tests.registration_test import RegistrationTest
 
 class App:
     def __init__(self, logger: HoornLogger):
-        self._embedder: SentenceTransformer = SentenceTransformer(model_name_or_path=str(DATA_DIRECTORY / "__internal__" / "all-MiniLM-l6-v2-embed"), device="cuda")
+        self._embedder: SentenceTransformer = SentenceTransformer(model_name_or_path=str(DATA_DIRECTORY / "__internal__" / "all-MiniLM-l12-v2-embed"), device="cuda")
 
         keys_path: Path = DATA_DIRECTORY.joinpath("__internal__", "lib_keys.pkl")
         index_path: Path = DATA_DIRECTORY.joinpath("__internal__", "lib.index")
