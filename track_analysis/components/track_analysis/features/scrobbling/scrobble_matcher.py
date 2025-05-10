@@ -1,11 +1,9 @@
-from pathlib import Path
-import pickle
-from typing import List, Optional, Dict, Tuple
-
 import numpy as np
 import faiss
+import pickle
+from pathlib import Path
 from rapidfuzz import fuzz
-import pandas as pd
+from sentence_transformers import SentenceTransformer
 
 from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
@@ -16,7 +14,7 @@ from track_analysis.components.track_analysis.constants import DATA_DIRECTORY
 _EMBED_CACHE_PATH = Path(DATA_DIRECTORY) / "__internal__" / "scrobble_embed_cache.pkl"
 
 
-def load_embed_cache() -> Dict[str, np.ndarray]:
+def load_embed_cache() -> dict:
     try:
         with open(_EMBED_CACHE_PATH, 'rb') as f:
             return pickle.load(f)
@@ -24,121 +22,135 @@ def load_embed_cache() -> Dict[str, np.ndarray]:
         return {}
 
 
-def save_embed_cache(cache: Dict[str, np.ndarray]) -> None:
+def save_embed_cache(cache: dict) -> None:
     _EMBED_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(_EMBED_CACHE_PATH, 'wb') as f:
         pickle.dump(cache, f)
 
 
 class ScrobbleMatcher:
-    """Match scrobbles to library tracks using FAISS ANN + ONNX cached embeddings + batched fuzzy rerank."""
-
-    _SEPARATOR = "ScrobbleMatcher"
+    """Match scrobbles to library tracks using FAISS ANN + in-memory cached embeddings,
+    exact-match shortcut, and batched search with serial fuzzy rerank."""
 
     def __init__(
             self,
             logger: HoornLogger,
             cache_builder: CacheBuilder,
-            ort_session,
-            tokenizer,
-            index_path: Path,
+            embedder: SentenceTransformer,
+            faiss_index_path: Path,
             keys_path: Path,
             key_combo: str = "||",
-            field_weights: Optional[Dict[str, float]] = None,
-            similarity_func=fuzz.token_sort_ratio,
+            field_weights: dict = None,
+            similarity_func = fuzz.token_sort_ratio,
             threshold: float = 95.0,
             ann_k: int = 5,
-            batch_size: int = 64,
+            batch_size: int = 64
     ):
         self._logger = logger
         self._cache = cache_builder
+        self._embedder = embedder
         self._key_combo = key_combo
         self._threshold = threshold
         self._ann_k = ann_k
         self._batch_size = batch_size
-        self._tokenizer = tokenizer
-        self._ort_session = ort_session
 
-        self._load_faiss(index_path, keys_path)
-        self._init_scorer(field_weights or {}, similarity_func)
+        # load FAISS index and UUIDs
+        self._index, self._uuids = self._load_faiss(faiss_index_path, keys_path)
 
-    def _load_faiss(self, index_path: Path, keys_path: Path) -> None:
-        self._logger.info("Loading FAISS index and UUIDs...", separator=self._SEPARATOR)
-        self._index = faiss.read_index(str(index_path))
+        # init fuzzy scorer without chatty logging
+        self._scorer = SimilarityScorer(field_weights or {}, self._logger, similarity_func, threshold)
+
+        # load embed cache once
+        self._embed_cache = load_embed_cache()
+
+    def _load_faiss(self, index_path: Path, keys_path: Path):
+        self._logger.info("Loading FAISS index and UUIDs...", separator="ScrobbleMatcher")
+        index = faiss.read_index(str(index_path))
         with open(keys_path, 'rb') as f:
-            self._uuids: List[str] = pickle.load(f)
-        assert self._index.ntotal == len(self._uuids), "Index size and UUID list length mismatch"
-        if hasattr(self._index, 'is_trained'):
-            assert self._index.is_trained, "FAISS index is not trained"
-        self._logger.trace("FAISS index ready.", separator=self._SEPARATOR)
+            uuids = pickle.load(f)
+        assert index.ntotal == len(uuids), "Index size mismatch"
+        return index, uuids
 
-    def _init_scorer(self, field_weights: Dict[str, float], similarity_func: callable) -> None:
-        weights = field_weights or {'_n_title': 0.5, '_n_artist': 0.3, '_n_album': 0.2}
-        self._scorer = SimilarityScorer(weights, self._logger, similarity_func, self._threshold)
-        self._logger.trace("SimilarityScorer initialized.", separator=self._SEPARATOR)
+    def _build_exact_map(self, library_df):
+        # Precompute exact lookup from combined string to UUID
+        exact = {}
+        combo = self._key_combo
+        for rec in library_df.to_dict(orient='records'):
+            key = f"{rec['_n_artist']}{combo}{rec['_n_album']}{combo}{rec['_n_title']}"
+            exact[key] = rec['UUID']
+        return exact
 
-    def _make_cache_key(self, rec: Dict) -> str:
-        return f"{rec['_n_artist']}{self._key_combo}{rec['_n_album']}{self._key_combo}{rec['_n_title']}"
+    def _get_embeddings(self, texts: list) -> np.ndarray:
+        # Only compute new embeddings
+        unseen = [t for t in texts if t not in self._embed_cache]
+        if unseen:
+            embs = self._embedder.encode(
+                unseen,
+                convert_to_numpy=True,
+                batch_size=self._batch_size,
+                show_progress_bar=False
+            ).astype('float32')
+            for t, e in zip(unseen, embs):
+                self._embed_cache[t] = e
+        return np.vstack([self._embed_cache[t] for t in texts])
 
-    def _prepare_library(self, library_df: pd.DataFrame) -> Dict[str, Dict]:
-        return {rec['UUID']: rec for rec in library_df.to_dict(orient='records')}
+    def _batch_ann(self, embeddings: np.ndarray) -> list:
+        # Batch FAISS search
+        _, indices = self._index.search(embeddings, self._ann_k)
+        return [[self._uuids[i] for i in row if i < len(self._uuids)] for row in indices]
 
-    def _prepare_scrobbles(self, scrobble_df: pd.DataFrame) -> Tuple[List[Dict], List[str]]:
-        recs = scrobble_df.to_dict(orient='records')
-        texts = [f"{r['_n_artist']}{self._key_combo}{r['_n_album']}{self._key_combo}{r['_n_title']}" for r in recs]
-        return recs, texts
-
-    def _embed_texts(self, texts: List[str]) -> np.ndarray:
-        """Embed texts via ONNX Runtime, batched against cache."""
-        cache = load_embed_cache()
-        new = [t for t in texts if t not in cache]
-        if new:
-            # Batch tokenize
-            enc = self._tokenizer(new, return_tensors='np', padding=True, truncation=True, max_length=128)
-            # ONNX run
-            outputs = self._ort_session.run(None, {'input_ids': enc['input_ids'], 'attention_mask': enc['attention_mask']})
-            embs = outputs[0].astype('float32')
-            for t, emb in zip(new, embs): cache[t] = emb
-            save_embed_cache(cache)
-        # assemble
-        return np.vstack([cache[t] for t in texts])
-
-    def _ann_candidates(self, vec: np.ndarray) -> List[str]:
-        _, inds = self._index.search(vec.reshape(1, -1), self._ann_k)
-        return [self._uuids[i] for i in inds[0] if i < len(self._uuids)]
-
-    def _rerank(self, rec: Dict, candidate_ids: List[str], lib_lookup: Dict[str, Dict]) -> str:
+    def _rerank(self, rec: dict, candidates: list, lib_lookup: dict) -> str:
         best_uuid, best_score = '<NO ASSOCIATED KEY>', 0.0
-        for uid in candidate_ids:
+        for uid in candidates:
             lib_rec = lib_lookup.get(uid)
-            if lib_rec is None: continue
+            if not lib_rec:
+                continue
             score = self._scorer.score(rec, lib_rec, optimize=True)
             if score > best_score:
                 best_score, best_uuid = score, uid
         return best_uuid if best_score >= self._threshold else '<NO ASSOCIATED KEY>'
 
-    def link_scrobbles(self, library_df: pd.DataFrame, scrobble_df: pd.DataFrame) -> pd.DataFrame:
-        lib_lookup = self._prepare_library(library_df)
-        recs, texts = self._prepare_scrobbles(scrobble_df)
-        embeddings = self._embed_texts(texts)
+    def link_scrobbles(self, library_df, scrobble_df):
+        # Prepare lookups
+        lib_lookup = {r['UUID']: r for r in library_df.to_dict(orient='records')}
+        exact_map = self._build_exact_map(library_df)
+        recs = scrobble_df.to_dict(orient='records')
+        texts = [f"{r['_n_artist']}{self._key_combo}{r['_n_album']}{self._key_combo}{r['_n_title']}" for r in recs]
 
-        results: List[str] = []
-        for rec, vec in zip(recs, embeddings):
-            key = self._make_cache_key(rec)
-            cached = self._cache.get(key)
-            if cached:
-                self._logger.trace(f"Cache hit {key}: {cached}", separator=self._SEPARATOR)
+        # Shortcut exact matches and cache hits
+        results = []
+        to_process = []
+        for idx, (rec, txt) in enumerate(zip(recs, texts)):
+            # 1) exact match
+            if txt in exact_map:
+                match = exact_map[txt]
+                results.append(match)
+                self._cache.set(txt, match)
+            # 2) cache hit
+            elif (cached := self._cache.get(txt)):
                 results.append(cached)
-                continue
+            else:
+                results.append(None)
+                to_process.append(idx)
 
-            candidates = self._ann_candidates(vec)
-            match = self._rerank(rec, candidates, lib_lookup)
-            try:
-                self._cache.set(key, match)
-            except Exception as e:
-                self._logger.error(f"Cache set failed for {key}: {e}", separator=self._SEPARATOR)
-            results.append(match)
+        if to_process:
+            # batch embed and ann for those needing processing
+            embeddings = self._get_embeddings(texts)
+            candidates = self._batch_ann(embeddings)
 
+            # serial rerank
+            for idx in to_process:
+                rec = recs[idx]
+                cand = candidates[idx]
+                match = self._rerank(rec, cand, lib_lookup)
+                results[idx] = match
+                self._cache.set(texts[idx], match)
+
+        # attach results
         scrobble_df['track_uuid'] = results
+
+        # persist caches once (embed + match)
         self._cache.save()
+        save_embed_cache(self._embed_cache)
+
         return scrobble_df

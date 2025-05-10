@@ -4,10 +4,8 @@ from pathlib import Path
 import faiss
 import numpy as np
 import pandas as pd
-from onnxruntime import InferenceSession
 from pandas import DataFrame
 from sentence_transformers import SentenceTransformer
-from transformers import AutoTokenizer
 
 from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
@@ -31,14 +29,8 @@ class ScrobbleLinkerService:
         self._separator: str = "ScrobbleLinker"
         self._string_utils: StringUtils = string_utils
         self._combo_key: str = "||"
+        self._embedder: SentenceTransformer = SentenceTransformer(model_name_or_path=str(DATA_DIRECTORY / "__internal__" / "all-MiniLM-l6-v2"), device="cuda")
         self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, library_data_path, scrobble_data_path, self._string_utils)
-
-        onnx_path = DATA_DIRECTORY / "__internal__" / "onnx_models" / "miniLM_int8.onnx"
-        self._logger.info(f"Loading ONNX model from {onnx_path}", separator=self._separator)
-        # try GPU, fall back to CPU
-        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
-        self._ort_session = InferenceSession(str(onnx_path), providers=providers)
-        self._tokenizer   = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
 
         cache_path: Path = CACHE_DIRECTORY.joinpath("scrobble_cache.json")
         keys_path: Path = DATA_DIRECTORY.joinpath("__internal__", "lib_keys.pkl")
@@ -47,37 +39,18 @@ class ScrobbleLinkerService:
         if CLEAR_CACHE:
             cache_path.unlink(missing_ok=True)
 
-        # self._scrobble_matcher: ScrobbleMatcher = ScrobbleMatcher(
-        #     logger,
-        #     CacheBuilder(logger, cache_path, tree_separator=self._combo_key),
-        #     threshold=minimum_fuzzy_threshold,
-        #     key_combo=self._combo_key,
-        #     ort_session=self._ort_session,
-        #     tokenizer=self._tokenizer,
-        #     ann_k=10,
-        #     keys_path=keys_path,
-        #     index_path=index_path
-        # )
+        self._scrobble_matcher: ScrobbleMatcher = ScrobbleMatcher(
+            logger,
+            CacheBuilder(logger, cache_path, tree_separator=self._combo_key),
+            embedder=self._embedder,
+            threshold=minimum_fuzzy_threshold,
+            key_combo=self._combo_key,
+            ann_k=10,
+            keys_path=keys_path,
+            faiss_index_path=index_path
+        )
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
-
-    def _embed(self, text: str) -> np.ndarray:
-        # tokenize a single string
-        enc = self._tokenizer(
-            text,
-            return_tensors="np",
-            padding="max_length",
-            truncation=True,
-            max_length=128
-        )
-        inputs = {
-            "input_ids": enc["input_ids"],
-            "attention_mask": enc["attention_mask"],
-        }
-        # run ONNX
-        outputs = self._ort_session.run(None, inputs)
-        # outputs[0] has shape (1, d); we return a flat (d,) array
-        return outputs[0][0].astype("float32")
 
     def build_embeddings_for_library(self) -> None:
         self._logger.info("Starting to build embeddings...", separator=self._separator)
@@ -95,7 +68,11 @@ class ScrobbleLinkerService:
         ).tolist()
 
         # 3) embed each string via ONNXRuntime
-        lib_embeddings = np.vstack([self._embed(s) for s in lib_strings])
+        lib_embeddings = self._embedder.encode(
+            lib_strings,
+            batch_size=128,
+            convert_to_numpy=True,
+        ).astype('float32')
 
         # 4) persist raw embeddings and UUID list
         embeddings_path = DATA_DIRECTORY / "__internal__" / "lib_embeddings.npy"
