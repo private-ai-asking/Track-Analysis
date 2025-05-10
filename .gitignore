@@ -48,3 +48,7 @@ docs/_build/
 output/
 data/
 cache/
+
+App_Logs
+
+track_analysis/benchmarks/

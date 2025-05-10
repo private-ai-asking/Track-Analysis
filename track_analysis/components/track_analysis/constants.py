@@ -6,8 +6,12 @@ OUTPUT_DIRECTORY: Path = Path("X:\Track Analysis\output")
 
 DATA_DIRECTORY: Path = Path("X:\Track Analysis\data")
 CACHE_DIRECTORY: Path = Path("X:\Track Analysis\cache")
+BENCHMARK_DIRECTORY: Path = Path(r"X:\Track Analysis\track_analysis\benchmarks")
 
-DEBUG: bool = True
-VERBOSE: bool = True
+DEBUG: bool = False
+VERBOSE: bool = False
 
 MINIMUM_FUZZY_CONFIDENCE: float = 95  # 0-100
+
+CLEAR_CACHE: bool = True  # For developing purposes, clears the cache each time to reset -- for profiling.
+TEST_SAMPLE_SIZE: int = 1500

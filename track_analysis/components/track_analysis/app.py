@@ -1,9 +1,8 @@
-import cProfile
-import pstats
+from datetime import datetime
 from pathlib import Path
-from pstats import Stats
 
 import speedscope
+from viztracer import VizTracer
 
 from track_analysis.components.md_common_python.py_common.cli_framework import CommandLineInterface
 from track_analysis.components.md_common_python.py_common.component_registration import ComponentRegistration
@@ -13,7 +12,7 @@ from track_analysis.components.md_common_python.py_common.time_handling import T
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
 from track_analysis.components.md_common_python.py_common.utils.string_utils import StringUtils
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
-    MINIMUM_FUZZY_CONFIDENCE, DATA_DIRECTORY
+    MINIMUM_FUZZY_CONFIDENCE, DATA_DIRECTORY, BENCHMARK_DIRECTORY
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
@@ -22,7 +21,6 @@ from track_analysis.components.track_analysis.features.tag_extractor import TagE
 from track_analysis.components.track_analysis.model.audio_info import AudioInfo
 from track_analysis.components.track_analysis.model.header import Header
 from track_analysis.components.track_analysis.pipeline.build_csv_pipeline import BuildCSVPipeline
-
 from track_analysis.components.track_analysis.pipeline.locate_paths_pipeline import LocatePathsPipeline
 from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
 
@@ -40,8 +38,9 @@ class App:
         self._scrobble_linker: ScrobbleLinkerService = ScrobbleLinkerService(
             logger,
             library_data_path=OUTPUT_DIRECTORY.joinpath("data.csv"),
-            scrobble_data_path=DATA_DIRECTORY.joinpath("scrobbles_test.csv"),
-            string_utils=self._string_utils
+            scrobble_data_path=DATA_DIRECTORY.joinpath("scrobbles.csv"),
+            string_utils=self._string_utils,
+            minimum_fuzzy_threshold=MINIMUM_FUZZY_CONFIDENCE
         )
         self._logger = logger
 
@@ -58,6 +57,7 @@ class App:
 
     def _exit(self):
         self._registration.shutdown_component()
+        self._logger.save()
         exit()
 
     def _generate_new_data(self):
@@ -68,18 +68,27 @@ class App:
         output_path: Path = OUTPUT_DIRECTORY.joinpath("enriched_scrobbles.csv")
 
         if not profiling:
-            self._scrobble_linker.link_scrobbles(output_path, threshold=MINIMUM_FUZZY_CONFIDENCE)
+            enriched_scrobble_data = self._scrobble_linker.link_scrobbles()
+            enriched_scrobble_data.to_csv(output_path, index=False)
             return
 
-        # with cProfile.Profile() as profile:
-        #     self._scrobble_linker.link_scrobbles(output_path, threshold=MINIMUM_FUZZY_CONFIDENCE)
-        #
-        # results: Stats = Stats(profile)
-        # results.sort_stats(pstats.SortKey.TIME)
-        # results.print_stats()
+        # Get the current date and time
+        now = datetime.now()
 
-        with speedscope.track(OUTPUT_DIRECTORY.joinpath("benchmarks/speedscope.json")):
-            self._scrobble_linker.link_scrobbles(output_path, threshold=MINIMUM_FUZZY_CONFIDENCE)
+        # Format the datetime as a file-safe string
+        timestamp = now.strftime("%Y_%m_%d-%H_%M_%S")
+
+        benchmark_name: str = f"{timestamp}-benchmark.json"
+        benchmark_path: Path = BENCHMARK_DIRECTORY.joinpath("Scrobble Matching").joinpath(benchmark_name)
+
+        with VizTracer(
+            output_file=str(benchmark_path),
+            min_duration=1,
+            ignore_c_function=True,
+            ignore_frozen=True
+        ) as _:
+            enriched_scrobble_data = self._scrobble_linker.link_scrobbles()
+            enriched_scrobble_data.to_csv(output_path, index=False)
 
     def _test_registration(self):
         registration_path: Path = Path("X:\\Track Analysis\\track_analysis\components\\track_analysis\\registration.json")

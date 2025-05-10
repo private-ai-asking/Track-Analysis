@@ -24,13 +24,16 @@ def get_logger() -> HoornLogger:
     max_sep_length = 65
 
     file_output: FileHoornLogOutput = FileHoornLogOutput(
-        log_directory=_get_user_local_appdata_dir().joinpath("TrackAnalysis", "logs"),
+        log_directory=_get_user_local_appdata_dir().joinpath("TrackAnalysis", "logs", "Components"),
         max_logs_to_keep=10,
-        max_separator_length=max_sep_length
+        max_separator_length=max_sep_length,
+        buffer_limit=25000
     )
 
     console_output: WindowedHoornLogOutput = WindowedHoornLogOutput(
-        max_separator_length=max_sep_length
+        max_separator_length=max_sep_length,
+        base_batch_size=500,
+        max_batch_size=5000
     )
 
     min_level: LogType = LogType.INFO

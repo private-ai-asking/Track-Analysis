@@ -17,10 +17,18 @@ class ScrobbleDataLoader:
         self._separator: str = "ScrobbleDataLoader"
         self._string_utils: StringUtils = string_utils
 
-        self._load_data(library_data_path, scrobble_data_path, sample_rows=20)
-        self._normalize_data()
+        self._library_data_path: Path = library_data_path
+        self._scrobble_data_path: Path = scrobble_data_path
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
+
+    def load(self, sample_rows: int = None) -> None:
+        """Loads the data and normalizes it.
+
+        Set sample_rows to None to disable and load everything.
+        """
+        self._load_data(self._library_data_path, self._scrobble_data_path, sample_rows=sample_rows)
+        self._normalize_data()
 
     def _load_data(self, library_data_path: Path, scrobble_data_path: Path, sample_rows: int=None):
         self._logger.trace("Loading data...", separator=self._separator)
