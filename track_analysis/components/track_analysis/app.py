@@ -22,12 +22,12 @@ from track_analysis.components.track_analysis.features.data_generation.data_gene
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_linker_service import ScrobbleLinkerService
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
-from track_analysis.components.track_analysis.model.audio_info import AudioInfo
 from track_analysis.components.track_analysis.model.header import Header
 from track_analysis.components.track_analysis.pipeline.build_csv_pipeline import BuildCSVPipeline
 from track_analysis.components.track_analysis.pipeline.locate_paths_pipeline import LocatePathsPipeline
 from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
 from track_analysis.tests.embedding_test import EmbeddingTest
+from track_analysis.tests.extract_tags_test import ExtractTagsTest
 from track_analysis.tests.registration_test import RegistrationTest
 
 
@@ -63,6 +63,7 @@ class App:
 
         registration_test: RegistrationTest = RegistrationTest(logger, self._registration)
         embedding_test: EmbeddingTest = EmbeddingTest(logger, embedder=self._embedder, keys_path=keys_path, index_path=index_path, data_loader=self._scrobble_data_loader)
+        extract_tags_test: ExtractTagsTest = ExtractTagsTest(logger, self._user_input_helper, self._tag_extractor)
 
         tests: List[TestConfiguration] = [
             TestConfiguration(
@@ -76,7 +77,13 @@ class App:
                 keyword_arguments=[10],
                 command_description="Tests the embedding similarity matcher.",
                 command_keys=["test_embeddings", "te"]
-            )
+            ),
+            TestConfiguration(
+                associated_test=extract_tags_test,
+                keyword_arguments=[],
+                command_description="Debugs the extract tags function.",
+                command_keys=["extract_tags_debug", "etd"]
+            ),
         ]
 
         self._test_coordinator: TestCoordinator = TestCoordinator(logger, tests)
@@ -89,7 +96,6 @@ class App:
     def run(self):
         cmd: CommandLineInterface = CommandLineInterface(self._logger, exit_command=self._exit)
         cmd.add_command(["launch_tests", "lt"], "Hops into the test framework CLI.", self._tests)
-        cmd.add_command(["extract_tags_debug", "etd"], "Debugs the extract tags function.", self._debug_extract_tags)
         cmd.add_command(["make_csv", "mc"], "Makes a CSV file from the extracted metadata.", self._make_csv)
         cmd.add_command(["add_path_to_metadata", "apm"], "Adds the path of a file to the metadata.", self._add_path_to_metadata)
         cmd.add_command(["generate_new_data", "gnd"], "Fills in the newly added header(s) since last cache update.", self._generate_new_data)
@@ -112,7 +118,7 @@ class App:
 
     def _link_scrobbles(self, profiling: bool=False) -> None:
         output_path: Path = OUTPUT_DIRECTORY.joinpath("enriched_scrobbles.csv")
-        
+
         if DELETE_FINAL_DATA_BEFORE_START:
             output_path.unlink(missing_ok=True)
 
@@ -138,19 +144,6 @@ class App:
         ) as _:
             enriched_scrobble_data = self._scrobble_linker.link_scrobbles()
             enriched_scrobble_data.to_csv(output_path, index=False)
-
-    def _debug_extract_tags(self):
-        def _always_true_validator(_: str) -> (bool, str):
-            return True, ""
-
-        # W:\media\music\[02] organized\[01] hq\Classical\Ludovico Einaudi\Elegy For The Arctic\01 Elegy for the Arctic.flac
-        # W:\media\music\[02] organized\[02] lq\CCM\Champion\15 - Beckah Shae - Incorruptible (David Thulin remix).flac
-        file_to_check: str = self._user_input_helper.get_user_input("Please enter the path to the audio file you want to extract:", str, validator_func=_always_true_validator)
-
-        result: AudioInfo =self._tag_extractor.extract(Path(file_to_check))
-
-        for metadata_item in result.metadata:
-            self._logger.info(f"{metadata_item.header} - {metadata_item.description}: {metadata_item.value}")
 
     def _add_path_to_metadata(self):
         pipeline_context = PipelineContextModel(
