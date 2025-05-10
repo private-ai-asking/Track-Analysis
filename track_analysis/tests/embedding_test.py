@@ -7,6 +7,7 @@ from sentence_transformers import SentenceTransformer
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.testing import TestInterface
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
+from track_analysis.components.md_common_python.py_common.utils import gaussian_exponential_kernel
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
 
 
@@ -101,8 +102,10 @@ class EmbeddingTest(TestInterface):
     def _log_results(self, query: str, results: list) -> None:
         self._logger.info(f"Nearest neighbors for '{query}':", separator=self._separator)
         for r in results:
+            distance: float = r['distance']
+
             self._logger.info(
                 f"{r['rank']}. [{r['uuid']}] {r['title']} — {r['album']} — {r['artist']} "
-                f"(distance: {r['distance']:.4f})",
+                f"(distance: {distance:.4f}) [confidence: {gaussian_exponential_kernel(distance, sigma=0.35):.4f}]",
                 separator=self._separator
             )
