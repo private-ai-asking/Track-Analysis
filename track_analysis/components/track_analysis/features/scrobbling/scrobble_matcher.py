@@ -5,7 +5,6 @@ from typing import List, Optional, Dict, Tuple
 import numpy as np
 import faiss
 from rapidfuzz import fuzz
-from sentence_transformers import SentenceTransformer
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
@@ -32,7 +31,7 @@ def save_embed_cache(cache: Dict[str, np.ndarray]) -> None:
 
 
 class ScrobbleMatcher:
-    """Match scrobbles to library tracks using FAISS ANN + cached embeddings + batched fuzzy rerank."""
+    """Match scrobbles to library tracks using FAISS ANN + ONNX cached embeddings + batched fuzzy rerank."""
 
     _SEPARATOR = "ScrobbleMatcher"
 
@@ -40,25 +39,27 @@ class ScrobbleMatcher:
             self,
             logger: HoornLogger,
             cache_builder: CacheBuilder,
-            embedder: SentenceTransformer,
-            faiss_index_path: Path,
+            ort_session,
+            tokenizer,
+            index_path: Path,
             keys_path: Path,
             key_combo: str = "||",
             field_weights: Optional[Dict[str, float]] = None,
-            similarity_func= fuzz.token_sort_ratio,
+            similarity_func=fuzz.token_sort_ratio,
             threshold: float = 95.0,
             ann_k: int = 5,
             batch_size: int = 64,
     ):
         self._logger = logger
         self._cache = cache_builder
-        self._embedder = embedder
         self._key_combo = key_combo
         self._threshold = threshold
         self._ann_k = ann_k
         self._batch_size = batch_size
+        self._tokenizer = tokenizer
+        self._ort_session = ort_session
 
-        self._load_faiss(faiss_index_path, keys_path)
+        self._load_faiss(index_path, keys_path)
         self._init_scorer(field_weights or {}, similarity_func)
 
     def _load_faiss(self, index_path: Path, keys_path: Path) -> None:
@@ -87,19 +88,19 @@ class ScrobbleMatcher:
         texts = [f"{r['_n_artist']}{self._key_combo}{r['_n_album']}{self._key_combo}{r['_n_title']}" for r in recs]
         return recs, texts
 
-    def _get_embeddings(self, texts: List[str]) -> np.ndarray:
+    def _embed_texts(self, texts: List[str]) -> np.ndarray:
+        """Embed texts via ONNX Runtime, batched against cache."""
         cache = load_embed_cache()
-        new_texts = [t for t in texts if t not in cache]
-        if new_texts:
-            embs = self._embedder.encode(
-                new_texts,
-                convert_to_numpy=True,
-                batch_size=self._batch_size,
-                show_progress_bar=False
-            ).astype('float32')
-            for t, emb in zip(new_texts, embs):
-                cache[t] = emb
+        new = [t for t in texts if t not in cache]
+        if new:
+            # Batch tokenize
+            enc = self._tokenizer(new, return_tensors='np', padding=True, truncation=True, max_length=128)
+            # ONNX run
+            outputs = self._ort_session.run(None, {'input_ids': enc['input_ids'], 'attention_mask': enc['attention_mask']})
+            embs = outputs[0].astype('float32')
+            for t, emb in zip(new, embs): cache[t] = emb
             save_embed_cache(cache)
+        # assemble
         return np.vstack([cache[t] for t in texts])
 
     def _ann_candidates(self, vec: np.ndarray) -> List[str]:
@@ -110,8 +111,7 @@ class ScrobbleMatcher:
         best_uuid, best_score = '<NO ASSOCIATED KEY>', 0.0
         for uid in candidate_ids:
             lib_rec = lib_lookup.get(uid)
-            if lib_rec is None:
-                continue
+            if lib_rec is None: continue
             score = self._scorer.score(rec, lib_rec, optimize=True)
             if score > best_score:
                 best_score, best_uuid = score, uid
@@ -120,7 +120,7 @@ class ScrobbleMatcher:
     def link_scrobbles(self, library_df: pd.DataFrame, scrobble_df: pd.DataFrame) -> pd.DataFrame:
         lib_lookup = self._prepare_library(library_df)
         recs, texts = self._prepare_scrobbles(scrobble_df)
-        embeddings = self._get_embeddings(texts)
+        embeddings = self._embed_texts(texts)
 
         results: List[str] = []
         for rec, vec in zip(recs, embeddings):
