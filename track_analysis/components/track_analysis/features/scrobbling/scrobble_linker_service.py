@@ -41,13 +41,7 @@ class ScrobbleLinkerService:
 
         self._scrobble_matcher: ScrobbleMatcher = ScrobbleMatcher(
             logger,
-            CacheBuilder(logger, cache_path, tree_separator=self._combo_key),
-            embedder=self._embedder,
-            threshold=minimum_fuzzy_threshold,
-            combo_key=self._combo_key,
-            ann_k=10,
-            keys_path=keys_path,
-            faiss_index_path=index_path
+            CacheBuilder(logger, cache_path, tree_separator=self._combo_key)
         )
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
