@@ -6,9 +6,9 @@ from sentence_transformers import SentenceTransformer
 
 from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.md_common_python.py_common.utils import StringUtils
+from track_analysis.components.md_common_python.py_common.utils import StringUtils, SimilarityScorer
 from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY, CLEAR_CACHE, TEST_SAMPLE_SIZE, \
-    NO_MATCH_LABEL
+    NO_MATCH_LABEL, TEST_CACHE_BUILDER_MODE
 from track_analysis.components.track_analysis.features.scrobbling.embedding_builder import EmbeddingBuilder
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_cache_builder import ScrobbleCacheBuilder
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
@@ -67,7 +67,9 @@ class ScrobbleLinkerService:
             sample_size=TEST_SAMPLE_SIZE,
             scrobble_utils=scrobble_utils,
             index_path=index_path,
-            embedding_model=embedder
+            keys_path=keys_path,
+            embedding_model=embedder,
+            test=TEST_CACHE_BUILDER_MODE
         )
 
         self._logger.trace("Successfully initialized.", separator=self._separator)

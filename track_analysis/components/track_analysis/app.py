@@ -50,8 +50,8 @@ class App:
         self._combo_key: str = "||"
 
         library_data_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
-        scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles.csv")
-        # scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles_test.csv")
+        # scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles.csv")
+        scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles_test.csv")
         scrobble_utils: ScrobbleUtility = ScrobbleUtility(logger, self._combo_key)
 
         self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, library_data_path, scrobble_data_path, self._string_utils, scrobble_utils)
