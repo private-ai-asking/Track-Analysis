@@ -5,6 +5,7 @@ from typing import List
 from sentence_transformers import SentenceTransformer
 from viztracer import VizTracer
 
+from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.cli_framework import CommandLineInterface
 from track_analysis.components.md_common_python.py_common.component_registration import ComponentRegistration
 from track_analysis.components.md_common_python.py_common.handlers import FileHandler
@@ -15,7 +16,7 @@ from track_analysis.components.md_common_python.py_common.time_handling import T
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
 from track_analysis.components.md_common_python.py_common.utils.string_utils import StringUtils
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
-    DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START
+    DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START, CACHE_DIRECTORY, CLEAR_CACHE
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
@@ -52,7 +53,13 @@ class App:
         library_data_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
         # scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles.csv")
         scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles_test.csv")
-        scrobble_utils: ScrobbleUtility = ScrobbleUtility(logger, self._combo_key)
+        cache_path: Path = CACHE_DIRECTORY.joinpath("scrobble_cache.json")
+
+        if CLEAR_CACHE:
+            cache_path.unlink(missing_ok=True)
+
+        cache_builder: CacheBuilder = CacheBuilder(logger, cache_path, tree_separator=self._combo_key)
+        scrobble_utils: ScrobbleUtility = ScrobbleUtility(logger, cache_builder, self._combo_key)
 
         self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, library_data_path, scrobble_data_path, self._string_utils, scrobble_utils)
         self._scrobble_linker: ScrobbleLinkerService = ScrobbleLinkerService(
@@ -63,7 +70,8 @@ class App:
             keys_path=keys_path,
             index_path=index_path,
             combo_key=self._combo_key,
-            scrobble_utils=scrobble_utils
+            scrobble_utils=scrobble_utils,
+            cache_builder=cache_builder
         )
 
         registration_test: RegistrationTest = RegistrationTest(logger, self._registration)

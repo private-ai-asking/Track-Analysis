@@ -6,8 +6,8 @@ from sentence_transformers import SentenceTransformer
 
 from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.md_common_python.py_common.utils import StringUtils, SimilarityScorer
-from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY, CLEAR_CACHE, TEST_SAMPLE_SIZE, \
+from track_analysis.components.md_common_python.py_common.utils import StringUtils
+from track_analysis.components.track_analysis.constants import TEST_SAMPLE_SIZE, \
     NO_MATCH_LABEL, TEST_CACHE_BUILDER_MODE
 from track_analysis.components.track_analysis.features.scrobbling.embedding_builder import EmbeddingBuilder
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_cache_builder import ScrobbleCacheBuilder
@@ -27,6 +27,7 @@ class ScrobbleLinkerService:
                  keys_path: Path,
                  index_path: Path,
                  scrobble_utils: ScrobbleUtility,
+                 cache_builder: CacheBuilder,
                  combo_key: str = "||",
                  minimum_confidence_threshold: float = 90.0):
         self._logger: HoornLogger = logger
@@ -39,12 +40,7 @@ class ScrobbleLinkerService:
         self._index_path: Path = index_path
         self._minimum_confidence_threshold: float = minimum_confidence_threshold
 
-        cache_path: Path = CACHE_DIRECTORY.joinpath("scrobble_cache.json")
-
-        if CLEAR_CACHE:
-            cache_path.unlink(missing_ok=True)
-
-        cache_builder: CacheBuilder = CacheBuilder(logger, cache_path, tree_separator=self._combo_key)
+        cache_builder: CacheBuilder = cache_builder
 
         self._scrobble_matcher: ScrobbleMatcher = ScrobbleMatcher(
             logger,
