@@ -11,6 +11,8 @@ from track_analysis.components.md_common_python.py_common.cache_helpers import C
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.utils import \
     gaussian_exponential_kernel_confidence_percentage, SimilarityScorer
+from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import \
+    ScrobbleCacheAlgorithmParameters
 from track_analysis.components.track_analysis.features.scrobbling.model.scrobble_cache_model import \
     ScrobbleCacheItemModel
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
@@ -32,12 +34,7 @@ class ScrobbleCacheBuilder:
             index_path: Path,
             keys_path: Path,
             embedding_model: SentenceTransformer,
-            confidence_accept_threshold: float = 85,
-            confidence_reject_threshold: float = 30,
-            token_accept_threshold: float = 70,
-            gaussian_sigma: float = 0.35,
-            batch_size: int = 64,
-            top_k: int = 2,
+            paramaters: ScrobbleCacheAlgorithmParameters = ScrobbleCacheAlgorithmParameters(),
             sample_size: Optional[int] = None,
             test: bool = False,
     ):
@@ -50,16 +47,16 @@ class ScrobbleCacheBuilder:
         self._embedder = embedding_model
         self._scorer = SimilarityScorer(
             logger=logger,
-            threshold=token_accept_threshold,
+            threshold=paramaters.token_accept_threshold,
             field_weights={}
         )
 
-        self._c_accept = confidence_accept_threshold
-        self._c_reject = confidence_reject_threshold
-        self._t_accept = token_accept_threshold / 100.0
-        self._sigma = gaussian_sigma
-        self._batch_size = batch_size
-        self._top_k = top_k
+        self._c_accept = paramaters.confidence_accept_threshold
+        self._c_reject = paramaters.confidence_reject_threshold
+        self._t_accept = paramaters.token_accept_threshold / 100.0
+        self._sigma = paramaters.gaussian_sigma
+        self._batch_size = paramaters.batch_size
+        self._top_k = paramaters.top_k
         self._sample_size = sample_size
         self._test = test
 
