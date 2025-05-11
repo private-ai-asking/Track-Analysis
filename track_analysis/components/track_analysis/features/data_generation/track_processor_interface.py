@@ -2,7 +2,7 @@ import abc
 from abc import abstractmethod
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.model.audio_info import AudioInfo
+from track_analysis.components.track_analysis.features.data_generation.model.audio_info import AudioInfo
 
 
 class ITrackProcessorStrategy(abc.ABC):

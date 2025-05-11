@@ -23,10 +23,10 @@ from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_linker_service import ScrobbleLinkerService
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
-from track_analysis.components.track_analysis.model.header import Header
-from track_analysis.components.track_analysis.pipeline.build_csv_pipeline import BuildCSVPipeline
-from track_analysis.components.track_analysis.pipeline.locate_paths_pipeline import LocatePathsPipeline
-from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.components.track_analysis.features.data_generation.model.header import Header
+from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import BuildCSVPipeline
+from track_analysis.components.track_analysis.features.data_generation.pipeline.locate_paths_pipeline import LocatePathsPipeline
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import PipelineContextModel
 from track_analysis.tests.embedding_test import EmbeddingTest
 from track_analysis.tests.extract_tags_test import ExtractTagsTest
 from track_analysis.tests.registration_test import RegistrationTest

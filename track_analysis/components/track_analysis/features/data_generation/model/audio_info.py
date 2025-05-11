@@ -3,8 +3,8 @@ from typing import List, Optional
 
 import pydantic
 
-from track_analysis.components.track_analysis.model.audio_metadata_item import AudioMetadataItem
-from track_analysis.components.track_analysis.model.header import Header
+from track_analysis.components.track_analysis.features.data_generation.model.audio_metadata_item import AudioMetadataItem
+from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 
 
 class AudioInfo(pydantic.BaseModel):

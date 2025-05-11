@@ -3,7 +3,7 @@ from typing import List
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import PipelineContextModel
 
 
 class FilterFiles(IPipe):

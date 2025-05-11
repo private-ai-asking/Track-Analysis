@@ -9,9 +9,9 @@ from track_analysis.components.track_analysis.features.data_generation.track_pro
     ITrackProcessorStrategy
 from track_analysis.components.track_analysis.features.data_generation.track_processors.true_peak_processor import \
     TruePeakTrackProcessor
-from track_analysis.components.track_analysis.model.audio_info import AudioInfo
-from track_analysis.components.track_analysis.model.header import Header
-from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.components.track_analysis.features.data_generation.model.audio_info import AudioInfo
+from track_analysis.components.track_analysis.features.data_generation.model.header import Header
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import PipelineContextModel
 
 
 class DataGenerationPipe(IPipe):
