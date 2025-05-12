@@ -43,11 +43,6 @@ class ScrobbleCacheBuilder:
         self._data_loader = data_loader
         self._index_path = index_path
         self._keys_path = keys_path
-        _scorer = SimilarityScorer(
-            logger=logger,
-            threshold=parameters.token_accept_threshold,
-            field_weights={}
-        )
 
         self._sample_size = sample_size
 
@@ -55,7 +50,6 @@ class ScrobbleCacheBuilder:
             logger=self._logger,
             scrobble_utils=scrobble_utils,
             embedder=embedding_model,
-            scorer=_scorer,
             parameters=parameters,
             test_mode=test
         )

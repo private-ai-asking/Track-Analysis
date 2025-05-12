@@ -25,7 +25,6 @@ class NearestNeighbourSearch(IPipe):
             logger: HoornLogger,
             scrobble_utils: ScrobbleUtility,
             embedder: SentenceTransformer,
-            scorer: SimilarityScorer,
             parameters: ScrobbleCacheAlgorithmParameters,
             test_mode: bool,
     ):
@@ -33,7 +32,15 @@ class NearestNeighbourSearch(IPipe):
         self._logger = logger
         self._scrobble_utils = scrobble_utils
         self._embedder = embedder
-        self._scorer = scorer
+        self._scorer = SimilarityScorer(
+            logger=logger,
+            threshold=parameters.token_accept_threshold,
+            field_weights={
+                'title': 0.3,
+                'artist': 0.4,
+                'album': 0.3
+            }
+        )
         self._params = parameters
         self._test_mode = test_mode
 

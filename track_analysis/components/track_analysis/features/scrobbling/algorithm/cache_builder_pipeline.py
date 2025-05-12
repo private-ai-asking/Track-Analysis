@@ -21,12 +21,11 @@ from track_analysis.components.track_analysis.features.scrobbling.scrobble_utili
 
 class CacheBuilderPipeline(AbPipeline):
     def __init__(self, logger: HoornLogger, scrobble_utils: ScrobbleUtility, embedder: SentenceTransformer,
-                 scorer: SimilarityScorer, parameters: ScrobbleCacheAlgorithmParameters, test_mode: bool):
+                 parameters: ScrobbleCacheAlgorithmParameters, test_mode: bool):
         super().__init__(logger, pipeline_descriptor="CacheBuilderPipeline")
         self._logger = logger
         self._scrobble_utils = scrobble_utils
         self._embedder = embedder
-        self._scorer = scorer
         self._parameters = parameters
         self._test_mode = test_mode
 
@@ -37,7 +36,7 @@ class CacheBuilderPipeline(AbPipeline):
         self._add_step(status_report)
         self._add_step(FilterExactMatches(self._logger, self._scrobble_utils))
         self._add_step(status_report)
-        self._add_step(NearestNeighbourSearch(self._logger, self._scrobble_utils, self._embedder, self._scorer, self._parameters, self._test_mode))
+        self._add_step(NearestNeighbourSearch(self._logger, self._scrobble_utils, self._embedder, self._parameters, self._test_mode))
         self._add_step(status_report)
         self._add_step(ReportUncertainKeys(self._logger))
         self._add_step(FormGoldStandard(self._logger))
