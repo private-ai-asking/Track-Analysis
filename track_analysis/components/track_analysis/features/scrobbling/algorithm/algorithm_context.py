@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import faiss
 import pandas as pd
@@ -17,6 +17,10 @@ class AlgorithmContext(pydantic.BaseModel):
 
     library_index: faiss.Index
     library_keys: List[str]
+
+    auto_accepted_scrobbles: Optional[pd.DataFrame] = None
+    auto_rejected_scrobbles: Optional[pd.DataFrame] = None
+    confused_scrobbles: Optional[pd.DataFrame] = None
 
     model_config = {
         "arbitrary_types_allowed": True

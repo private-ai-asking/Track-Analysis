@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -8,7 +8,7 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.md_common_python.py_common.utils import (
     gaussian_exponential_kernel_confidence_percentage,
-    SimilarityScorer,
+    SimilarityScorer, CollectionExtensions,
 )
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import (
@@ -29,24 +29,30 @@ class NearestNeighbourSearch(IPipe):
             parameters: ScrobbleCacheAlgorithmParameters,
             test_mode: bool,
     ):
-        self.logger = logger
-        self.scrobble_utils = scrobble_utils
-        self.embedder = embedder
-        self.scorer = scorer
-        self.params = parameters
-        self.test_mode = test_mode
+        # Utils
+        self._logger = logger
+        self._scrobble_utils = scrobble_utils
+        self._embedder = embedder
+        self._scorer = scorer
+        self._params = parameters
+        self._test_mode = test_mode
 
-        self.accept_threshold = parameters.confidence_accept_threshold
-        self.reject_threshold = parameters.confidence_reject_threshold
-        self.token_threshold = parameters.token_accept_threshold / 100.0
-        self.sigma = parameters.gaussian_sigma
-        self.batch_size = parameters.batch_size
-        self.top_k = parameters.top_k
+        # Params
+        self._accept_threshold = parameters.confidence_accept_threshold
+        self._reject_threshold = parameters.confidence_reject_threshold
+        self._token_threshold = parameters.token_accept_threshold / 100.0
+        self._sigma = parameters.gaussian_sigma
+        self._batch_size = parameters.batch_size
+        self._top_k = parameters.top_k
 
-        self.separator = "CacheBuilder.NearestNeighborSearch"
-        self.uncertain_keys: List[str] = []
+        # Misc
+        self._separator = "CacheBuilder.NearestNeighborSearch"
 
-        self.logger.trace("Initialized NearestNeighbourSearch.", separator=self.separator)
+        self._accept_keys: List[str] = []
+        self._reject_keys: List[str] = []
+        self._uncertain_keys: List[str] = []
+
+        self._logger.trace("Initialized NearestNeighbourSearch.", separator=self._separator)
 
     def flow(self, ctx: AlgorithmContext) -> AlgorithmContext:
         df_scrobbles = ctx.scrobble_data_frame
@@ -54,12 +60,12 @@ class NearestNeighbourSearch(IPipe):
             self._log_empty()
             return ctx
 
-        self.logger.debug(
-            f"Starting NN phase for {len(df_scrobbles)} scrobbles.", separator=self.separator
+        self._logger.debug(
+            f"Starting NN phase for {len(df_scrobbles)} scrobbles.", separator=self._separator
         )
 
         embeddings = self._batch_encode(df_scrobbles['__key'].tolist())
-        distances, indices = ctx.library_index.search(embeddings, self.top_k)
+        distances, indices = ctx.library_index.search(embeddings, self._top_k)
 
         for idx, key in enumerate(df_scrobbles['__key']):
             self._process_entry(idx, key, distances[idx][0], indices[idx][0], ctx)
@@ -68,7 +74,7 @@ class NearestNeighbourSearch(IPipe):
         return ctx
 
     def _log_empty(self) -> None:
-        self.logger.warning("No scrobbles to process.", separator=self.separator)
+        self._logger.warning("No scrobbles to process.", separator=self._separator)
 
     def _process_entry(
             self,
@@ -84,40 +90,84 @@ class NearestNeighbourSearch(IPipe):
 
         uuid = ctx.library_keys[lib_index]
         confidence = gaussian_exponential_kernel_confidence_percentage(
-            distance, sigma=self.sigma
+            distance, sigma=self._sigma
         )
-        token_sim = None
-        if not self.test_mode:
-            token_sim = self._compute_token_similarity(
-                idx, uuid, ctx.scrobble_data_frame, ctx.library_data_frame
-            )
 
-        if self.test_mode or self._accept(confidence, token_sim):
-            self.scrobble_utils.save_cache_item(
-                key, uuid, confidence, ctx.library_data_frame
-            )
-        else:
-            self._handle_rejection(key, confidence, token_sim)
+        token_sim = self._compute_token_similarity(
+            idx, uuid, ctx.scrobble_data_frame, ctx.library_data_frame
+        )
+
+        auto_accept, auto_reject, marked_uncertain = self._get_acceptance_state(confidence, token_sim)
+
+        if self._test_mode or auto_accept:
+            self._handle_accept(key, uuid, confidence, ctx.library_data_frame, auto_accept)
+        if auto_reject:
+            self._handle_rejection(key, confidence)
+        if marked_uncertain:
+            self._handle_uncertain(key, confidence, token_sim=token_sim)
 
     def _valid_index(self, index: int, size: int) -> bool:
         return 0 <= index < size
 
-    def _accept(self, confidence: float, token_sim: Optional[float]) -> bool:
-        is_confident = confidence >= self.accept_threshold
-        has_tokens = token_sim is None or token_sim >= self.token_threshold
-        return is_confident and has_tokens
+    def _get_acceptance_state(self, confidence: float, token_sim: Optional[float]) -> Tuple[bool, bool, bool]:
+        is_confident, has_token_similarity_predicate = self._get_predicates(confidence, token_sim)
 
-    def _handle_rejection(
-            self, key: str, confidence: float, token_sim: Optional[float]
-    ) -> None:
-        if confidence <= self.reject_threshold:
-            self.logger.debug(
+        # Conditions
+        auto_accept = self._check_must_accept(is_confident, has_token_similarity_predicate)
+        auto_reject = self._check_must_reject(is_confident, has_token_similarity_predicate, confidence)
+        marked_uncertain = not auto_accept and not auto_reject
+
+        self._check_for_multiple_states_warning(states=[auto_accept, auto_reject, marked_uncertain])
+
+        return auto_accept, auto_reject, marked_uncertain
+
+    @staticmethod
+    def _check_must_accept(is_confident: bool, has_token_sim: bool) -> bool:
+        return is_confident and has_token_sim
+
+    def _check_must_reject(self, is_confident: bool, has_token_sim: bool, confidence: float):
+        return (is_confident and not has_token_sim) or confidence <= self._reject_threshold
+
+    def _get_predicates(self, confidence: float, token_sim: Optional[float]) -> Tuple[bool, bool]:
+        is_confident = confidence >= self._accept_threshold
+        has_token_similarity_predicate = (token_sim is None) or (token_sim >= self._token_threshold)
+        return is_confident, has_token_similarity_predicate
+
+    def _check_for_multiple_states_warning(self, states: List[bool]) -> None:
+        if CollectionExtensions.more_than(lambda s: s, states, 1):
+            self._logger.warning(f"The algorithm determined a match to be ({states[0]}-a/{states[1]}-r/{states[2]}-u); "
+                                 f"only one of these can be true at the same time.", separator=self._separator)
+
+    def _handle_accept(self, key: str, uuid: str, confidence: float, library_data_frame: pd.DataFrame, real_accept: bool) -> None:
+        self._scrobble_utils.save_cache_item(
+            key, uuid, confidence, library_data_frame
+        )
+
+        if real_accept:
+            self._accept_keys.append(key)
+
+
+    def _handle_rejection(self, key: str, confidence: float) -> None:
+        if not self._test_mode:
+            self._logger.debug(
                 f"Auto-rejected {key} (confidence={confidence:.2f}).",
-                separator=self.separator,
+                separator=self._separator,
             )
-        else:
+
+        self._reject_keys.append(key)
+
+    def _handle_uncertain(self, key: str, confidence: float, token_sim: Optional[float]) -> None:
+        if not self._test_mode:
             reason = f"confidence={confidence:.2f}, token_sim={token_sim}"
             self._mark_uncertain(key, reason)
+        else:
+            self._uncertain_keys.append(key)
+
+    def _mark_uncertain(self, key: str, reason: str) -> None:
+        self._uncertain_keys.append(key)
+        self._logger.debug(
+            f"Marked uncertain: {key} ({reason})", separator=self._separator
+        )
 
     def _compute_token_similarity(
             self,
@@ -128,7 +178,7 @@ class NearestNeighbourSearch(IPipe):
     ) -> float:
         scrobble = scrobbles.iloc[idx]
         lib_row = library[library['UUID'] == uuid].iloc[0]
-        score = self.scorer.score(
+        score = self._scorer.score(
             rec1={
                 "title": scrobble['_n_title'],
                 "artist": scrobble['_n_artist'],
@@ -143,20 +193,14 @@ class NearestNeighbourSearch(IPipe):
         )
         return score / 100.0
 
-    def _mark_uncertain(self, key: str, reason: str) -> None:
-        self.uncertain_keys.append(key)
-        self.logger.debug(
-            f"Marked uncertain: {key} ({reason})", separator=self.separator
-        )
-
     def _batch_encode(self, texts: List[str]) -> np.ndarray:
-        self.logger.debug("Encoding batch.", separator=self.separator)
+        self._logger.debug("Encoding batch.", separator=self._separator)
         batches = [
-            texts[i : i + self.batch_size]
-            for i in range(0, len(texts), self.batch_size)
+            texts[i : i + self._batch_size]
+            for i in range(0, len(texts), self._batch_size)
         ]
         embeddings_list = [
-            self.embedder.encode(
+            self._embedder.encode(
                 batch,
                 convert_to_numpy=True,
                 batch_size=len(batch),
@@ -167,11 +211,25 @@ class NearestNeighbourSearch(IPipe):
         return np.vstack(embeddings_list)
 
     def _finalize(self, ctx: AlgorithmContext) -> None:
-        self.logger.info(
-            f"NN phase complete. Uncertain count: {len(self.uncertain_keys)}",
-            separator=self.separator,
+        self._logger.info(
+            f"NN phase complete. Accepted: {len(self._accept_keys)}, "
+            f"Rejected: {len(self._reject_keys)}, "
+            f"Uncertain: {len(self._uncertain_keys)}",
+            separator=self._separator,
         )
+
+        # update context description
         ctx.previous_pipe_description = 'nearest neighbour search'
-        ctx.uncertain_keys = self.uncertain_keys
-        if self.test_mode:
+
+        # slice dataframes by keys
+        df = ctx.scrobble_data_frame
+        ctx.auto_accepted_scrobbles = df[df['__key'].isin(self._accept_keys)].copy()
+        ctx.auto_rejected_scrobbles = df[df['__key'].isin(self._reject_keys)].copy()
+        ctx.confused_scrobbles      = df[df['__key'].isin(self._uncertain_keys)].copy()
+
+        # preserve uncertain keys list
+        ctx.uncertain_keys = self._uncertain_keys
+
+        # if test mode, clear main df but keep lists
+        if self._test_mode:
             ctx.scrobble_data_frame = ctx.scrobble_data_frame.iloc[0:0]
