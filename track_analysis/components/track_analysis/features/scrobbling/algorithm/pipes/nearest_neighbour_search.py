@@ -17,8 +17,8 @@ from track_analysis.components.track_analysis.features.scrobbling.model.scrabble
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
 
 
-class NearestNeighbourSearch(IPipe):
-    """Encapsulates nearest neighbour filtering for scrobble analysis."""
+class NearestNeighborSearch(IPipe):
+    """Encapsulates nearest neighbor filtering for scrobble analysis."""
 
     def __init__(
             self,

@@ -10,7 +10,7 @@ from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipe
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.form_gold_standard import \
     FormGoldStandard
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.nearest_neighbour_search import \
-    NearestNeighbourSearch
+    NearestNeighborSearch
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.report_uncertain_keys import \
     ReportUncertainKeys
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.status_report import StatusReport
@@ -36,7 +36,7 @@ class CacheBuilderPipeline(AbPipeline):
         self._add_step(status_report)
         self._add_step(FilterExactMatches(self._logger, self._scrobble_utils))
         self._add_step(status_report)
-        self._add_step(NearestNeighbourSearch(self._logger, self._scrobble_utils, self._embedder, self._parameters, self._test_mode))
+        self._add_step(NearestNeighborSearch(self._logger, self._scrobble_utils, self._embedder, self._parameters, self._test_mode))
         self._add_step(status_report)
         self._add_step(ReportUncertainKeys(self._logger))
         self._add_step(FormGoldStandard(self._logger))
