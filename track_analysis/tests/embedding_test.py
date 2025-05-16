@@ -19,16 +19,17 @@ class EmbeddingTest(TestInterface):
                  logger: HoornLogger,
                  embedder: SentenceTransformer,
                  keys_path: Path,
-                 index_path: Path,
                  data_loader: ScrobbleDataLoader):
         super().__init__(logger, is_child=True)
         self._separator = "EmbeddingTest"
         self._embedding_model = embedder
         self._keys_path = keys_path
-        self._index_path = index_path
         self._data_loader = data_loader
         self._input_helper: UserInputHelper = UserInputHelper(logger, self._separator)
         self._logger.trace("Successfully initialized.", separator=self._separator)
+        self._logger.warning("CURRENTLY NOT WORKING -> Needs to adapt to different embedding system.", separator=self._separator)
+
+
 
     def test(
             self,
@@ -39,17 +40,13 @@ class EmbeddingTest(TestInterface):
         library_df: pd.DataFrame = self._data_loader.get_library_data()
         key_to_test: str = self._input_helper.get_user_input("Enter the key you want to test.", expected_response_type=str, validator_func=lambda s: (True, ""))
 
-        index = self._load_index()
+        index, _, __, ___ = self._data_loader.get_index()
         keys = self._load_keys()
         lookup = self._build_lookup(library_df)
         embedding = self._compute_embedding(key_to_test)
         distances, indices = self._search(index, embedding, n_to_print)
         results = self._assemble_results(distances[0], indices[0], keys, lookup)
         self._log_results(key_to_test, results)
-
-    def _load_index(self) -> faiss.Index:
-        self._logger.info(f"Loading FAISS index from {self._index_path}", separator=self._separator)
-        return faiss.read_index(str(self._index_path))
 
     def _load_keys(self) -> list:
         self._logger.info(f"Loading keys from {self._keys_path}", separator=self._separator)

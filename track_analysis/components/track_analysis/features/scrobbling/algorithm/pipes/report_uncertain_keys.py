@@ -10,12 +10,12 @@ class ReportUncertainKeys(IPipe):
         self._separator = "CacheBuilder.ReportUncertainKeys"
 
     def flow(self, ctx: AlgorithmContext) -> AlgorithmContext:
-        """Log any keys marked uncertain."""
+        """Log any keys marked uncertain, in alphabetical order."""
         if not ctx.uncertain_keys:
             self._logger.info("No uncertain entries.", separator=self._separator)
         else:
             self._logger.info("Uncertain keys for review:", separator=self._separator)
-            for key in ctx.uncertain_keys:
+            for key in sorted(ctx.uncertain_keys):
                 self._logger.info(f"  {key}", separator=self._separator)
 
         return ctx

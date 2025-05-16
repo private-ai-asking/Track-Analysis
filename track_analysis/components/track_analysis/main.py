@@ -1,6 +1,10 @@
+import os
+
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger, LogType, HoornLoggerBuilder
 from track_analysis.components.track_analysis.app import App
-from track_analysis.components.track_analysis.constants import DEBUG, VERBOSE
+from track_analysis.components.track_analysis.constants import DEBUG, VERBOSE, CPU_COUNT
+
+os.environ["LOKY_MAX_CPU_COUNT"] = str(CPU_COUNT)
 
 if __name__ == "__main__":
     min_level: LogType = LogType.INFO
@@ -14,7 +18,7 @@ if __name__ == "__main__":
     builder = HoornLoggerBuilder("TrackAnalysis", max_separator_length=65)
     (builder
      .build_file_based_output()
-     .build_gui_output(base_batch_size=500, max_batch_size=5000))
+     .build_gui_output(base_batch_size=1500, max_batch_size=8000))
 
     logger: HoornLogger = builder.get_logger(min_level)
 

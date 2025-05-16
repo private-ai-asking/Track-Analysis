@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Dict
 
 import pandas as pd
 from pandas import DataFrame
@@ -9,7 +10,10 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
 from track_analysis.components.track_analysis.constants import TEST_SAMPLE_SIZE, \
     NO_MATCH_LABEL, TEST_CACHE_BUILDER_MODE
+from track_analysis.components.track_analysis.features.scrobbling.cache_helper import ScrobbleCacheHelper
 from track_analysis.components.track_analysis.features.scrobbling.embedding_builder import EmbeddingBuilder
+from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import \
+    ScrobbleCacheAlgorithmParameters
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_cache_builder import ScrobbleCacheBuilder
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_matcher import ScrobbleMatcher
@@ -25,19 +29,20 @@ class ScrobbleLinkerService:
                  string_utils: StringUtils,
                  embedder: SentenceTransformer,
                  keys_path: Path,
-                 index_path: Path,
+                 gold_standard_csv_path: Path,
+                 manual_override_path: Path,
                  scrobble_utils: ScrobbleUtility,
                  cache_builder: CacheBuilder,
+                 embed_weights: Dict,
+                 cache_helper: ScrobbleCacheHelper,
                  combo_key: str = "||",
                  minimum_confidence_threshold: float = 90.0):
         self._logger: HoornLogger = logger
         self._separator: str = "ScrobbleLinker"
         self._string_utils: StringUtils = string_utils
         self._combo_key: str = combo_key
-        self._embedder: SentenceTransformer = embedder
         self._scrobble_data_loader: ScrobbleDataLoader = data_loader
         self._keys_path: Path = keys_path
-        self._index_path: Path = index_path
         self._minimum_confidence_threshold: float = minimum_confidence_threshold
 
         cache_builder: CacheBuilder = cache_builder
@@ -51,9 +56,8 @@ class ScrobbleLinkerService:
         self._embedding_builder: EmbeddingBuilder = EmbeddingBuilder(
             logger,
             self._scrobble_data_loader,
-            embedder=embedder,
-            combo_key=self._combo_key,
-            sample_scrobbles=TEST_SAMPLE_SIZE
+            sample_scrobbles=TEST_SAMPLE_SIZE,
+            scrobble_utils=scrobble_utils
         )
 
         self._scrobble_cache_builder: ScrobbleCacheBuilder = ScrobbleCacheBuilder(
@@ -62,10 +66,16 @@ class ScrobbleLinkerService:
             data_loader,
             sample_size=TEST_SAMPLE_SIZE,
             scrobble_utils=scrobble_utils,
-            index_path=index_path,
             keys_path=keys_path,
             embedding_model=embedder,
-            test=TEST_CACHE_BUILDER_MODE
+            test=TEST_CACHE_BUILDER_MODE,
+            parameters=ScrobbleCacheAlgorithmParameters(
+                gold_standard_csv_path=gold_standard_csv_path,
+                embed_weights=embed_weights,
+                manual_override_path=manual_override_path
+            ),
+            cache_helper=cache_helper,
+            manual_override_path=manual_override_path
         )
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
@@ -75,6 +85,9 @@ class ScrobbleLinkerService:
 
     def build_cache(self) -> None:
         self._scrobble_cache_builder.build_cache()
+
+    def test_parameters(self) -> None:
+        self._scrobble_cache_builder.test_parameters()
 
     def link_scrobbles(self) -> pd.DataFrame:
         """Links scrobble data to library data by matching tracks and writing the associated Track ID
