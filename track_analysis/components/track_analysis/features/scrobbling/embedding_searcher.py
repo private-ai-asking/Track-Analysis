@@ -1,9 +1,9 @@
 from typing import Tuple
 
+import faiss
 import numpy as np
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
 
 
 class EmbeddingSearcher:
@@ -23,12 +23,15 @@ class EmbeddingSearcher:
 
         self._logger.trace("Initialized Successfully.", separator=self._separator)
 
-    def search(self, embeddings: np.ndarray, ctx: AlgorithmContext) -> Tuple[np.array, np.array]:
+    def get_top_k_num(self) -> int:
+        return self._top_k
+
+    def search(self, embeddings: np.ndarray, library_index: faiss.Index) -> Tuple[np.array, np.array]:
         if embeddings.dtype != np.float32 or not embeddings.flags["C_CONTIGUOUS"]:
             embeddings = np.ascontiguousarray(embeddings, dtype=np.float32)
 
         nq = embeddings.shape[0]
-        Dret, Iret = ctx.library_index.search(embeddings, self._top_k)
+        Dret, Iret = library_index.search(embeddings, self._top_k)
         self._search_distances_buffer[:nq] = Dret
         self._search_indices_buffer[:nq] = Iret
         return self._search_indices_buffer[:nq], self._search_distances_buffer[:nq]

@@ -82,7 +82,7 @@ class NearestNeighborSearch(IPipe):
             return ctx
 
         embeddings = self._encode(df)
-        indices, distances = self._searcher.search(embeddings, ctx)
+        indices, distances = self._searcher.search(embeddings, ctx.library_index)
         self._evaluate_all(df, distances, indices, ctx)
         self._finalize(ctx)
         return ctx

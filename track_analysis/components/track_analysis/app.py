@@ -27,6 +27,7 @@ from track_analysis.components.track_analysis.features.scrobbling.embedding_sear
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_linker_service import ScrobbleLinkerService
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
+from track_analysis.components.track_analysis.features.scrobbling.uncertain_keys_processor import UncertainKeysProcessor
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import BuildCSVPipeline
@@ -102,6 +103,8 @@ class App:
         self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, library_data_path, scrobble_data_path, self._string_utils, scrobble_utils, DATA_DIRECTORY / "__internal__", keys_path)
         scrobble_cache_helper: ScrobbleCacheHelper = ScrobbleCacheHelper(logger, self._scrobble_data_loader, cache_builder)
 
+        self._uncertain_keys_processor: UncertainKeysProcessor = UncertainKeysProcessor(logger, embedding_searcher, scrobble_utils, self._scrobble_data_loader, manual_override_path)
+
         self._scrobble_linker: ScrobbleLinkerService = ScrobbleLinkerService(
             logger,
             data_loader=self._scrobble_data_loader,
@@ -155,6 +158,7 @@ class App:
         cmd.add_command(["generate_new_data", "gnd"], "Fills in the newly added header(s) since last cache update.", self._generate_new_data)
         cmd.add_command(["generate_embeddings", "ge"], "Generates embeddings for the library.", self._generate_embeddings)
         cmd.add_command(["test_params", "tp"], "Tests various parameter combinations for the algorithm.", self._scrobble_linker.test_parameters)
+        cmd.add_command(["process_uncertain", "pu"], "Processes the uncertain keys interactively.", self._uncertain_keys_processor.process)
         cmd.add_command(["build_cache", "bc"], "Builds the cache for the library for n samples.", self._build_cache, arguments=[False])
         cmd.add_command(["build_cache-profile", "bc-p"], "Builds the cache for the library for n samples and profiles the performance.", self._build_cache, arguments=[True])
         cmd.add_command(["link_scrobbles", "ls"], "Links the scrobbles to the library data.", self._link_scrobbles, arguments=[False])
