@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Any, Optional
 
 import pydantic
 
@@ -18,4 +18,10 @@ class ScrobbleCacheAlgorithmParameters(pydantic.BaseModel):
     gold_standard_csv_path: Path
     manual_override_path: Path
 
+    uncertain_keys_path: Optional[Path] = None
+
     embed_weights: Dict
+
+    def model_post_init(self, __context: Any) -> None:
+        self.uncertain_keys_path: Path = self.manual_override_path.parent / "uncertain_keys_temp.csv"
+

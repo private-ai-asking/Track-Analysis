@@ -38,6 +38,7 @@ class CacheBuilderPipeline(AbPipeline):
         self._test_mode = test_mode
         self._searcher = embedding_searcher
         self._manual_json_path = parameters.manual_override_path
+        self._uncertain_keys_path = parameters.uncertain_keys_path
         self._form_gold_standard = form_gold_standard
 
     def build_pipeline(self):
@@ -52,7 +53,7 @@ class CacheBuilderPipeline(AbPipeline):
         self._add_step(NearestNeighborSearch(self._logger, self._scrobble_utils, self._embedder, self._parameters, test_mode=self._test_mode, embedding_searcher=self._searcher))
         self._add_step(StoreInCache(self._logger, self._cache_helper, test_mode=self._test_mode))
         self._add_step(status_report)
-        self._add_step(ReportUncertainKeys(self._logger))
+        self._add_step(ReportUncertainKeys(self._logger, uncertain_keys_path=self._uncertain_keys_path))
         self._add_step(ComputeGMMThresholds(self._logger))
 
         if self._test_mode and self._form_gold_standard:
