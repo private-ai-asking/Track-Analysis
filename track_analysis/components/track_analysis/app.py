@@ -23,6 +23,7 @@ from track_analysis.components.track_analysis.features.audio_calculator import A
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
 from track_analysis.components.track_analysis.features.scrobbling.cache_helper import ScrobbleCacheHelper
+from track_analysis.components.track_analysis.features.scrobbling.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_linker_service import ScrobbleLinkerService
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
@@ -68,6 +69,7 @@ def _run_with_profiling(func: Callable[[], T], category: str) -> T:
 class App:
     def __init__(self, logger: HoornLogger):
         self._embedder: SentenceTransformer = SentenceTransformer(model_name_or_path=str(DATA_DIRECTORY / "__internal__" / "all-MiniLM-l12-v2-embed"), device="cuda")
+        embedding_searcher: EmbeddingSearcher = EmbeddingSearcher(logger, top_k=5)
 
         keys_path: Path = DATA_DIRECTORY.joinpath("__internal__", "lib_keys.pkl")
 
@@ -112,7 +114,8 @@ class App:
             gold_standard_csv_path=gold_standard_csv_path,
             embed_weights=embed_weights,
             cache_helper=scrobble_cache_helper,
-            manual_override_path=manual_override_path
+            manual_override_path=manual_override_path,
+            embedding_searcher=embedding_searcher
         )
 
         registration_test: RegistrationTest = RegistrationTest(logger, self._registration)

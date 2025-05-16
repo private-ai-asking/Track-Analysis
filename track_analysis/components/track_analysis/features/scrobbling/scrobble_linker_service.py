@@ -12,6 +12,7 @@ from track_analysis.components.track_analysis.constants import TEST_SAMPLE_SIZE,
     NO_MATCH_LABEL, TEST_CACHE_BUILDER_MODE
 from track_analysis.components.track_analysis.features.scrobbling.cache_helper import ScrobbleCacheHelper
 from track_analysis.components.track_analysis.features.scrobbling.embedding_builder import EmbeddingBuilder
+from track_analysis.components.track_analysis.features.scrobbling.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import \
     ScrobbleCacheAlgorithmParameters
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_cache_builder import ScrobbleCacheBuilder
@@ -35,6 +36,7 @@ class ScrobbleLinkerService:
                  cache_builder: CacheBuilder,
                  embed_weights: Dict,
                  cache_helper: ScrobbleCacheHelper,
+                 embedding_searcher: EmbeddingSearcher,
                  combo_key: str = "||",
                  minimum_confidence_threshold: float = 90.0):
         self._logger: HoornLogger = logger
@@ -75,7 +77,8 @@ class ScrobbleLinkerService:
                 manual_override_path=manual_override_path
             ),
             cache_helper=cache_helper,
-            manual_override_path=manual_override_path
+            manual_override_path=manual_override_path,
+            searcher=embedding_searcher
         )
 
         self._logger.trace("Successfully initialized.", separator=self._separator)

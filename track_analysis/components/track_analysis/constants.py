@@ -17,7 +17,7 @@ CLEAR_CACHE: bool = True  # For developing purposes, clears the cache each time 
 DELETE_FINAL_DATA_BEFORE_START: bool = True  # For developing purposes; removes `enriched_scrobbles.csv` on start.
 TEST_CACHE_BUILDER_MODE: bool = False  # For developing purposes; auto accepts every scrobble match to see data in cache clearly.
 
-TEST_SAMPLE_SIZE: int = 5000  # The number of scrobbles to load (only applies to scrobbles, the library itself will always be fully loaded)
+TEST_SAMPLE_SIZE: int = None  # The number of scrobbles to load (only applies to scrobbles, the library itself will always be fully loaded)
 
 NO_MATCH_LABEL: str = "<NO MATCH>"
 

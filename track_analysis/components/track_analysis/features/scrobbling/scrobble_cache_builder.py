@@ -12,6 +12,7 @@ from track_analysis.components.track_analysis.features.scrobbling.algorithm.algo
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.cache_builder_pipeline import \
     CacheBuilderPipeline
 from track_analysis.components.track_analysis.features.scrobbling.cache_helper import ScrobbleCacheHelper
+from track_analysis.components.track_analysis.features.scrobbling.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import \
     ScrobbleCacheAlgorithmParameters
 from track_analysis.components.track_analysis.features.scrobbling.parameter_tester import ParameterTester
@@ -36,6 +37,7 @@ class ScrobbleCacheBuilder:
             embedding_model: SentenceTransformer,
             parameters: ScrobbleCacheAlgorithmParameters,
             cache_helper: ScrobbleCacheHelper,
+            searcher: EmbeddingSearcher,
             sample_size: Optional[int] = None,
             test: bool = False,
     ):
@@ -54,7 +56,8 @@ class ScrobbleCacheBuilder:
             embedding_model=embedding_model,
             embed_weights=parameters.embed_weights,
             cache_helper=cache_helper,
-            manual_override_path=manual_override_path
+            manual_override_path=manual_override_path,
+            searcher=searcher
         )
 
         self._pipeline: CacheBuilderPipeline = CacheBuilderPipeline(
@@ -63,7 +66,8 @@ class ScrobbleCacheBuilder:
             embedder=embedding_model,
             parameters=parameters,
             test_mode=test,
-            cache_helper=cache_helper
+            cache_helper=cache_helper,
+            embedding_searcher=searcher
         )
         self._pipeline.build_pipeline()
 

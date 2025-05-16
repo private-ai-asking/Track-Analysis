@@ -7,6 +7,7 @@ from sentence_transformers import SentenceTransformer
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.cache_builder_pipeline import CacheBuilderPipeline
 from track_analysis.components.track_analysis.features.scrobbling.cache_helper import ScrobbleCacheHelper
+from track_analysis.components.track_analysis.features.scrobbling.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import ScrobbleCacheAlgorithmParameters
@@ -31,6 +32,7 @@ class ParameterTester:
             cache_helper: ScrobbleCacheHelper,
             embedding_model: SentenceTransformer,
             manual_override_path: Path,
+            searcher: EmbeddingSearcher,
             embed_weights: Dict,
             test_mode: bool = False
     ):
@@ -51,6 +53,7 @@ class ParameterTester:
         self._library_df = None
 
         self._scrobble_utils = scrobble_utils
+        self._searcher = searcher
         self._embedder = embedding_model
         self._test_mode = test_mode
 
@@ -101,7 +104,8 @@ class ParameterTester:
                                 parameters=params,
                                 test_mode=self._test_mode,
                                 form_gold_standard=False,
-                                cache_helper=self._cache_helper
+                                cache_helper=self._cache_helper,
+                                embedding_searcher=self._searcher
                             )
                             pipeline.build_pipeline()
 

@@ -14,6 +14,7 @@ from track_analysis.components.md_common_python.py_common.utils import (
     CollectionExtensions,
 )
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
+from track_analysis.components.track_analysis.features.scrobbling.embedding_searcher import EmbeddingSearcher
 
 
 @dataclass
@@ -38,6 +39,7 @@ class NearestNeighborSearch(IPipe):
             scrobble_util,            # ScrobbleUtility
             embedder: SentenceTransformer,
             params,
+            embedding_searcher: EmbeddingSearcher,
             test_mode: bool,
     ):
         self._logger = logger
@@ -52,6 +54,9 @@ class NearestNeighborSearch(IPipe):
             threshold=params.token_accept_threshold,
             field_weights=params.embed_weights,
         )
+
+        self._searcher = embedding_searcher
+
         self._token_thr = params.token_accept_threshold / 100.0
         self._accept_thr = params.confidence_accept_threshold
         self._reject_thr = params.confidence_reject_threshold
@@ -68,11 +73,6 @@ class NearestNeighborSearch(IPipe):
         self._predictions: Dict[str, Optional[str]] = {}
         self._confidences: Dict[str, float] = {}
 
-        # Pre-allocate FAISS output buffers
-        n_queries = 10_000
-        self._search_indices_buffer = np.empty((n_queries, self._top_k), dtype=np.int64)
-        self._search_distances_buffer = np.empty((n_queries, self._top_k), dtype=np.float32)
-
         self._logger.trace("Initialized NearestNeighborSearch.")
 
     def flow(self, ctx: AlgorithmContext) -> AlgorithmContext:
@@ -82,7 +82,7 @@ class NearestNeighborSearch(IPipe):
             return ctx
 
         embeddings = self._encode(df)
-        indices, distances = self._search(embeddings, ctx)
+        indices, distances = self._searcher.search(embeddings, ctx)
         self._evaluate_all(df, distances, indices, ctx)
         self._finalize(ctx)
         return ctx
@@ -93,16 +93,6 @@ class NearestNeighborSearch(IPipe):
             df['_n_artist'].tolist(),
             df['_n_album'].tolist(),
         )
-
-    def _search(self, embeddings: np.ndarray, ctx: AlgorithmContext):
-        if embeddings.dtype != np.float32 or not embeddings.flags["C_CONTIGUOUS"]:
-            embeddings = np.ascontiguousarray(embeddings, dtype=np.float32)
-
-        nq = embeddings.shape[0]
-        Dret, Iret = ctx.library_index.search(embeddings, self._top_k)
-        self._search_distances_buffer[:nq] = Dret
-        self._search_indices_buffer[:nq] = Iret
-        return self._search_indices_buffer[:nq], self._search_distances_buffer[:nq]
 
     def _evaluate_all(self, df, distances: np.ndarray, indices: np.ndarray, ctx: AlgorithmContext) -> None:
         for idx, key in enumerate(df['__key']):
