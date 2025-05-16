@@ -13,7 +13,7 @@ VERBOSE: bool = False
 
 MINIMUM_CONFIDENCE_THRESHOLD: float = 90  # 0-100
 
-CLEAR_CACHE: bool = True  # For developing purposes, clears the cache each time to reset -- for profiling.
+CLEAR_CACHE: bool = False  # For developing purposes, clears the cache each time to reset -- for profiling.
 DELETE_FINAL_DATA_BEFORE_START: bool = True  # For developing purposes; removes `enriched_scrobbles.csv` on start.
 TEST_CACHE_BUILDER_MODE: bool = False  # For developing purposes; auto accepts every scrobble match to see data in cache clearly.
 
