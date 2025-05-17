@@ -7,6 +7,10 @@ from track_analysis.components.track_analysis.features.data_generation.contexts 
     DataGenerationPipeConfiguration, BatchContext
 from track_analysis.components.track_analysis.features.data_generation.track_processor_interface import \
     ITrackProcessorStrategy
+from track_analysis.components.track_analysis.features.data_generation.track_processors.bpm_processor import \
+    BPMTrackProcessor
+from track_analysis.components.track_analysis.features.data_generation.track_processors.energy_processor import \
+    EnergyTrackProcessor
 from track_analysis.components.track_analysis.features.data_generation.track_processors.true_peak_processor import \
     TruePeakTrackProcessor
 from track_analysis.components.track_analysis.features.data_generation.model.audio_info import AudioInfo
@@ -34,7 +38,9 @@ class DataGenerationPipe(IPipe):
 
     def __get_track_processor(self, header: Header) -> Union[ITrackProcessorStrategy, None]:
         processor_mapping: Dict[Header, ITrackProcessorStrategy] = {
-            Header.True_Peak: TruePeakTrackProcessor(self._logger, self._audio_file_handler, self._audio_calculator)
+            Header.True_Peak: TruePeakTrackProcessor(self._logger, self._audio_file_handler, self._audio_calculator),
+            Header.BPM: BPMTrackProcessor(self._logger),
+            Header.Energy_Level: EnergyTrackProcessor(self._logger)
         }
 
         processor = processor_mapping.get(header, None)

@@ -52,5 +52,5 @@ class PreprocessData(IPipe):
                     metadata_item.value = self._format_list(metadata_item.value)
                     self._logger.debug(f"Preprocessing new value: {metadata_item.value}", separator=self._separator)
 
-        self._logger.trace("Successfully preprocessed data.", separator=self._separator)
+        self._logger.info("Successfully preprocessed data.", separator=self._separator)
         return data

@@ -50,33 +50,7 @@ class AddAdvancedMetadata(IPipe):
             track.metadata.append(AudioMetadataItem(header=Header.Loudness, description="The loudness measurement in LUFS.", value=lufs))
             track.metadata.append(AudioMetadataItem(header=Header.True_Peak, description="The true peak measurement in dBFS.", value=true_peak))
 
-            # Time Series
-            track_id: str = track.get_track_id()
-
-            momentary_lufs, short_term_lufs = self._audio_calculator.calculate_momentary_short_term_lufs(file_info.sample_rate_Hz, file_info.samples_librosa)
-            timeseries_rows: List[AudioInfo] = []
-
-            for timestamp, lufs in momentary_lufs:
-                metadata: List[AudioMetadataItem] = [
-                    AudioMetadataItem(header=Header.Track_ID, description="", value=track_id),
-                    AudioMetadataItem(header=Header.Timestamp, description="", value=timestamp),
-                    AudioMetadataItem(header=Header.Value, description="", value=lufs),
-                    AudioMetadataItem(header=Header.Type, description="", value="momentary-lufs")
-                ]
-                timeseries_rows.append(AudioInfo(metadata=metadata, path=track.path))
-
-            for timestamp, lufs in short_term_lufs:
-                metadata: List[AudioMetadataItem] = [
-                    AudioMetadataItem(header=Header.Track_ID, description="", value=track_id),
-                    AudioMetadataItem(header=Header.Timestamp, description="", value=timestamp),
-                    AudioMetadataItem(header=Header.Value, description="", value=lufs),
-                    AudioMetadataItem(header=Header.Type, description="", value="short-term-lufs")
-                ]
-                timeseries_rows.append(AudioInfo(metadata=metadata, path=track.path))
-
-            track.timeseries_data = timeseries_rows
-
             self._logger.trace(f"Finished adding metadata for track: {track.path}", separator=self._separator)
 
-        self._logger.trace("Finished adding advanced metadata.", separator=self._separator)
+        self._logger.info("Finished adding advanced metadata.", separator=self._separator)
         return data

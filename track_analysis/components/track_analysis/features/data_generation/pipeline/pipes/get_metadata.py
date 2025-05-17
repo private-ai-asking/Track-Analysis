@@ -45,5 +45,5 @@ class GetAudioMetadata(IPipe):
 
         data.generated_audio_info = audio_info
 
-        self._logger.trace("Successfully extracted all audio metadata.", separator=self._separator)
+        self._logger.info("Successfully extracted all audio metadata.", separator=self._separator)
         return data

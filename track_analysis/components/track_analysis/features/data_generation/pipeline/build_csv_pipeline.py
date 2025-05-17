@@ -28,7 +28,7 @@ class BuildCSVPipeline(AbPipeline):
         self._tag_extractor = tag_extractor
         self._audio_file_handler = audio_file_handler
         self._audio_calculator = audio_calculator
-        super().__init__()
+        super().__init__(logger)
 
     def build_pipeline(self):
         def __exit_if_no_files_to_process(context: PipelineContextModel) -> bool:

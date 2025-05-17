@@ -37,7 +37,7 @@ class DataGenerationPipeline(AbPipeline):
             batch_size=batch_size
         )
 
-        super().__init__()
+        super().__init__(logger)
 
     def build_pipeline(self):
         self._add_step(LoadCache(self._logger))

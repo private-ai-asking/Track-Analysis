@@ -85,9 +85,6 @@ class LoadCache(IPipe):
                 processed += 1
                 self._logger.info(f"Successfully loaded track: {processed}/{num_lines} ({round(processed/num_lines * 100, 4)}%)", separator=self._separator)
 
-                if DEBUG and processed >= 10:
-                    break
-
         data.loaded_audio_info_cache = loaded_tracks
 
         return data

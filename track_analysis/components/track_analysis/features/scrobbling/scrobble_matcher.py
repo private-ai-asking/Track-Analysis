@@ -27,13 +27,12 @@ class ScrobbleMatcher:
         uuids = []
         confidences = []
         for txt in texts:
-            match = self._cache.get(txt)
-            if match is not None:
-                uuids.append(match)
+            matching_row = self._cache.get(txt)
+            if matching_row is not None:
+                uuids.append(matching_row["associated_uuid"])
             else:
                 uuids.append(NO_MATCH_LABEL)
             confidences.append(None)
-            # update cache to keep consistency (no new entries)
 
         output = scrobble_df.copy()
         output['track_uuid'] = uuids
