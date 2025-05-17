@@ -2,12 +2,12 @@ from track_analysis.components.md_common_python.py_common.handlers import FileHa
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import AbPipeline
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
-from track_analysis.components.track_analysis.pipeline.pipes.get_audio_files import GetAudioFiles
-from track_analysis.components.track_analysis.pipeline.pipes.get_metadata import GetAudioMetadata
-from track_analysis.components.track_analysis.pipeline.pipes.load_cache import LoadCache
-from track_analysis.components.track_analysis.pipeline.pipes.make_csv import MakeCSV
-from track_analysis.components.track_analysis.pipeline.pipes.match_paths import MatchPaths
-from track_analysis.components.track_analysis.pipeline.pipes.preprocess_data import PreprocessData
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_audio_files import GetAudioFiles
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_metadata import GetAudioMetadata
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.load_cache import LoadCache
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.make_csv import MakeCSV
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.match_paths import MatchPaths
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.preprocess_data import PreprocessData
 
 
 class LocatePathsPipeline(AbPipeline):

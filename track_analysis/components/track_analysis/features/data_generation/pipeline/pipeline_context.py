@@ -3,8 +3,8 @@ from typing import List, Optional
 
 import pydantic
 
-from track_analysis.components.track_analysis.model.album_cost import AlbumCostModel
-from track_analysis.components.track_analysis.model.audio_info import AudioInfo
+from track_analysis.components.track_analysis.features.data_generation.model.album_cost import AlbumCostModel
+from track_analysis.components.track_analysis.features.data_generation.model.audio_info import AudioInfo
 
 
 class PipelineContextModel(pydantic.BaseModel):

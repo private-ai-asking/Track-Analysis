@@ -8,8 +8,8 @@ from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRAR
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.generation_pipeline import DataGenerationPipeline
-from track_analysis.components.track_analysis.model.header import Header
-from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.components.track_analysis.features.data_generation.model.header import Header
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import PipelineContextModel
 
 
 class DataGenerator:

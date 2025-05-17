@@ -2,8 +2,8 @@ from typing import List
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.model.header import Header
-from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.components.track_analysis.features.data_generation.model.header import Header
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import PipelineContextModel
 
 
 class PreprocessData(IPipe):
@@ -52,5 +52,5 @@ class PreprocessData(IPipe):
                     metadata_item.value = self._format_list(metadata_item.value)
                     self._logger.debug(f"Preprocessing new value: {metadata_item.value}", separator=self._separator)
 
-        self._logger.trace("Successfully preprocessed data.", separator=self._separator)
+        self._logger.info("Successfully preprocessed data.", separator=self._separator)
         return data

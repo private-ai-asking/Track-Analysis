@@ -3,9 +3,9 @@ from track_analysis.components.track_analysis.features.audio_calculator import A
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel, AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.track_processor_interface import \
     ITrackProcessorStrategy
-from track_analysis.components.track_analysis.model.audio_info import AudioInfo
-from track_analysis.components.track_analysis.model.audio_metadata_item import AudioMetadataItem
-from track_analysis.components.track_analysis.model.header import Header
+from track_analysis.components.track_analysis.features.data_generation.model.audio_info import AudioInfo
+from track_analysis.components.track_analysis.features.data_generation.model.audio_metadata_item import AudioMetadataItem
+from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 
 
 class TruePeakTrackProcessor(ITrackProcessorStrategy):

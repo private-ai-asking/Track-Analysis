@@ -4,10 +4,10 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.track_analysis.constants import VERBOSE
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
-from track_analysis.components.track_analysis.model.audio_info import AudioInfo
-from track_analysis.components.track_analysis.model.audio_metadata_item import AudioMetadataItem
-from track_analysis.components.track_analysis.model.header import Header
-from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.components.track_analysis.features.data_generation.model.audio_info import AudioInfo
+from track_analysis.components.track_analysis.features.data_generation.model.audio_metadata_item import AudioMetadataItem
+from track_analysis.components.track_analysis.features.data_generation.model.header import Header
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import PipelineContextModel
 
 
 class GetAudioMetadata(IPipe):
@@ -45,5 +45,5 @@ class GetAudioMetadata(IPipe):
 
         data.generated_audio_info = audio_info
 
-        self._logger.trace("Successfully extracted all audio metadata.", separator=self._separator)
+        self._logger.info("Successfully extracted all audio metadata.", separator=self._separator)
         return data

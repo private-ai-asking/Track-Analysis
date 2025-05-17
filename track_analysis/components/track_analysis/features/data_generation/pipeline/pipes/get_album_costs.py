@@ -1,8 +1,8 @@
 from typing import List
 
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.model.album_cost import AlbumCostModel
-from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.components.track_analysis.features.data_generation.model.album_cost import AlbumCostModel
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import PipelineContextModel
 
 
 class GetAlbumCosts(IPipe):

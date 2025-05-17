@@ -1,8 +1,6 @@
-import pickle
 from pathlib import Path
+from typing import Dict
 
-import faiss
-import numpy as np
 import pandas as pd
 from pandas import DataFrame
 from sentence_transformers import SentenceTransformer
@@ -10,10 +8,17 @@ from sentence_transformers import SentenceTransformer
 from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
-from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY, CLEAR_CACHE, TEST_SAMPLE_SIZE, \
-    DATA_DIRECTORY, NO_MATCH_LABEL
+from track_analysis.components.track_analysis.constants import TEST_SAMPLE_SIZE, \
+    NO_MATCH_LABEL, TEST_CACHE_BUILDER_MODE
+from track_analysis.components.track_analysis.features.scrobbling.cache_helper import ScrobbleCacheHelper
+from track_analysis.components.track_analysis.features.scrobbling.embedding_builder import EmbeddingBuilder
+from track_analysis.components.track_analysis.features.scrobbling.embedding_searcher import EmbeddingSearcher
+from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import \
+    ScrobbleCacheAlgorithmParameters
+from track_analysis.components.track_analysis.features.scrobbling.scrobble_cache_builder import ScrobbleCacheBuilder
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_matcher import ScrobbleMatcher
+from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
 
 
 class ScrobbleLinkerService:
@@ -25,82 +30,67 @@ class ScrobbleLinkerService:
                  string_utils: StringUtils,
                  embedder: SentenceTransformer,
                  keys_path: Path,
-                 index_path: Path,
-                 minimum_fuzzy_threshold: float = 95.0):
+                 gold_standard_csv_path: Path,
+                 manual_override_path: Path,
+                 scrobble_utils: ScrobbleUtility,
+                 cache_builder: CacheBuilder,
+                 embed_weights: Dict,
+                 cache_helper: ScrobbleCacheHelper,
+                 embedding_searcher: EmbeddingSearcher,
+                 combo_key: str = "||",
+                 minimum_confidence_threshold: float = 90.0):
         self._logger: HoornLogger = logger
         self._separator: str = "ScrobbleLinker"
         self._string_utils: StringUtils = string_utils
-        self._combo_key: str = "||"
-        self._embedder: SentenceTransformer = embedder
+        self._combo_key: str = combo_key
         self._scrobble_data_loader: ScrobbleDataLoader = data_loader
+        self._keys_path: Path = keys_path
+        self._minimum_confidence_threshold: float = minimum_confidence_threshold
 
-        cache_path: Path = CACHE_DIRECTORY.joinpath("scrobble_cache.json")
-
-        if CLEAR_CACHE:
-            cache_path.unlink(missing_ok=True)
+        cache_builder: CacheBuilder = cache_builder
 
         self._scrobble_matcher: ScrobbleMatcher = ScrobbleMatcher(
             logger,
-            CacheBuilder(logger, cache_path, tree_separator=self._combo_key),
-            embedder=self._embedder,
-            threshold=minimum_fuzzy_threshold,
-            combo_key=self._combo_key,
-            ann_k=10,
+            cache_builder,
+            scrobble_utils
+        )
+
+        self._embedding_builder: EmbeddingBuilder = EmbeddingBuilder(
+            logger,
+            self._scrobble_data_loader,
+            sample_scrobbles=TEST_SAMPLE_SIZE,
+            scrobble_utils=scrobble_utils
+        )
+
+        self._scrobble_cache_builder: ScrobbleCacheBuilder = ScrobbleCacheBuilder(
+            logger,
+            cache_builder,
+            data_loader,
+            sample_size=TEST_SAMPLE_SIZE,
+            scrobble_utils=scrobble_utils,
             keys_path=keys_path,
-            faiss_index_path=index_path
+            embedding_model=embedder,
+            test=TEST_CACHE_BUILDER_MODE,
+            parameters=ScrobbleCacheAlgorithmParameters(
+                gold_standard_csv_path=gold_standard_csv_path,
+                embed_weights=embed_weights,
+                manual_override_path=manual_override_path
+            ),
+            cache_helper=cache_helper,
+            manual_override_path=manual_override_path,
+            searcher=embedding_searcher
         )
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
     def build_embeddings_for_library(self) -> None:
-        self._logger.info("Starting to build embeddings...", separator=self._separator)
+        self._embedding_builder.build_embeddings()
 
-        # 1) load a (small) sample to initialize loader, then pull full library
-        self._scrobble_data_loader.load(sample_rows=TEST_SAMPLE_SIZE)
-        library_data: DataFrame = self._scrobble_data_loader.get_library_data()
+    def build_cache(self) -> None:
+        self._scrobble_cache_builder.build_cache()
 
-        # 2) build the combo strings
-        combo = self._combo_key
-        lib_strings = (
-                library_data['_n_artist']
-                + combo + library_data['_n_album']
-                + combo + library_data['_n_title']
-        ).tolist()
-
-        # 3) embed each string via ONNXRuntime
-        lib_embeddings = self._embedder.encode(
-            lib_strings,
-            batch_size=128,
-            convert_to_numpy=True,
-        ).astype('float32')
-
-        # 4) persist raw embeddings and UUID list
-        embeddings_path = DATA_DIRECTORY / "__internal__" / "lib_embeddings.npy"
-        keys_path       = DATA_DIRECTORY / "__internal__" / "lib_keys.pkl"
-        np.save(embeddings_path, lib_embeddings)
-
-        with open(keys_path, 'wb') as f:
-            pickle.dump(library_data['UUID'].tolist(), f)
-
-        # 5) build Flat index & add vectors
-        N, d = lib_embeddings.shape
-        index = faiss.IndexFlatL2(d)
-        index.add(lib_embeddings)
-
-        # 6) write out index file
-        index_path = DATA_DIRECTORY / "__internal__" / "lib.index"
-        faiss.write_index(index, str(index_path))
-
-        self._logger.info("Done building embeddings.", separator=self._separator)
-
-    def _log_unmatched_amount(self, enriched_scrobble_date: pd.DataFrame) -> None:
-        # Log unmatched count
-        unmatched: int = enriched_scrobble_date["track_uuid"].eq(NO_MATCH_LABEL).sum()
-        total: int = len(enriched_scrobble_date)
-        self._logger.info(
-            f"Linked {total - unmatched} of {total} scrobbles. {unmatched} remain unmatched.",
-            separator=self._separator
-        )
+    def test_parameters(self) -> None:
+        self._scrobble_cache_builder.test_parameters()
 
     def link_scrobbles(self) -> pd.DataFrame:
         """Links scrobble data to library data by matching tracks and writing the associated Track ID
@@ -114,3 +104,12 @@ class ScrobbleLinkerService:
         enriched_scrobble_data: DataFrame = self._scrobble_matcher.link_scrobbles(scrobble_data)
         self._log_unmatched_amount(enriched_scrobble_data)
         return enriched_scrobble_data
+
+    def _log_unmatched_amount(self, enriched_scrobble_date: pd.DataFrame) -> None:
+        # Log unmatched count
+        unmatched: int = enriched_scrobble_date["track_uuid"].eq(NO_MATCH_LABEL).sum()
+        total: int = len(enriched_scrobble_date)
+        self._logger.info(
+            f"Linked {total - unmatched} of {total} scrobbles. {unmatched} remain unmatched.",
+            separator=self._separator
+        )

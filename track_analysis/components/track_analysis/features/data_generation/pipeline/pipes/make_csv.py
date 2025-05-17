@@ -4,9 +4,9 @@ from typing import List
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.model.audio_info import AudioInfo
-from track_analysis.components.track_analysis.model.header import Header
-from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.components.track_analysis.features.data_generation.model.audio_info import AudioInfo
+from track_analysis.components.track_analysis.features.data_generation.model.header import Header
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import PipelineContextModel
 
 
 class MakeCSV(IPipe):
@@ -68,30 +68,10 @@ class MakeCSV(IPipe):
             self._write_data(writer, data.loaded_audio_info_cache, data.invalid_cached_paths, headers)
             self._write_data(writer, data.generated_audio_info, [], headers)
 
-    def _write_time_series_data(self, context: PipelineContextModel, data: List[AudioInfo]):
-        with open(context.main_data_output_file_path.parent.joinpath("timeseries-data.csv"), "w", encoding="utf-8", newline='') as csvfile:
-            headers = self._extract_headers(data, "timeseries generated metadata")
-
-            if len(headers) == 0:
-                self._logger.warning("No headers / data found.", separator=self._separator)
-                return context
-
-            writer = csv.writer(csvfile)
-
-            writer.writerow(headers)
-            self._write_data(writer, data, [], headers)
-
     def flow(self, context: PipelineContextModel) -> PipelineContextModel:
         self._logger.trace("Writing data...", separator=self._separator)
 
         self._write_main_data(context)
-
-        timeseries_data: List[AudioInfo] = []
-
-        for track in context.generated_audio_info:
-            timeseries_data.extend(track.timeseries_data)
-
-        self._write_time_series_data(context, timeseries_data)
 
         self._logger.trace("Successfully written all data.", separator=self._separator)
 

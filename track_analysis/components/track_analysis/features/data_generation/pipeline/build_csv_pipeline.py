@@ -4,16 +4,16 @@ from track_analysis.components.md_common_python.py_common.patterns import AbPipe
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
-from track_analysis.components.track_analysis.pipeline.pipeline_context import PipelineContextModel
-from track_analysis.components.track_analysis.pipeline.pipes.add_advanced_metadata import AddAdvancedMetadata
-from track_analysis.components.track_analysis.pipeline.pipes.get_invalid_cache import GetInvalidCache
-from track_analysis.components.track_analysis.pipeline.pipes.filter_files import FilterFiles
-from track_analysis.components.track_analysis.pipeline.pipes.get_album_costs import GetAlbumCosts
-from track_analysis.components.track_analysis.pipeline.pipes.get_audio_files import GetAudioFiles
-from track_analysis.components.track_analysis.pipeline.pipes.get_metadata import GetAudioMetadata
-from track_analysis.components.track_analysis.pipeline.pipes.load_cache import LoadCache
-from track_analysis.components.track_analysis.pipeline.pipes.make_csv import MakeCSV
-from track_analysis.components.track_analysis.pipeline.pipes.preprocess_data import PreprocessData
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.add_advanced_metadata import AddAdvancedMetadata
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_invalid_cache import GetInvalidCache
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.filter_files import FilterFiles
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_album_costs import GetAlbumCosts
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_audio_files import GetAudioFiles
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_metadata import GetAudioMetadata
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.load_cache import LoadCache
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.make_csv import MakeCSV
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.preprocess_data import PreprocessData
 
 
 class BuildCSVPipeline(AbPipeline):
@@ -28,7 +28,7 @@ class BuildCSVPipeline(AbPipeline):
         self._tag_extractor = tag_extractor
         self._audio_file_handler = audio_file_handler
         self._audio_calculator = audio_calculator
-        super().__init__()
+        super().__init__(logger)
 
     def build_pipeline(self):
         def __exit_if_no_files_to_process(context: PipelineContextModel) -> bool:

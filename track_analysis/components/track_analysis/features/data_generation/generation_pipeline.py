@@ -8,9 +8,9 @@ from track_analysis.components.track_analysis.features.audio_file_handler import
 from track_analysis.components.track_analysis.features.data_generation.contexts import DataGenerationPipeContext, \
     DataGenerationPipeConfiguration
 from track_analysis.components.track_analysis.features.data_generation.generation_pipe import DataGenerationPipe
-from track_analysis.components.track_analysis.model.header import Header
-from track_analysis.components.track_analysis.pipeline.pipes.load_cache import LoadCache
-from track_analysis.components.track_analysis.pipeline.pipes.make_csv import MakeCSV
+from track_analysis.components.track_analysis.features.data_generation.model.header import Header
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.load_cache import LoadCache
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.make_csv import MakeCSV
 
 
 class DataGenerationPipeline(AbPipeline):
@@ -37,7 +37,7 @@ class DataGenerationPipeline(AbPipeline):
             batch_size=batch_size
         )
 
-        super().__init__()
+        super().__init__(logger)
 
     def build_pipeline(self):
         self._add_step(LoadCache(self._logger))
