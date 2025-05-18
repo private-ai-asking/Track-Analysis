@@ -46,7 +46,7 @@ class CacheBuilderPipeline(AbPipeline):
 
         self._add_step(ExtractUniqueEntries(self._logger, self._scrobble_utils))
         self._add_step(status_report)
-        self._add_step(FilterManualOverride(self._logger, self._manual_json_path, self._searcher))
+        self._add_step(FilterManualOverride(self._logger, self._manual_json_path, self._searcher, self._parameters))
         self._add_step(status_report)
         self._add_step(FilterExactMatches(self._logger))
         self._add_step(status_report)

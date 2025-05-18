@@ -2,22 +2,47 @@ import json
 
 import pandas as pd
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
+from track_analysis.components.track_analysis.constants import KEYS_TO_BE_IGNORED_IN_CACHE_CHECK
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
+from track_analysis.components.track_analysis.features.scrobbling.embedding.evaluation.best_candidate_selector import \
+    BestCandidateSelector
+from track_analysis.components.track_analysis.features.scrobbling.embedding.evaluation.candidate_filter_interface import \
+    CandidateEvaluatorInterface
+from track_analysis.components.track_analysis.features.scrobbling.embedding.evaluation.confidence_assigner import \
+    GaussianConfidenceAssigner
+from track_analysis.components.track_analysis.features.scrobbling.embedding.evaluation.decision_evaluator import \
+    DecisionEvaluator
+from track_analysis.components.track_analysis.features.scrobbling.embedding.evaluation.field_threshold_evaluator import \
+    FieldThresholdEvaluator
+from track_analysis.components.track_analysis.features.scrobbling.model.candidate_model import CandidateModel, \
+    DecisionBin
 
 
 class FilterManualOverride(IPipe):
     """A pipe to filter out the tracks present in the manual override."""
-    def __init__(self, logger: HoornLogger, manual_override_json_path: Path, embedding_searcher: EmbeddingSearcher):
+    def __init__(self, logger: HoornLogger, manual_override_json_path: Path, embedding_searcher: EmbeddingSearcher, params):
         self._logger = logger
         self._separator = "CacheBuilder.FilterManualOverride"
         self._override_path: Path = manual_override_json_path
         self._embedding_searcher: EmbeddingSearcher = embedding_searcher
         self._lookup = self._build_lookup()
+
+        self._token_accept_threshold = params.token_accept_threshold / 100.0
+        self._confidence_accept_threshold = params.confidence_accept_threshold
+        self._confidence_reject_threshold = params.confidence_reject_threshold
+
+        self._candidate_evaluators: List[CandidateEvaluatorInterface] = [
+            FieldThresholdEvaluator(logger, self._token_accept_threshold),
+            BestCandidateSelector(logger),
+            GaussianConfidenceAssigner(logger, params.gaussian_sigma),
+            DecisionEvaluator(logger, self._confidence_accept_threshold, self._confidence_reject_threshold, self._token_accept_threshold)
+        ]
+
         self._logger.trace(f"Loaded {len(self._lookup)} manual overrides.", separator=self._separator)
 
     def flow(self, ctx: AlgorithmContext) -> AlgorithmContext:
@@ -87,7 +112,7 @@ class FilterManualOverride(IPipe):
             .drop(columns=['override_uuid'])
         )
 
-        # self._log_rejected_rows(df_processed)
+        self._log_rejected_rows_that_are_predicted_to_be_accepted(df_processed)
 
         # Merge back into context
         if ctx.auto_rejected_scrobbles is None:
@@ -103,10 +128,43 @@ class FilterManualOverride(IPipe):
             separator=self._separator
         )
 
-    # def _log_rejected_rows(self, df: pd.DataFrame) -> None:
-    #     """Temporary helper: print each rejected row for future processing."""
-    #     for _, row in df.iterrows():
-    #         self._embedding_searcher._search()
+    def _log_rejected_rows_that_are_predicted_to_be_accepted(
+            self,
+            df: pd.DataFrame
+    ) -> None:
+        """Log each previously rejected row whose top FAISS candidate is now ACCEPT."""
+        # 1) Build mask of rows to process
+        mask = ~df['__key'].isin(KEYS_TO_BE_IGNORED_IN_CACHE_CHECK)
+        df_to_check = df.loc[mask]
+
+        if df_to_check.empty:
+            return
+
+        # 2) Extract the columns for batch search
+        titles = df_to_check['_n_title'].tolist()
+        albums = df_to_check['_n_album'].tolist()
+        artists = df_to_check['_n_artist'].tolist()
+
+        # 3) Perform one big batch search
+        all_candidates: List[List[CandidateModel]] = (
+            self._embedding_searcher.search_batch(
+                n_titles=titles,
+                n_albums=albums,
+                n_artists=artists,
+                candidate_evaluators=self._candidate_evaluators
+            )
+        )
+
+        # 4) Iterate only to log warnings (pure Python, no embedding calls)
+        for key, candidates in zip(df_to_check['__key'], all_candidates):
+            best_candidate = candidates[0]
+            if best_candidate.decision_bin == DecisionBin.ACCEPT:
+                self._logger.warning(
+                    f"Row [{key}] should now be accepted according to the algorithm. "
+                    "It will stay as is currently in the manual overwrite until you change it.\n"
+                    f"Associated ID: [{best_candidate.uuid}]",
+                    separator=self._separator
+                )
 
     @staticmethod
     def _finalize_context(ctx: AlgorithmContext, df_remaining: pd.DataFrame) -> AlgorithmContext:

@@ -31,3 +31,10 @@ TEST_SAMPLE_SIZE: int = None  # The number of scrobbles to load (only applies to
 NO_MATCH_LABEL: str = "<NO MATCH>"
 
 CPU_COUNT: int = 10
+
+# ======================================================================================================================
+
+KEYS_TO_BE_IGNORED_IN_CACHE_CHECK: List[str] = [
+    "nujabes||luv sic hexalogy||luv sic pt2",
+    "max richter||the blue notebooks 15 years||on the nature of daylight"
+]

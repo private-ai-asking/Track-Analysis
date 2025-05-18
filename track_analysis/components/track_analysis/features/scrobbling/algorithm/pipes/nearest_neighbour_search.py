@@ -4,8 +4,6 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.md_common_python.py_common.utils import (
-    CollectionExtensions, )
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.embedding.evaluation.best_candidate_selector import \
