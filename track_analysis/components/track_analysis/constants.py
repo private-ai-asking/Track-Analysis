@@ -19,6 +19,7 @@ BENCHMARK_DIRECTORY: Path = Path(r"X:\Track Analysis\track_analysis\benchmarks")
 
 DEBUG: bool = False
 VERBOSE: bool = False
+PROFILE_DATA_LOADING: bool = False
 
 MINIMUM_CONFIDENCE_THRESHOLD: float = 90  # 0-100
 

@@ -21,7 +21,7 @@ from track_analysis.components.md_common_python.py_common.utils import Similarit
 from track_analysis.components.md_common_python.py_common.utils.string_utils import StringUtils
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
     DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START, CACHE_DIRECTORY, CLEAR_CACHE, \
-    DOWNLOAD_CSV_FILE, TEST_SAMPLE_SIZE
+    DOWNLOAD_CSV_FILE, TEST_SAMPLE_SIZE, PROFILE_DATA_LOADING
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
@@ -142,7 +142,9 @@ class App:
         def _load():
             self._scrobble_data_loader.load(TEST_SAMPLE_SIZE)
 
-        _run_with_profiling(_load, "Data Loading")
+        if PROFILE_DATA_LOADING:
+            _run_with_profiling(_load, "Data Loading")
+        else: _load()
 
         scrobble_cache_helper: ScrobbleCacheHelper = ScrobbleCacheHelper(logger, self._scrobble_data_loader, cache_builder)
         embedding_searcher: EmbeddingSearcher = EmbeddingSearcher(logger, top_k=5, loader=self._scrobble_data_loader, utility=scrobble_utils, candidate_retriever=DefaultCandidateRetriever(
