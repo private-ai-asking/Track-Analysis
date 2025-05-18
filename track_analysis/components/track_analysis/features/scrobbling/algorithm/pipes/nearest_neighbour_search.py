@@ -5,15 +5,21 @@ import pandas as pd
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.md_common_python.py_common.utils import (
-    CollectionExtensions, SimilarityScorer,
-)
+    CollectionExtensions, )
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
-from track_analysis.components.track_analysis.features.scrobbling.embedding.filtering.best_candidate_selector_token_similarity import \
-    BestCandidateSelectorBasedOnTokenSimilarity
-from track_analysis.components.track_analysis.features.scrobbling.embedding.filtering.candidate_filter_interface import \
-    CandidateFilterInterface
-from track_analysis.components.track_analysis.features.scrobbling.model.candidate_model import CandidateModel
+from track_analysis.components.track_analysis.features.scrobbling.embedding.evaluation.best_candidate_selector import \
+    BestCandidateSelector
+from track_analysis.components.track_analysis.features.scrobbling.embedding.evaluation.candidate_filter_interface import \
+    CandidateEvaluatorInterface
+from track_analysis.components.track_analysis.features.scrobbling.embedding.evaluation.confidence_assigner import \
+    GaussianConfidenceAssigner
+from track_analysis.components.track_analysis.features.scrobbling.embedding.evaluation.decision_evaluator import \
+    DecisionEvaluator
+from track_analysis.components.track_analysis.features.scrobbling.embedding.evaluation.field_threshold_evaluator import \
+    FieldThresholdEvaluator
+from track_analysis.components.track_analysis.features.scrobbling.model.candidate_model import CandidateModel, \
+    DecisionBin
 
 
 class NearestNeighborSearch(IPipe):
@@ -26,7 +32,6 @@ class NearestNeighborSearch(IPipe):
             logger: HoornLogger,
             params,
             embedding_searcher: EmbeddingSearcher,
-            scorer: SimilarityScorer,
             test_mode: bool,
     ):
         self._logger = logger
@@ -37,12 +42,12 @@ class NearestNeighborSearch(IPipe):
         self._confidence_accept_threshold = params.confidence_accept_threshold
         self._confidence_reject_threshold = params.confidence_reject_threshold
 
-        self._candidate_filter: CandidateFilterInterface = BestCandidateSelectorBasedOnTokenSimilarity(
-            logger,
-            scorer,
-            self._token_accept_threshold,
-            params.gaussian_sigma
-        )
+        self._candidate_evaluators: List[CandidateEvaluatorInterface] = [
+            FieldThresholdEvaluator(logger, self._token_accept_threshold),
+            BestCandidateSelector(logger),
+            GaussianConfidenceAssigner(logger, params.gaussian_sigma),
+            DecisionEvaluator(logger, self._confidence_accept_threshold, self._confidence_reject_threshold, self._token_accept_threshold)
+        ]
 
         # FAISS search params
         self._batch_size = params.batch_size
@@ -66,9 +71,9 @@ class NearestNeighborSearch(IPipe):
             return ctx
 
         n_titles, n_artists, n_albums = self._encode(scrobble_data)
-        candidates: List[List[CandidateModel]] = self._searcher.search_batch(n_titles, n_albums, n_artists, candidate_filter=self._candidate_filter)
+        candidates: List[List[CandidateModel]] = self._searcher.search_batch(n_titles, n_albums, n_artists, candidate_evaluators=self._candidate_evaluators)
 
-        self._evaluate_all(scrobble_data, candidates)
+        self._handle_all(scrobble_data, candidates)
         self._finalize(ctx)
         return ctx
 
@@ -80,7 +85,7 @@ class NearestNeighborSearch(IPipe):
             df['_n_album'].tolist(),
         )
 
-    def _evaluate_all(self, scrobble_data: pd.DataFrame, all_candidates: List[List[CandidateModel]]) -> None:
+    def _handle_all(self, scrobble_data: pd.DataFrame, all_candidates: List[List[CandidateModel]]) -> None:
         for idx, key in enumerate(scrobble_data['__key']):
             candidates: List[CandidateModel] = all_candidates[idx]
 
@@ -92,8 +97,6 @@ class NearestNeighborSearch(IPipe):
     def _handle_no_candidate(self, key: str) -> None:
         # no candidates at all
         self._predictions[key] = None
-
-        # 2) Confidence is always zero here
         self._confidences[key] = 0.0
 
         if not self._test_mode:
@@ -102,45 +105,16 @@ class NearestNeighborSearch(IPipe):
 
     def _handle_candidate(self, key: str, candidate: CandidateModel) -> None:
         self._predictions[key] = candidate.uuid
-
-        if candidate.passed_demands:
-            self._handle_passed_demands(key, candidate)
-        else:
-            self._handle_not_passed_demands(key, candidate)
-
-    def _handle_not_passed_demands(self, key: str, candidate: CandidateModel) -> None:
-        self._confidences[key] = 0.0
-        if candidate.combined_token_similarity >= self._token_accept_threshold:
-            self._uncertain_keys.append(key)
-            self._logger.debug(f"Marked uncertain: {key}")
-        else:
-            if not self._test_mode:
-                self._logger.debug(f"Auto-rejected {key} (confidence=0.00)")
-            self._reject_keys.append(key)
-
-    def _handle_passed_demands(self, key: str, candidate: CandidateModel) -> None:
         self._confidences[key] = candidate.associated_confidence
 
-        accept, reject, uncertain = self._decision(candidate.associated_confidence, candidate.combined_token_similarity)
-        if self._test_mode or accept:
+        if self._test_mode or candidate.decision_bin == DecisionBin.ACCEPT:
             self._accept_keys.append(key)
-        if reject:
+        if candidate.decision_bin == DecisionBin.REJECT:
+            self._logger.debug(f"Rejected key \"{key}\"! (conf={candidate.associated_confidence},sim={candidate.combined_token_similarity})", separator=self._separator)
             self._reject_keys.append(key)
-        if uncertain:
+        if candidate.decision_bin == DecisionBin.UNCERTAIN:
+            self._logger.debug(f"Marked key \"{key}\" as uncertain! (conf={candidate.associated_confidence},sim={candidate.combined_token_similarity})", separator=self._separator)
             self._uncertain_keys.append(key)
-
-    def _decision(self, confidence: float, token_sim: float) -> Tuple[bool, bool, bool]:
-        accept = (confidence >= self._confidence_accept_threshold) and (token_sim >= self._token_accept_threshold)
-        reject = ((confidence >= self._confidence_accept_threshold) and (token_sim < self._token_accept_threshold)) \
-                 or (confidence <= self._confidence_reject_threshold)
-        uncertain = not accept and not reject
-
-        if CollectionExtensions.more_than(lambda x: x, [accept, reject, uncertain], 1):
-            self._logger.warning(
-                f"Multiple decision states: accept={accept}, reject={reject}, uncertain={uncertain}",
-                separator=self._separator
-            )
-        return accept, reject, uncertain
 
     def _finalize(self, ctx: AlgorithmContext) -> None:
         df = ctx.scrobble_data_frame.copy()

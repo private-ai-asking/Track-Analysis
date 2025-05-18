@@ -70,8 +70,7 @@ class ScrobbleCacheBuilder:
             parameters=parameters,
             test_mode=test,
             cache_helper=cache_helper,
-            embedding_searcher=searcher,
-            scorer=scorer
+            embedding_searcher=searcher
         )
         self._pipeline.build_pipeline()
 

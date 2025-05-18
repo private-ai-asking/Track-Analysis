@@ -1,6 +1,12 @@
+from enum import Enum
 from typing import Optional
 
 import pydantic
+
+class DecisionBin(Enum):
+    ACCEPT = 1
+    REJECT = 2
+    UNCERTAIN = 3
 
 
 class CandidateModel(pydantic.BaseModel):
@@ -14,3 +20,5 @@ class CandidateModel(pydantic.BaseModel):
 
     associated_confidence: Optional[float] = None
     passed_demands: Optional[bool] = None
+
+    decision_bin: Optional[DecisionBin] = None

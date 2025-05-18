@@ -6,8 +6,8 @@ import numpy as np
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.features.scrobbling.embedding.candidate_retriever_interface import \
     CandidateRetrieverInterface
-from track_analysis.components.track_analysis.features.scrobbling.embedding.filtering.candidate_filter_interface import \
-    CandidateFilterInterface
+from track_analysis.components.track_analysis.features.scrobbling.embedding.evaluation.candidate_filter_interface import \
+    CandidateEvaluatorInterface
 from track_analysis.components.track_analysis.features.scrobbling.model.candidate_model import CandidateModel
 from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
@@ -40,7 +40,14 @@ class EmbeddingSearcher:
     def get_top_k_num(self) -> int:
         return self._top_k
 
-    def search_batch(self, n_titles: List[str], n_albums: List[str], n_artists: List[str], candidate_filter: Optional[CandidateFilterInterface] = None) -> List[List[CandidateModel]]:
+    def search_batch(self,
+                     n_titles: List[str],
+                     n_albums: List[str],
+                     n_artists: List[str],
+                     candidate_evaluators: Optional[List[CandidateEvaluatorInterface]] = None) -> List[List[CandidateModel]]:
+        if candidate_evaluators is None:
+            candidate_evaluators = []
+
         self._loader.load()
         library_index: faiss.Index = self._loader.get_index()
         embeddings = self._utils.build_combined_embeddings(n_titles, n_artists, n_albums)
@@ -58,16 +65,22 @@ class EmbeddingSearcher:
                 rec, rec_indices, rec_distances
             )
 
-            if candidate_filter is not None:
-                record_candidates = candidate_filter.filter_candidates(record_candidates, rec)
+            for evaluator in candidate_evaluators:
+                record_candidates = evaluator.evaluate_candidates(record_candidates, rec)
 
             candidates_2d_array.append(record_candidates)
 
         return candidates_2d_array
 
-
-    def search(self, n_title: str, n_album: str, n_artist: str, candidate_filter: Optional[CandidateFilterInterface] = None) -> List[CandidateModel]:
+    def search(self,
+               n_title: str,
+               n_album: str,
+               n_artist: str,
+               candidate_evaluators: Optional[List[CandidateEvaluatorInterface]] = None) -> List[CandidateModel]:
         """Searches for Top K similar candidates based on the candidate retriever process."""
+        if candidate_evaluators is None:
+            candidate_evaluators = []
+
         self._loader.load()
         library_index: faiss.Index = self._loader.get_index()
         embeddings = self._utils.build_combined_embeddings([n_title], [n_artist], [n_album])
@@ -84,8 +97,8 @@ class EmbeddingSearcher:
             distances=distances
         )
 
-        if candidate_filter is not None:
-            candidates = candidate_filter.filter_candidates(candidates, rec)
+        for evaluator in candidate_evaluators:
+            candidates = evaluator.evaluate_candidates(candidates, rec)
 
         return candidates
 

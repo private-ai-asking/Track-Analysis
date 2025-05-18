@@ -29,7 +29,6 @@ from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble
 class CacheBuilderPipeline(AbPipeline):
     def __init__(self, logger: HoornLogger, scrobble_utils: ScrobbleUtility, embedder: SentenceTransformer,
                  parameters: ScrobbleCacheAlgorithmParameters, cache_helper: ScrobbleCacheHelper, embedding_searcher: EmbeddingSearcher,
-                 scorer: SimilarityScorer,
                  test_mode: bool, form_gold_standard: bool = False):
         super().__init__(logger, pipeline_descriptor="CacheBuilderPipeline")
         self._logger = logger
@@ -39,7 +38,6 @@ class CacheBuilderPipeline(AbPipeline):
         self._parameters = parameters
         self._test_mode = test_mode
         self._searcher = embedding_searcher
-        self._scorer = scorer
         self._manual_json_path = parameters.manual_override_path
         self._uncertain_keys_path = parameters.uncertain_keys_path
         self._form_gold_standard = form_gold_standard
@@ -53,7 +51,7 @@ class CacheBuilderPipeline(AbPipeline):
         self._add_step(status_report)
         self._add_step(FilterExactMatches(self._logger))
         self._add_step(status_report)
-        self._add_step(NearestNeighborSearch(self._logger, self._parameters, test_mode=self._test_mode, embedding_searcher=self._searcher, scorer=self._scorer))
+        self._add_step(NearestNeighborSearch(self._logger, self._parameters, test_mode=self._test_mode, embedding_searcher=self._searcher))
         self._add_step(StoreInCache(self._logger, self._cache_helper, test_mode=self._test_mode))
         self._add_step(status_report)
         self._add_step(ReportUncertainKeys(self._logger, uncertain_keys_path=self._uncertain_keys_path))

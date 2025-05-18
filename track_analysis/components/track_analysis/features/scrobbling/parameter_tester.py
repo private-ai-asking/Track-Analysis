@@ -108,8 +108,7 @@ class ParameterTester:
                                 test_mode=self._test_mode,
                                 form_gold_standard=False,
                                 cache_helper=self._cache_helper,
-                                embedding_searcher=self._searcher,
-                                scorer=self._scorer
+                                embedding_searcher=self._searcher
                             )
                             pipeline.build_pipeline()
 

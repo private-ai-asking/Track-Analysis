@@ -7,7 +7,7 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.track_analysis.features.scrobbling.model.candidate_model import CandidateModel
 
 
-class CandidateFilterInterface(abc.ABC):
+class CandidateEvaluatorInterface(abc.ABC):
     def __init__(self, logger: HoornLogger, is_child: bool = False):
         self._logger = logger
         self._separator: str = "CandidateFilterInterface"
@@ -16,11 +16,12 @@ class CandidateFilterInterface(abc.ABC):
             raise InterfaceInstantiationException(logger, self._separator)
 
     @abc.abstractmethod
-    def filter_candidates(self, candidates: List[CandidateModel], associated_record: Dict) -> List[CandidateModel]:
+    def evaluate_candidates(self, candidates: List[CandidateModel], associated_record: Dict[str, str]) -> List[CandidateModel]:
         """
-        Filters candidates based on implementation logic.
+        Evaluates candidates based on implementation logic.
+        This can be adding metadata or filtering the list down.
 
-        :param candidates: The specific candidates to filter.
+        :param candidates: The specific candidates to evaluate.
         :param associated_record: The associated record, consisting of at least '_n_title', '_n_artist', and '_n_album'.
         :returns: The left-over candidate(s) based on implementation.
         """
