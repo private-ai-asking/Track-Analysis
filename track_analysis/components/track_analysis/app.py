@@ -9,6 +9,7 @@ from viztracer import VizTracer
 
 from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.cli_framework import CommandLineInterface
+from track_analysis.components.md_common_python.py_common.command_handling import CommandHelper
 from track_analysis.components.md_common_python.py_common.component_registration import ComponentRegistration
 from track_analysis.components.md_common_python.py_common.handlers import FileHandler
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
@@ -18,7 +19,7 @@ from track_analysis.components.md_common_python.py_common.time_handling import T
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
 from track_analysis.components.md_common_python.py_common.utils.string_utils import StringUtils
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
-    DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START, CACHE_DIRECTORY, CLEAR_CACHE
+    DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START, CACHE_DIRECTORY, CLEAR_CACHE, DOWNLOAD_CSV_FILE
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
@@ -35,6 +36,10 @@ from track_analysis.components.track_analysis.features.data_generation.model.hea
 from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import BuildCSVPipeline
 from track_analysis.components.track_analysis.features.data_generation.pipeline.locate_paths_pipeline import LocatePathsPipeline
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.components.track_analysis.features.track_downloading.pipeline.download_pipeline import \
+    DownloadPipeline
+from track_analysis.components.track_analysis.features.track_downloading.pipeline.download_pipeline_context import \
+    DownloadPipelineContext
 from track_analysis.components.track_analysis.features.track_downloading.utils.genre_algorithm import GenreAlgorithm
 from track_analysis.components.track_analysis.features.track_downloading.api.metadata_api import MetadataAPI
 from track_analysis.components.track_analysis.features.track_downloading.model.download_model import DownloadModel
@@ -78,6 +83,15 @@ def _run_with_profiling(func: Callable[[], T], category: str) -> T:
 
 class App:
     def __init__(self, logger: HoornLogger):
+        library_data_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
+        scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles.csv")
+        # scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles_test.csv")
+        # scrobble_data_path: Path = DATA_DIRECTORY / "training" / "gold_standard.csv"
+        cache_path: Path = CACHE_DIRECTORY.joinpath("scrobble_cache.json")
+        gold_standard_csv_path: Path = DATA_DIRECTORY.joinpath("training", "gold_standard.csv")
+        manual_override_path: Path = CACHE_DIRECTORY.joinpath("manual_override.json")
+        music_track_download_dir: Path = OUTPUT_DIRECTORY / "Music Track Downloads"
+
         self._embedder: SentenceTransformer = SentenceTransformer(model_name_or_path=str(DATA_DIRECTORY / "__internal__" / "all-MiniLM-l12-v2-embed"), device="cuda")
         embedding_searcher: EmbeddingSearcher = EmbeddingSearcher(logger, top_k=5)
 
@@ -93,19 +107,19 @@ class App:
         self._audio_calculator: AudioCalculator = AudioCalculator(logger)
         self._time_utils: TimeUtils = TimeUtils()
         self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)
-        self._downloader: MusicDownloadInterface = YTDLPMusicDownloader(logger)
+        self._downloader: MusicDownloadInterface = YTDLPMusicDownloader(logger, music_track_download_dir)
         self._genre_algorithm: GenreAlgorithm = GenreAlgorithm(logger)
         self._metadata_api: MetadataAPI = MetadataAPI(logger, self._genre_algorithm)
+        self._command_helper: CommandHelper = CommandHelper(logger, "CommandHelper")
+
+        self._download_pipeline: DownloadPipeline = DownloadPipeline(
+            logger,
+            self._downloader,
+            self._command_helper
+        )
+        self._download_pipeline.build_pipeline()
 
         self._combo_key: str = "||"
-
-        library_data_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
-        scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles.csv")
-        # scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles_test.csv")
-        # scrobble_data_path: Path = DATA_DIRECTORY / "training" / "gold_standard.csv"
-        cache_path: Path = CACHE_DIRECTORY.joinpath("scrobble_cache.json")
-        gold_standard_csv_path: Path = DATA_DIRECTORY.joinpath("training", "gold_standard.csv")
-        manual_override_path: Path = CACHE_DIRECTORY.joinpath("manual_override.json")
 
         if CLEAR_CACHE:
             cache_path.unlink(missing_ok=True)
@@ -186,13 +200,17 @@ class App:
             cmd.start_listen_loop()
         except Exception as _:
             tb = traceback.format_exc()
-            self._logger.error(
+            self._logger.critical(
                 f"Something went terribly wrong, causing the application to nearly crash. Restarting.\n{tb}"
             )
             self.run()
 
     def _download_and_assign_metadata(self):
-        download_files: List[DownloadModel] = self._downloader.download_tracks()
+        data: DownloadPipelineContext = self._download_pipeline.flow(DownloadPipelineContext(
+            download_csv_path=DOWNLOAD_CSV_FILE
+        ))
+
+        download_files: List[DownloadModel] = data.downloaded_tracks
 
         for download_model in download_files:
             self._metadata_api.populate_metadata_from_musicbrainz_for_file(download_model)

@@ -1,5 +1,6 @@
 import os
 import re
+import traceback
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import List
@@ -24,6 +25,7 @@ from track_analysis.components.track_analysis.features.track_downloading.utils.m
 class MetadataPopulater:
     def __init__(self, logger: HoornLogger, genre_algorithm: GenreAlgorithm):
         self._logger = logger
+        self._separator: str = "MetadataPopulater"
         self._music_library_handler: LibraryFileHandler = LibraryFileHandler(logger)
         self._metadata_manipulator: MetadataManipulator = MetadataManipulator(logger)
         self._musicbrainz_interpreter: MusicBrainzResultInterpreter = MusicBrainzResultInterpreter(logger)
@@ -134,11 +136,12 @@ class MetadataPopulater:
         """
         try:
             self._metadata_manipulator.update_metadata_from_dict(file, recording_model.metadata)
-            self._logger.info(f"Embedded metadata into {file.name}")
+            self._logger.info(f"Embedded metadata into {file.name}", separator=self._separator)
         except musicbrainzngs.MusicBrainzError as e:
-            self._logger.error(f"MusicBrainzError: {e}")
+            self._logger.error(f"MusicBrainzError: {e}", separator=self._separator)
         except Exception as e:
-            self._logger.error(f"Error embedding metadata: {e}")
+            tb = traceback.format_exc()
+            self._logger.error(f"Error embedding metadata: {e}\n{tb}", separator=self._separator)
 
     def _get_files(self, directory_path: Path) -> List[Path]:
         return self._music_library_handler.get_music_files(directory_path)

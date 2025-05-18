@@ -16,11 +16,12 @@ class MusicBrainzAPIHelper:
 
     def __init__(self, logger: HoornLogger, genre_algorithm: GenreAlgorithm):
         self._logger = logger
+        self._separator: str = "MusicBrainzAPIHelper"
         musicbrainzngs.set_useragent("Music Organization Tool", "0.0", "https://github.com/LordMartron94/music-organization-tool")
         self._genre_algorithm = genre_algorithm
 
     def get_recording_by_id(self, recording_id: str, album_id: str = None, genre: str = None, subgenres: str = None) -> RecordingModel or None:
-        self._logger.debug(f"Getting recording by ID: {recording_id}")
+        self._logger.debug(f"Getting recording by ID: {recording_id}", separator=self._separator)
         metadata: Dict[MetadataKey, str] = {}
 
         retries = 3
@@ -69,21 +70,21 @@ class MusicBrainzAPIHelper:
             except musicbrainzngs.WebServiceError as e:
                 if e.cause.code in (429, 503):  # Rate limit error
                     wait_time = backoff_factor ** i
-                    self._logger.warning(f"Rate limited, retrying in {wait_time} seconds...")
+                    self._logger.warning(f"Rate limited, retrying in {wait_time} seconds...", separator=self._separator)
                     time.sleep(wait_time)
                 if e.cause.code == 400:
-                    self._logger.error(f"Bad request error: {e.message}")
-                    self._logger.error(f"Getting recording for recording id '{recording_id}' - release id '{album_id}'")
+                    self._logger.error(f"Bad request error: {e.message}", separator=self._separator)
+                    self._logger.error(f"Getting recording for recording id '{recording_id}' - release id '{album_id}'", separator=self._separator)
                     return None
                 else:
                     raise
 
-        self._logger.error(f"Failed to get recording after {retries} retries, skipping.")
+        self._logger.error(f"Failed to get recording after {retries} retries, skipping.", separator=self._separator)
         return None  # Or handle the failure appropriately
 
     def _choose_release(self, releases: List[dict], artist: str, title: str) -> dict:
         """Prompts the user to select the correct release from a list."""
-        self._logger.info(f"Found multiple releases for {artist} - {title}. Please choose the correct one:")
+        self._logger.info(f"Found multiple releases for {artist} - {title}. Please choose the correct one:", separator=self._separator)
         for i, release in enumerate(releases):
             album_title = release.get('title', 'Unknown Album')
             release_date = release.get('date', 'Unknown Date')
@@ -101,7 +102,7 @@ class MusicBrainzAPIHelper:
                 print("Invalid input. Please enter a number.")
 
     def get_release_by_id(self, release_id: str, recording_id: str) -> ReleaseModel:
-        self._logger.debug(f"Getting release by ID: {release_id}")
+        self._logger.debug(f"Getting release by ID: {release_id}", separator=self._separator)
         release = musicbrainzngs.get_release_by_id(release_id, includes=['artist-credits', 'media', 'tags', 'release-groups', 'recordings'])['release']
 
         metadata: Dict[MetadataKey, str] = {}

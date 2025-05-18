@@ -36,16 +36,17 @@ class MetadataManipulator:
 
     def __init__(self, logger: HoornLogger):
         self._logger: HoornLogger = logger
+        self._separator: str = "MetadataManipulator"
 
     def _load_file(self, file_path: Path) -> mutagen.File:
         try:
             return mutagen.File(str(file_path))
         except mutagen.MutagenError as e:
-            self._logger.error(f"Error loading file {file_path}: {e}")
+            self._logger.error(f"Error loading file {file_path}: {e}", separator=self._separator)
             return None
 
     def make_description_compatible(self, file_path: Path):
-        self._logger.debug(f"Making description compatible for file {file_path.name}")
+        self._logger.debug(f"Making description compatible for file {file_path.name}", separator=self._separator)
 
         file: mutagen.File = self._load_file(file_path)
 
@@ -58,7 +59,7 @@ class MetadataManipulator:
 
         file.save()
 
-        self._logger.debug(f"Description compatible for file {file_path.name} - Done")
+        self._logger.debug(f"Description compatible for file {file_path.name} - Done", separator=self._separator)
 
     def update_metadata_from_dict(self, file_path: Path, metadata_dict: Dict[MetadataKey, str]) -> None:
         file: mutagen.File = self._load_file(file_path)
@@ -67,9 +68,6 @@ class MetadataManipulator:
             return
 
         for key, value in metadata_dict.items():
-            if key.value not in file.keys():
-                self._logger.warning(f"Metadata key {key.value} not found in file {file_path} - Trying to Add it.")
-
             if key == MetadataKey.Comments:
                 # Make compatible with other software that doesn't support the description field
                 file["comment"] = value
@@ -83,7 +81,7 @@ class MetadataManipulator:
         file: mutagen.File = self._load_file(file_path)
 
         if metadata_key.value not in file.keys():
-            self._logger.warning(f"Metadata key {metadata_key.value} not found in file {file_path}")
+            self._logger.warning(f"Metadata key {metadata_key.value} not found in file {file_path}", separator=self._separator)
 
         file[metadata_key.value] = new_value
         file.save()
@@ -95,7 +93,7 @@ class MetadataManipulator:
         file: mutagen.File = self._load_file(file_path)
 
         if metadata_key.value not in file.keys():
-            self._logger.warning(f"Metadata key {metadata_key.value} not found in file {file_path}")
+            self._logger.warning(f"Metadata key {metadata_key.value} not found in file {file_path}", separator=self._separator)
             return ""
 
         return file[metadata_key.value]
