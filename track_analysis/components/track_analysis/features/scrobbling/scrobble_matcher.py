@@ -25,17 +25,14 @@ class ScrobbleMatcher:
         texts = [self._scrobble_utils.compute_key(r['_n_title'], r['_n_artist'], r['_n_album']) for r in records]
 
         uuids = []
-        confidences = []
         for txt in texts:
             matching_row = self._cache.get(txt)
             if matching_row is not None:
                 uuids.append(matching_row["associated_uuid"])
             else:
                 uuids.append(NO_MATCH_LABEL)
-            confidences.append(None)
 
         output = scrobble_df.copy()
         output['track_uuid'] = uuids
-        output['confidence'] = confidences
 
         return output
