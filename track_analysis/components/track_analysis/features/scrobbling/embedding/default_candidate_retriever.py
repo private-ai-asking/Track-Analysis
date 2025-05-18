@@ -28,7 +28,7 @@ class DefaultCandidateRetriever(CandidateRetrieverInterface):
         rec_title, rec_artist, rec_album = record["_n_title"], record["_n_artist"], record["_n_album"]
         score_fn = self._scorer.score
         lib_keys = self._loader.get_keys()
-        library_row_lookup = self._loader.library_row_by_uuid()
+        library_row_lookup = self._loader.get_library_row_by_uuid_lookup()
         n_lib = len(lib_keys)
 
         candidates: List[CandidateModel] = []

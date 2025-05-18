@@ -21,7 +21,7 @@ class ScrobbleCacheHelper:
             confidence_factor_percentage: float
     ) -> None:
         """Extracts the row for `uuid` from our pre-indexed library and caches it."""
-        _library_by_uuid: Dict = self._loader.library_row_by_uuid()
+        _library_by_uuid: Dict = self._loader.get_library_row_by_uuid_lookup()
 
         try:
             row = _library_by_uuid[uuid]

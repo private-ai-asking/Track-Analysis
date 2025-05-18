@@ -37,15 +37,10 @@ class ScrobbleDataLoader:
         self._loaded: bool = False
 
         self._lookup_cache: Dict[str, str] = {}
+        self._keys: Optional[List[str]] = None
+        self._index: Optional[faiss.Index] = None
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
-
-    def library_row_by_uuid(self) -> Optional[Dict]:
-        if not self._loaded:
-            self._logger.warning("You haven't loaded the data yet!", separator=self._separator)
-            return None
-
-        return self._library_by_uuid
 
     def load(self, sample_rows: int = None) -> None:
         """Loads the data and normalizes it.
@@ -62,15 +57,27 @@ class ScrobbleDataLoader:
 
         self._loaded = True
 
-    def get_index(self) -> Optional[faiss.Index]:
-        """Title, Artist, Album"""
-        index_path: Path = Path(self._index_dir / "lib_combined.index")
-
-        if not index_path.is_file():
-            self._logger.warning(f"Couldn't load \"{index_path}\", since it does not exist!", separator=self._separator)
+    def get_library_row_by_uuid_lookup(self) -> Optional[Dict]:
+        if not self._loaded:
+            self._logger.warning("You haven't loaded the data yet!", separator=self._separator)
             return None
 
-        return faiss.read_index(str(index_path))
+        return self._library_by_uuid_lookup
+
+    def get_keys(self) -> Optional[List[str]]:
+        if not self._loaded:
+            self._logger.warning("You haven't loaded the data yet!", separator=self._separator)
+            return None
+
+        return self._keys
+
+    def get_index(self) -> Optional[faiss.Index]:
+        """Title, Artist, Album"""
+        if not self._loaded:
+            self._logger.warning("You haven't loaded the data yet!", separator=self._separator)
+            return None
+
+        return self._index
 
     def get_direct_lookup(self) -> Union[Dict[str, str], None]:
         """Builds a direct lookup between the library keycombo and its associated ID."""
@@ -100,7 +107,18 @@ class ScrobbleDataLoader:
     def _load_data(self, library_data_path: Path, scrobble_data_path: Path, sample_rows: int=None):
         self._logger.trace("Loading data...", separator=self._separator)
 
-        # Load data
+        self._load_csvs(library_data_path, scrobble_data_path, sample_rows)
+        self._load_keys()
+        self._load_index()
+
+        # self._gold_standard_data = pd.read_csv(
+        #     scrobble_data_path,
+        #     delimiter=","
+        # )
+
+        self._logger.debug("Successfully loaded data.", separator=self._separator)
+
+    def _load_csvs(self, library_data_path: Path, scrobble_data_path: Path, sample_rows: int=None):
         self._library_data = pd.read_csv(library_data_path)
         self._scrobble_data = pd.read_csv(
             scrobble_data_path,
@@ -110,12 +128,22 @@ class ScrobbleDataLoader:
             header=0
         )
 
-        # self._gold_standard_data = pd.read_csv(
-        #     scrobble_data_path,
-        #     delimiter=","
-        # )
+    def _load_keys(self):
+        if not self._keys_path.is_file():
+            self._logger.warning(f"Couldn't load \"{self._keys_path}\", since it does not exist!", separator=self._separator)
+            return
 
-        self._logger.debug("Successfully loaded data.", separator=self._separator)
+        with open(self._keys_path, 'rb') as f:
+            self._keys = pickle.load(f)
+
+    def _load_index(self):
+        index_path: Path = Path(self._index_dir / "lib_combined.index")
+
+        if not index_path.is_file():
+            self._logger.warning(f"Couldn't load \"{index_path}\", since it does not exist!", separator=self._separator)
+            return
+
+        self._index = faiss.read_index(str(index_path))
 
     def _normalize_data(self) -> None:
         # Normalize text fields
@@ -149,16 +177,8 @@ class ScrobbleDataLoader:
 
         self._library_data.apply(axis=1, func=lambda row: __add_to_cache(row))
 
-        self._library_by_uuid = (
+        self._library_by_uuid_lookup = (
             self._library_data
             .set_index("UUID", verify_integrity=True)   # optional: catch bad data early
             .to_dict(orient="index")
         )
-
-    def get_keys(self) -> Optional[List[str]]:
-        if not self._keys_path.is_file():
-            self._logger.warning(f"Couldn't load \"{self._keys_path}\", since it does not exist!", separator=self._separator)
-            return None
-
-        with open(self._keys_path, 'rb') as f:
-            return pickle.load(f)
