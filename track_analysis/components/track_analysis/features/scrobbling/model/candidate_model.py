@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pydantic
 
 
@@ -9,3 +11,6 @@ class CandidateModel(pydantic.BaseModel):
     title_token_similarity: float
     artist_token_similarity: float
     album_token_similarity: float
+
+    associated_confidence: Optional[float] = None
+    passed_demands: Optional[bool] = None

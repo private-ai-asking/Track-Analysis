@@ -7,7 +7,7 @@ from sentence_transformers import SentenceTransformer
 
 from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.md_common_python.py_common.utils import StringUtils
+from track_analysis.components.md_common_python.py_common.utils import StringUtils, SimilarityScorer
 from track_analysis.components.track_analysis.constants import TEST_SAMPLE_SIZE, \
     NO_MATCH_LABEL, TEST_CACHE_BUILDER_MODE
 from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
@@ -37,6 +37,7 @@ class ScrobbleLinkerService:
                  embed_weights: Dict,
                  cache_helper: ScrobbleCacheHelper,
                  embedding_searcher: EmbeddingSearcher,
+                 scorer: SimilarityScorer,
                  combo_key: str = "||",
                  minimum_confidence_threshold: float = 90.0,
                  token_accept_threshold: float = 70):
@@ -80,7 +81,8 @@ class ScrobbleLinkerService:
             ),
             cache_helper=cache_helper,
             manual_override_path=manual_override_path,
-            searcher=embedding_searcher
+            searcher=embedding_searcher,
+            scorer=scorer
         )
 
         self._logger.trace("Successfully initialized.", separator=self._separator)

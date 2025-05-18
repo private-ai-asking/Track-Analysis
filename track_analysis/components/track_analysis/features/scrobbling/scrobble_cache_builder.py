@@ -8,6 +8,7 @@ from sentence_transformers import SentenceTransformer
 
 from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.md_common_python.py_common.utils import SimilarityScorer
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.cache_builder_pipeline import \
     CacheBuilderPipeline
@@ -38,6 +39,7 @@ class ScrobbleCacheBuilder:
             parameters: ScrobbleCacheAlgorithmParameters,
             cache_helper: ScrobbleCacheHelper,
             searcher: EmbeddingSearcher,
+            scorer: SimilarityScorer,
             sample_size: Optional[int] = None,
             test: bool = False,
     ):
@@ -57,7 +59,8 @@ class ScrobbleCacheBuilder:
             embed_weights=parameters.embed_weights,
             cache_helper=cache_helper,
             manual_override_path=manual_override_path,
-            searcher=searcher
+            searcher=searcher,
+            scorer=scorer
         )
 
         self._pipeline: CacheBuilderPipeline = CacheBuilderPipeline(
@@ -67,7 +70,8 @@ class ScrobbleCacheBuilder:
             parameters=parameters,
             test_mode=test,
             cache_helper=cache_helper,
-            embedding_searcher=searcher
+            embedding_searcher=searcher,
+            scorer=scorer
         )
         self._pipeline.build_pipeline()
 

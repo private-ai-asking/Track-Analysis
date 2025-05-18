@@ -5,11 +5,14 @@ import pandas as pd
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.md_common_python.py_common.utils import (
-    gaussian_exponential_kernel_confidence_percentage,
-    CollectionExtensions,
+    CollectionExtensions, SimilarityScorer,
 )
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
+from track_analysis.components.track_analysis.features.scrobbling.embedding.filtering.candidate_filter_interface import \
+    CandidateFilterInterface
+from track_analysis.components.track_analysis.features.scrobbling.embedding.filtering.default_candidate_evaluator import \
+    DefaultCandidateEvaluator
 from track_analysis.components.track_analysis.features.scrobbling.model.candidate_model import CandidateModel
 
 
@@ -23,16 +26,25 @@ class NearestNeighborSearch(IPipe):
             logger: HoornLogger,
             params,
             embedding_searcher: EmbeddingSearcher,
+            scorer: SimilarityScorer,
             test_mode: bool,
     ):
         self._logger = logger
         self._test_mode = test_mode
         self._searcher = embedding_searcher
 
-        self._token_thr = params.token_accept_threshold / 100.0
-        self._accept_thr = params.confidence_accept_threshold
-        self._reject_thr = params.confidence_reject_threshold
-        self._sigma = params.gaussian_sigma
+        self._token_accept_threshold = params.token_accept_threshold / 100.0
+        self._confidence_accept_threshold = params.confidence_accept_threshold
+        self._confidence_reject_threshold = params.confidence_reject_threshold
+
+        self._candidate_filter: CandidateFilterInterface = DefaultCandidateEvaluator(
+            logger,
+            scorer,
+            self._confidence_accept_threshold,
+            self._confidence_reject_threshold,
+            self._token_accept_threshold,
+            params.gaussian_sigma
+        )
 
         # FAISS search params
         self._batch_size = params.batch_size
@@ -56,7 +68,7 @@ class NearestNeighborSearch(IPipe):
             return ctx
 
         n_titles, n_artists, n_albums = self._encode(scrobble_data)
-        candidates: List[List[CandidateModel]] = self._searcher.search_batch(n_titles, n_albums, n_artists)
+        candidates: List[List[CandidateModel]] = self._searcher.search_batch(n_titles, n_albums, n_artists, candidate_filter=self._candidate_filter)
 
         self._evaluate_all(scrobble_data, candidates)
         self._finalize(ctx)
@@ -73,51 +85,34 @@ class NearestNeighborSearch(IPipe):
     def _evaluate_all(self, scrobble_data: pd.DataFrame, all_candidates: List[List[CandidateModel]]) -> None:
         for idx, key in enumerate(scrobble_data['__key']):
             candidates: List[CandidateModel] = all_candidates[idx]
-            best, max_token = self._find_best_candidate(candidates)
-            if best is None:
-                self._handle_no_candidate(key, candidates, max_token)
+
+            if len(candidates) > 0:
+                self._handle_candidate(key, candidates[0])
             else:
-                self._handle_candidate(key, best)
+                self._handle_no_candidate(key)
 
-
-    def _find_best_candidate(
-            self, candidates: List[CandidateModel]
-    ) -> Tuple[Optional[CandidateModel], float]:
-        best, max_token = None, 0.0
-        for cand in candidates:
-            max_token = max(max_token, cand.combined_token_similarity)
-            if self._passes_field_threshold(cand) and (
-                    best is None or cand.combined_token_similarity > best.combined_token_similarity
-            ):
-                best = cand
-        return best, max_token
-
-    def _passes_field_threshold(self, cand: CandidateModel) -> bool:
-        return (
-                cand.title_token_similarity >= self._token_thr and
-                cand.artist_token_similarity >= self._token_thr and
-                cand.album_token_similarity >= self._token_thr
-        )
-
-    def _handle_no_candidate(
-            self,
-            key: str,
-            candidates: List[CandidateModel],
-            max_token: float
-    ) -> None:
-        # 1) Fallback prediction: choose the highest-scoring candidate if any
-        if candidates:
-            fallback = max(candidates, key=lambda c: c.combined_token_similarity)
-            self._predictions[key] = fallback.uuid
-        else:
-            # no candidates at all
-            self._predictions[key] = None
+    def _handle_no_candidate(self, key: str) -> None:
+        # no candidates at all
+        self._predictions[key] = None
 
         # 2) Confidence is always zero here
         self._confidences[key] = 0.0
 
-        # 3) Decide bucket
-        if max_token >= self._token_thr:
+        if not self._test_mode:
+            self._logger.debug(f"Auto-rejected {key} (confidence=0.00)")
+        self._reject_keys.append(key)
+
+    def _handle_candidate(self, key: str, candidate: CandidateModel) -> None:
+        self._predictions[key] = candidate.uuid
+
+        if candidate.passed_demands:
+            self._handle_passed_demands(key, candidate)
+        else:
+            self._handle_not_passed_demands(key, candidate)
+
+    def _handle_not_passed_demands(self, key: str, candidate: CandidateModel) -> None:
+        self._confidences[key] = 0.0
+        if candidate.combined_token_similarity >= self._token_accept_threshold:
             self._uncertain_keys.append(key)
             self._logger.debug(f"Marked uncertain: {key}")
         else:
@@ -125,14 +120,10 @@ class NearestNeighborSearch(IPipe):
                 self._logger.debug(f"Auto-rejected {key} (confidence=0.00)")
             self._reject_keys.append(key)
 
-    def _handle_candidate(self, key: str, cand: CandidateModel) -> None:
-        confidence = gaussian_exponential_kernel_confidence_percentage(
-            cand.distance, sigma=self._sigma
-        )
-        self._predictions[key] = cand.uuid
-        self._confidences[key] = confidence
+    def _handle_passed_demands(self, key: str, candidate: CandidateModel) -> None:
+        self._confidences[key] = candidate.associated_confidence
 
-        accept, reject, uncertain = self._decision(confidence, cand.combined_token_similarity)
+        accept, reject, uncertain = self._decision(candidate.associated_confidence, candidate.combined_token_similarity)
         if self._test_mode or accept:
             self._accept_keys.append(key)
         if reject:
@@ -141,9 +132,9 @@ class NearestNeighborSearch(IPipe):
             self._uncertain_keys.append(key)
 
     def _decision(self, confidence: float, token_sim: float) -> Tuple[bool, bool, bool]:
-        accept = (confidence >= self._accept_thr) and (token_sim >= self._token_thr)
-        reject = ((confidence >= self._accept_thr) and (token_sim < self._token_thr)) \
-                 or (confidence <= self._reject_thr)
+        accept = (confidence >= self._confidence_accept_threshold) and (token_sim >= self._token_accept_threshold)
+        reject = ((confidence >= self._confidence_accept_threshold) and (token_sim < self._token_accept_threshold)) \
+                 or (confidence <= self._confidence_reject_threshold)
         uncertain = not accept and not reject
 
         if CollectionExtensions.more_than(lambda x: x, [accept, reject, uncertain], 1):

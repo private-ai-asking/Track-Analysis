@@ -130,17 +130,18 @@ class App:
         cache_builder: CacheBuilder = CacheBuilder(logger, cache_path, tree_separator=self._combo_key)
         scrobble_utils: ScrobbleUtility = ScrobbleUtility(logger, self._embedder, embed_weights, join_key=self._combo_key, embed_batch_size=248)
         token_accept_threshold: float = 70
+        scorer = SimilarityScorer(
+            embed_weights,
+            logger=logger,
+            threshold=token_accept_threshold
+        )
 
         self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, library_data_path, scrobble_data_path, self._string_utils, scrobble_utils, DATA_DIRECTORY / "__internal__", keys_path)
         scrobble_cache_helper: ScrobbleCacheHelper = ScrobbleCacheHelper(logger, self._scrobble_data_loader, cache_builder)
         embedding_searcher: EmbeddingSearcher = EmbeddingSearcher(logger, top_k=5, loader=self._scrobble_data_loader, utility=scrobble_utils, candidate_retriever=DefaultCandidateRetriever(
             logger=logger,
             loader=self._scrobble_data_loader,
-            token_similarity_scorer=SimilarityScorer(
-                embed_weights,
-                logger=logger,
-                threshold=token_accept_threshold
-            )
+            token_similarity_scorer=scorer
         ))
 
         self._uncertain_keys_processor: UncertainKeysProcessor = UncertainKeysProcessor(logger, embedding_searcher, scrobble_utils, self._scrobble_data_loader, manual_override_path)
@@ -160,7 +161,8 @@ class App:
             cache_helper=scrobble_cache_helper,
             manual_override_path=manual_override_path,
             embedding_searcher=embedding_searcher,
-            token_accept_threshold=token_accept_threshold
+            token_accept_threshold=token_accept_threshold,
+            scorer=scorer
         )
 
         registration_test: RegistrationTest = RegistrationTest(logger, self._registration)

@@ -5,6 +5,7 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.md_common_python.py_common.utils import SimilarityScorer
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.cache_builder_pipeline import CacheBuilderPipeline
 from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
@@ -34,6 +35,7 @@ class ParameterTester:
             manual_override_path: Path,
             searcher: EmbeddingSearcher,
             embed_weights: Dict,
+            scorer: SimilarityScorer,
             test_mode: bool = False
     ):
         self._logger = logger
@@ -53,6 +55,7 @@ class ParameterTester:
         self._library_df = None
 
         self._scrobble_utils = scrobble_utils
+        self._scorer = scorer
         self._searcher = searcher
         self._embedder = embedding_model
         self._test_mode = test_mode
@@ -105,7 +108,8 @@ class ParameterTester:
                                 test_mode=self._test_mode,
                                 form_gold_standard=False,
                                 cache_helper=self._cache_helper,
-                                embedding_searcher=self._searcher
+                                embedding_searcher=self._searcher,
+                                scorer=self._scorer
                             )
                             pipeline.build_pipeline()
 
