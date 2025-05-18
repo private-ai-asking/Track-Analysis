@@ -3,7 +3,7 @@ import pandas as pd
 from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import NO_MATCH_LABEL
-from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
 
 
 class ScrobbleMatcher:

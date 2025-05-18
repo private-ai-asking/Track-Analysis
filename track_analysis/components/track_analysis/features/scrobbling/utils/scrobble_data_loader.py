@@ -8,7 +8,7 @@ from dateutil import parser, tz
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
-from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
 
 
 class ScrobbleDataLoader:
@@ -40,7 +40,7 @@ class ScrobbleDataLoader:
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
-    def library_by_uuid(self) -> Optional[Dict]:
+    def library_row_by_uuid(self) -> Optional[Dict]:
         if not self._loaded:
             self._logger.warning("You haven't loaded the data yet!", separator=self._separator)
             return None

@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
     builder = HoornLoggerBuilder("TrackAnalysis", max_separator_length=65)
     (builder
-     .build_file_based_output()
+     .build_file_based_output(max_logs_to_keep=30)
      .build_gui_output(base_batch_size=1500, max_batch_size=8000))
 
     logger: HoornLogger = builder.get_logger(min_level)

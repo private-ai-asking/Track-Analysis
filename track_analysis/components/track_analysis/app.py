@@ -17,19 +17,22 @@ from track_analysis.components.md_common_python.py_common.testing import TestCoo
 from track_analysis.components.md_common_python.py_common.testing.test_coordinator import TestConfiguration
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
+from track_analysis.components.md_common_python.py_common.utils import SimilarityScorer
 from track_analysis.components.md_common_python.py_common.utils.string_utils import StringUtils
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
     DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START, CACHE_DIRECTORY, CLEAR_CACHE, DOWNLOAD_CSV_FILE
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
-from track_analysis.components.track_analysis.features.scrobbling.cache_helper import ScrobbleCacheHelper
-from track_analysis.components.track_analysis.features.scrobbling.embedding_searcher import EmbeddingSearcher
+from track_analysis.components.track_analysis.features.scrobbling.embedding.default_candidate_retriever import \
+    DefaultCandidateRetriever
+from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
+from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.get_unmatched_library_tracks import \
     UnmatchedLibraryTracker
-from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_linker_service import ScrobbleLinkerService
-from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
 from track_analysis.components.track_analysis.features.scrobbling.uncertain_keys_processor import UncertainKeysProcessor
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
@@ -93,7 +96,6 @@ class App:
         music_track_download_dir: Path = OUTPUT_DIRECTORY / "Music Track Downloads"
 
         self._embedder: SentenceTransformer = SentenceTransformer(model_name_or_path=str(DATA_DIRECTORY / "__internal__" / "all-MiniLM-l12-v2-embed"), device="cuda")
-        embedding_searcher: EmbeddingSearcher = EmbeddingSearcher(logger, top_k=5)
 
         keys_path: Path = DATA_DIRECTORY.joinpath("__internal__", "lib_keys.pkl")
 
@@ -112,6 +114,7 @@ class App:
         self._metadata_api: MetadataAPI = MetadataAPI(logger, self._genre_algorithm)
         self._command_helper: CommandHelper = CommandHelper(logger, "CommandHelper")
 
+
         self._download_pipeline: DownloadPipeline = DownloadPipeline(
             logger,
             self._downloader,
@@ -126,9 +129,19 @@ class App:
 
         cache_builder: CacheBuilder = CacheBuilder(logger, cache_path, tree_separator=self._combo_key)
         scrobble_utils: ScrobbleUtility = ScrobbleUtility(logger, self._embedder, embed_weights, join_key=self._combo_key, embed_batch_size=248)
+        token_accept_threshold: float = 70
 
         self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, library_data_path, scrobble_data_path, self._string_utils, scrobble_utils, DATA_DIRECTORY / "__internal__", keys_path)
         scrobble_cache_helper: ScrobbleCacheHelper = ScrobbleCacheHelper(logger, self._scrobble_data_loader, cache_builder)
+        embedding_searcher: EmbeddingSearcher = EmbeddingSearcher(logger, top_k=5, loader=self._scrobble_data_loader, utility=scrobble_utils, candidate_retriever=DefaultCandidateRetriever(
+            logger=logger,
+            loader=self._scrobble_data_loader,
+            token_similarity_scorer=SimilarityScorer(
+                embed_weights,
+                logger=logger,
+                threshold=token_accept_threshold
+            )
+        ))
 
         self._uncertain_keys_processor: UncertainKeysProcessor = UncertainKeysProcessor(logger, embedding_searcher, scrobble_utils, self._scrobble_data_loader, manual_override_path)
         self._unmatch_util: UnmatchedLibraryTracker = UnmatchedLibraryTracker(logger, self._scrobble_data_loader, cache_path)
@@ -146,7 +159,8 @@ class App:
             embed_weights=embed_weights,
             cache_helper=scrobble_cache_helper,
             manual_override_path=manual_override_path,
-            embedding_searcher=embedding_searcher
+            embedding_searcher=embedding_searcher,
+            token_accept_threshold=token_accept_threshold
         )
 
         registration_test: RegistrationTest = RegistrationTest(logger, self._registration)

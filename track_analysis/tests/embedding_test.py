@@ -9,7 +9,7 @@ from track_analysis.components.md_common_python.py_common.testing import TestInt
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
 from track_analysis.components.md_common_python.py_common.utils import \
     gaussian_exponential_kernel_confidence_percentage
-from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
 
 
 class EmbeddingTest(TestInterface):

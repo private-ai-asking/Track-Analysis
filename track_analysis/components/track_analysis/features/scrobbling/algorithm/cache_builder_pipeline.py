@@ -18,11 +18,11 @@ from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipe
     ReportUncertainKeys
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.status_report import StatusReport
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.store_in_cache import StoreInCache
-from track_analysis.components.track_analysis.features.scrobbling.cache_helper import ScrobbleCacheHelper
-from track_analysis.components.track_analysis.features.scrobbling.embedding_searcher import EmbeddingSearcher
+from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
+from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import \
     ScrobbleCacheAlgorithmParameters
-from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
 
 
 class CacheBuilderPipeline(AbPipeline):
@@ -46,11 +46,11 @@ class CacheBuilderPipeline(AbPipeline):
 
         self._add_step(ExtractUniqueEntries(self._logger, self._scrobble_utils))
         self._add_step(status_report)
-        self._add_step(FilterManualOverride(self._logger, self._manual_json_path))
+        self._add_step(FilterManualOverride(self._logger, self._manual_json_path, self._searcher))
         self._add_step(status_report)
         self._add_step(FilterExactMatches(self._logger))
         self._add_step(status_report)
-        self._add_step(NearestNeighborSearch(self._logger, self._scrobble_utils, self._embedder, self._parameters, test_mode=self._test_mode, embedding_searcher=self._searcher))
+        self._add_step(NearestNeighborSearch(self._logger, self._parameters, test_mode=self._test_mode, embedding_searcher=self._searcher))
         self._add_step(StoreInCache(self._logger, self._cache_helper, test_mode=self._test_mode))
         self._add_step(status_report)
         self._add_step(ReportUncertainKeys(self._logger, uncertain_keys_path=self._uncertain_keys_path))

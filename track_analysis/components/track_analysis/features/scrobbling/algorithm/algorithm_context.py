@@ -29,16 +29,6 @@ class AlgorithmContext(pydantic.BaseModel):
     dynamic_accept_threshold: Optional[float] = None
     dynamic_reject_threshold: Optional[float] = None
 
-    library_row_lookup: Optional[Dict] = None
-
     model_config = {
         "arbitrary_types_allowed": True
     }
-
-    def model_post_init(self, __context: Any) -> None:
-        # 1) build your fast UUID → row cache
-        self.library_row_lookup = (
-            self.library_data_frame[["UUID", "_n_title", "_n_artist", "_n_album"]]
-            .set_index("UUID")
-            .to_dict(orient="index")
-        )

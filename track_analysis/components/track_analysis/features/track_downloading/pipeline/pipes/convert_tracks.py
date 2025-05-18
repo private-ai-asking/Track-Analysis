@@ -3,7 +3,6 @@ import threading
 import traceback
 import asyncio
 from pathlib import Path
-from typing import List
 
 from track_analysis.components.md_common_python.py_common.command_handling import CommandHelper
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger

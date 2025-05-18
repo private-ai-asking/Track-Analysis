@@ -10,15 +10,15 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
 from track_analysis.components.track_analysis.constants import TEST_SAMPLE_SIZE, \
     NO_MATCH_LABEL, TEST_CACHE_BUILDER_MODE
-from track_analysis.components.track_analysis.features.scrobbling.cache_helper import ScrobbleCacheHelper
-from track_analysis.components.track_analysis.features.scrobbling.embedding_builder import EmbeddingBuilder
-from track_analysis.components.track_analysis.features.scrobbling.embedding_searcher import EmbeddingSearcher
+from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
+from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_builder import EmbeddingBuilder
+from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import \
     ScrobbleCacheAlgorithmParameters
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_cache_builder import ScrobbleCacheBuilder
-from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_matcher import ScrobbleMatcher
-from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
 
 
 class ScrobbleLinkerService:
@@ -38,7 +38,8 @@ class ScrobbleLinkerService:
                  cache_helper: ScrobbleCacheHelper,
                  embedding_searcher: EmbeddingSearcher,
                  combo_key: str = "||",
-                 minimum_confidence_threshold: float = 90.0):
+                 minimum_confidence_threshold: float = 90.0,
+                 token_accept_threshold: float = 70):
         self._logger: HoornLogger = logger
         self._separator: str = "ScrobbleLinker"
         self._string_utils: StringUtils = string_utils
@@ -74,7 +75,8 @@ class ScrobbleLinkerService:
             parameters=ScrobbleCacheAlgorithmParameters(
                 gold_standard_csv_path=gold_standard_csv_path,
                 embed_weights=embed_weights,
-                manual_override_path=manual_override_path
+                manual_override_path=manual_override_path,
+                token_accept_threshold=token_accept_threshold
             ),
             cache_helper=cache_helper,
             manual_override_path=manual_override_path,

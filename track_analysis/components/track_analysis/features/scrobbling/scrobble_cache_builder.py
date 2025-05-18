@@ -11,13 +11,13 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.cache_builder_pipeline import \
     CacheBuilderPipeline
-from track_analysis.components.track_analysis.features.scrobbling.cache_helper import ScrobbleCacheHelper
-from track_analysis.components.track_analysis.features.scrobbling.embedding_searcher import EmbeddingSearcher
+from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
+from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import \
     ScrobbleCacheAlgorithmParameters
 from track_analysis.components.track_analysis.features.scrobbling.parameter_tester import ParameterTester
-from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
-from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
 
 
 class ScrobbleCacheBuilder:

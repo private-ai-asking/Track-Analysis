@@ -7,9 +7,9 @@ import pandas as pd
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
 from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
-from track_analysis.components.track_analysis.features.scrobbling.embedding_searcher import EmbeddingSearcher
-from track_analysis.components.track_analysis.features.scrobbling.scrobble_data_loader import ScrobbleDataLoader
-from track_analysis.components.track_analysis.features.scrobbling.scrobble_utility import ScrobbleUtility
+from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
 
 
 class UncertainKeysProcessor:
@@ -72,7 +72,7 @@ class UncertainKeysProcessor:
             print(f"    Album : {album}")
 
             emb = self._utils.build_combined_embeddings([title], [artist], [album])
-            indices, distances = self._searcher.search(emb, library_index)
+            indices, distances = self._searcher._search(emb, library_index)
             indices = indices[0]
             distances = distances[0]
 
