@@ -4,6 +4,7 @@ from typing import Union, Dict, Optional, List
 
 import faiss
 import pandas as pd
+from dateutil import parser, tz
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
@@ -105,7 +106,8 @@ class ScrobbleDataLoader:
             scrobble_data_path,
             names=["Scrobble Datetime", "Title", "Artist(s)", "Album", "Last.fm URL"],
             nrows=sample_rows,
-            delimiter="\t"
+            delimiter="\t",
+            header=0
         )
 
         # self._gold_standard_data = pd.read_csv(
@@ -121,6 +123,25 @@ class ScrobbleDataLoader:
             df["_n_title"] = df["Title"].map(self._string_utils.normalize_field)
             df["_n_artist"] = df["Artist(s)"].map(self._string_utils.normalize_field)
             df["_n_album"] = df["Album"].map(self._string_utils.normalize_field)
+
+
+        self._scrobble_data["Scrobble Datetime"] = self._scrobble_data["Scrobble Datetime"].map(self._localize_time_string)
+
+    def _localize_time_string(self, utc_date_string: str) -> str:
+        """
+        Take an ISO‐style UTC timestamp string, localize it to the system's local timezone,
+        and return a formatted local time string.
+        """
+        # 1. Parse the string into a datetime
+        dt = parser.isoparse(utc_date_string)
+        # 2. Ensure it's marked as UTC
+        dt_utc = dt.replace(tzinfo=tz.UTC)
+        # 3. Convert to local timezone
+        local_tz = tz.tzlocal()
+        dt_local = dt_utc.astimezone(local_tz)
+        # 4. Return as formatted string
+        return dt_local.strftime("%Y-%m-%d %H:%M:%S %Z")
+
 
     def _build_lookup(self):
         def __add_to_cache(row: pd.Series):
