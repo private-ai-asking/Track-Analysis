@@ -35,6 +35,13 @@ from track_analysis.components.track_analysis.features.data_generation.model.hea
 from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import BuildCSVPipeline
 from track_analysis.components.track_analysis.features.data_generation.pipeline.locate_paths_pipeline import LocatePathsPipeline
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.components.track_analysis.features.track_downloading.genre_algorithm import GenreAlgorithm
+from track_analysis.components.track_analysis.features.track_downloading.metadata_api import MetadataAPI
+from track_analysis.components.track_analysis.features.track_downloading.model.download_model import DownloadModel
+from track_analysis.components.track_analysis.features.track_downloading.ytdlp_music_downloader import \
+    YTDLPMusicDownloader
+from track_analysis.components.track_analysis.features.track_downloading.music_download_interface import \
+    MusicDownloadInterface
 from track_analysis.tests.embedding_test import EmbeddingTest
 from track_analysis.tests.extract_tags_test import ExtractTagsTest
 from track_analysis.tests.registration_test import RegistrationTest
@@ -86,6 +93,10 @@ class App:
         self._audio_calculator: AudioCalculator = AudioCalculator(logger)
         self._time_utils: TimeUtils = TimeUtils()
         self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)
+        self._downloader: MusicDownloadInterface = YTDLPMusicDownloader(logger)
+        self._genre_algorithm: GenreAlgorithm = GenreAlgorithm(logger)
+        self._metadata_api: MetadataAPI = MetadataAPI(logger, self._genre_algorithm)
+
         self._combo_key: str = "||"
 
         library_data_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
@@ -167,6 +178,8 @@ class App:
         cmd.add_command(["build_cache-profile", "bc-p"], "Builds the cache for the library for n samples and profiles the performance.", self._build_cache, arguments=[True])
         cmd.add_command(["link_scrobbles", "ls"], "Links the scrobbles to the library data.", self._link_scrobbles, arguments=[False])
         cmd.add_command(["link_scrobbles-profile", "ls-p"], "Links the scrobbles to the library data but profiles the performance also.", self._link_scrobbles, arguments=[True])
+        cmd.add_command(["download_and_md", "damd"], "Combines downloading and setting metadata.", self._download_and_assign_metadata)
+        cmd.add_command(["add_album_to_downloads", "aatd"], "Adds an album to the downloads.csv file.", self._metadata_api.add_album_to_downloads)
 
         # noinspection PyBroadException
         try:
@@ -177,6 +190,12 @@ class App:
                 f"Something went terribly wrong, causing the application to nearly crash. Restarting.\n{tb}"
             )
             self.run()
+
+    def _download_and_assign_metadata(self):
+        download_files: List[DownloadModel] = self._downloader.download_tracks()
+
+        for download_model in download_files:
+            self._metadata_api.populate_metadata_from_musicbrainz_for_file(download_model)
 
     def _exit(self):
         self._registration.shutdown_component()

@@ -1,4 +1,13 @@
+import os
 from pathlib import Path
+from typing import List
+
+ROOT: Path = Path(os.path.realpath(__file__)).parent.parent.parent.parent
+
+FFMPEG_PATH: Path = Path(r"D:\[97] Installations\[01] Software\FFMPEG\bin\ffmpeg.exe")
+COOKIES_FILE: Path = Path(r"D:\[98] PC Related\cookies.txt")
+DOWNLOAD_CSV_FILE: Path = ROOT.joinpath("downloads.csv")
+SUPPORTED_MUSIC_EXTENSIONS: List[str] = [".mp3", ".wav", ".flac", ".m4a", ".ogg", ".wma", ".aiff", ".opus"]
 
 ROOT_MUSIC_LIBRARY: Path = Path("W:\media\music\[02] organized") # NORMAL
 # ROOT_MUSIC_LIBRARY: Path = Path("W:\\media\\music\\[03] test") # TESt
