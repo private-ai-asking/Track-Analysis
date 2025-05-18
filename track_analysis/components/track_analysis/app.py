@@ -21,7 +21,7 @@ from track_analysis.components.md_common_python.py_common.utils import Similarit
 from track_analysis.components.md_common_python.py_common.utils.string_utils import StringUtils
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
     DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START, CACHE_DIRECTORY, CLEAR_CACHE, \
-    DOWNLOAD_CSV_FILE, TEST_SAMPLE_SIZE, PROFILE_DATA_LOADING
+    DOWNLOAD_CSV_FILE, TEST_SAMPLE_SIZE, PROFILE_DATA_LOADING, EMBED_BATCH_SIZE
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
@@ -129,7 +129,7 @@ class App:
             cache_path.unlink(missing_ok=True)
 
         cache_builder: CacheBuilder = CacheBuilder(logger, cache_path, tree_separator=self._combo_key)
-        scrobble_utils: ScrobbleUtility = ScrobbleUtility(logger, self._embedder, embed_weights, join_key=self._combo_key, embed_batch_size=248)
+        scrobble_utils: ScrobbleUtility = ScrobbleUtility(logger, self._embedder, embed_weights, join_key=self._combo_key, embed_batch_size=EMBED_BATCH_SIZE)
         token_accept_threshold: float = 70
         scorer = SimilarityScorer(
             embed_weights,

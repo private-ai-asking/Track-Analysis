@@ -20,8 +20,7 @@ BENCHMARK_DIRECTORY: Path = Path(r"X:\Track Analysis\track_analysis\benchmarks")
 DEBUG: bool = False
 VERBOSE: bool = False
 PROFILE_DATA_LOADING: bool = False
-
-MINIMUM_CONFIDENCE_THRESHOLD: float = 90  # 0-100
+EMBED_BATCH_SIZE: int = 1500
 
 CLEAR_CACHE: bool = False  # For developing purposes, clears the cache each time to reset -- for profiling.
 DELETE_FINAL_DATA_BEFORE_START: bool = True  # For developing purposes; removes `enriched_scrobbles.csv` on start.
