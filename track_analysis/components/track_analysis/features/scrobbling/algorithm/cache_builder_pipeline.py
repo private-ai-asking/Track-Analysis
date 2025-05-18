@@ -2,9 +2,8 @@ from sentence_transformers import SentenceTransformer
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import AbPipeline
-from track_analysis.components.md_common_python.py_common.utils import SimilarityScorer
-from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.compute_gmm_thresholds import \
-    ComputeGMMThresholds
+from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.compute_histogram_thresholds import \
+    ComputeHistogramThresholds
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.extract_unique_entries import \
     ExtractUniqueEntries
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.filter_exact_matches import \
@@ -19,10 +18,10 @@ from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipe
     ReportUncertainKeys
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.status_report import StatusReport
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.store_in_cache import StoreInCache
-from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import \
     ScrobbleCacheAlgorithmParameters
+from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
 from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
 
 
@@ -55,7 +54,7 @@ class CacheBuilderPipeline(AbPipeline):
         self._add_step(StoreInCache(self._logger, self._cache_helper, test_mode=self._test_mode))
         self._add_step(status_report)
         self._add_step(ReportUncertainKeys(self._logger, uncertain_keys_path=self._uncertain_keys_path))
-        self._add_step(ComputeGMMThresholds(self._logger))
+        self._add_step(ComputeHistogramThresholds(self._logger))
 
         if self._test_mode and self._form_gold_standard:
             self._add_step(FormGoldStandard(self._logger, self._parameters.max_gold_standard_entries, self._parameters.gold_standard_csv_path))
