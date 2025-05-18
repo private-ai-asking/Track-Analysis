@@ -8,22 +8,17 @@ from track_analysis.components.track_analysis.features.scrobbling.embedding.filt
 from track_analysis.components.track_analysis.features.scrobbling.model.candidate_model import CandidateModel
 
 
-class DefaultCandidateEvaluator(CandidateFilterInterface):
+class BestCandidateSelectorBasedOnTokenSimilarity(CandidateFilterInterface):
     """The default candidate filter used by the NN search."""
     def __init__(self,
                  logger: HoornLogger,
                  similarity_scorer: SimilarityScorer,
-                 confidence_accept_threshold: float,
-                 confidence_reject_threshold: float,
                  token_accept_threshold: float,
                  gaussian_sigma: float):
         super().__init__(logger, is_child=True)
-        self._separator = "DefaultCandidateEvaluator"
+        self._separator = "BestCandidateSelectorBasedOnTokenSimilarity"
 
         self._scorer = similarity_scorer
-
-        self._confidence_accept_threshold = confidence_accept_threshold
-        self._confidence_reject_threshold = confidence_reject_threshold
         self._token_accept_threshold = token_accept_threshold / 100
         self._gaussian_sigma = gaussian_sigma
 

@@ -9,10 +9,10 @@ from track_analysis.components.md_common_python.py_common.utils import (
 )
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
+from track_analysis.components.track_analysis.features.scrobbling.embedding.filtering.best_candidate_selector_token_similarity import \
+    BestCandidateSelectorBasedOnTokenSimilarity
 from track_analysis.components.track_analysis.features.scrobbling.embedding.filtering.candidate_filter_interface import \
     CandidateFilterInterface
-from track_analysis.components.track_analysis.features.scrobbling.embedding.filtering.default_candidate_evaluator import \
-    DefaultCandidateEvaluator
 from track_analysis.components.track_analysis.features.scrobbling.model.candidate_model import CandidateModel
 
 
@@ -37,11 +37,9 @@ class NearestNeighborSearch(IPipe):
         self._confidence_accept_threshold = params.confidence_accept_threshold
         self._confidence_reject_threshold = params.confidence_reject_threshold
 
-        self._candidate_filter: CandidateFilterInterface = DefaultCandidateEvaluator(
+        self._candidate_filter: CandidateFilterInterface = BestCandidateSelectorBasedOnTokenSimilarity(
             logger,
             scorer,
-            self._confidence_accept_threshold,
-            self._confidence_reject_threshold,
             self._token_accept_threshold,
             params.gaussian_sigma
         )
