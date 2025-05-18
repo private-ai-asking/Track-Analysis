@@ -6,9 +6,9 @@ from typing import List
 from track_analysis.components.md_common_python.py_common.handlers import FileHandler
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import SUPPORTED_MUSIC_EXTENSIONS
-from track_analysis.components.track_analysis.features.track_downloading.metadata_manipulator import \
+from track_analysis.components.track_analysis.features.track_downloading.utils.metadata_manipulator import \
     MetadataManipulator, MetadataKey
-from track_analysis.components.track_analysis.features.track_downloading.missing_metadata_finder import \
+from track_analysis.components.track_analysis.features.track_downloading.utils.missing_metadata_finder import \
     MissingMetadataFinder
 from track_analysis.components.track_analysis.features.track_downloading.model.recording_model import RecordingModel
 

@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.track_downloading.library_file_handler import LibraryFileHandler
-from track_analysis.components.track_analysis.features.track_downloading.metadata_manipulator import \
+from track_analysis.components.track_analysis.features.track_downloading.utils.library_file_handler import LibraryFileHandler
+from track_analysis.components.track_analysis.features.track_downloading.utils.metadata_manipulator import \
     MetadataManipulator, MetadataKey
 
 

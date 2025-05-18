@@ -3,9 +3,9 @@ from typing import List, Tuple
 import musicbrainzngs
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.track_downloading.construct_standardized_genres import \
+from track_analysis.components.track_analysis.features.track_downloading.utils.construct_standardized_genres import \
     ConstructStandardizedGenres
-from track_analysis.components.track_analysis.features.track_downloading.genre_api_interface import GenreAPIInterface
+from track_analysis.components.track_analysis.features.track_downloading.api.genre_api_interface import GenreAPIInterface
 from track_analysis.components.track_analysis.features.track_downloading.model.genre_model import GenreStandardModel, \
     GenreDataModel
 

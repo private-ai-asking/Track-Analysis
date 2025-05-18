@@ -2,12 +2,12 @@ from pathlib import Path
 from typing import Dict, List
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.track_downloading.clear_metadata import ClearMetadata
-from track_analysis.components.track_analysis.features.track_downloading.genre_algorithm import GenreAlgorithm
-from track_analysis.components.track_analysis.features.track_downloading.library_file_handler import LibraryFileHandler
-from track_analysis.components.track_analysis.features.track_downloading.metadata_manipulator import \
+from track_analysis.components.track_analysis.features.track_downloading.utils.clear_metadata import ClearMetadata
+from track_analysis.components.track_analysis.features.track_downloading.utils.genre_algorithm import GenreAlgorithm
+from track_analysis.components.track_analysis.features.track_downloading.utils.library_file_handler import LibraryFileHandler
+from track_analysis.components.track_analysis.features.track_downloading.utils.metadata_manipulator import \
     MetadataManipulator, MetadataKey
-from track_analysis.components.track_analysis.features.track_downloading.metadata_populater import MetadataPopulater
+from track_analysis.components.track_analysis.features.track_downloading.utils.metadata_populater import MetadataPopulater
 from track_analysis.components.track_analysis.features.track_downloading.model.download_model import DownloadModel
 from track_analysis.components.track_analysis.features.track_downloading.model.track_model import TrackModel
 

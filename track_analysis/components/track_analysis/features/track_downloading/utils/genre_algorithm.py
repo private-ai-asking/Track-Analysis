@@ -3,9 +3,9 @@ from typing import List
 import musicbrainzngs
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.track_downloading.genre_api_interface import GenreAPIInterface
+from track_analysis.components.track_analysis.features.track_downloading.api.genre_api_interface import GenreAPIInterface
 from track_analysis.components.track_analysis.features.track_downloading.model.genre_model import GenreDataModel
-from track_analysis.components.track_analysis.features.track_downloading.music_brainz_genre_api import \
+from track_analysis.components.track_analysis.features.track_downloading.api.music_brainz_genre_api import \
     MusicBrainzGenreAPI
 
 

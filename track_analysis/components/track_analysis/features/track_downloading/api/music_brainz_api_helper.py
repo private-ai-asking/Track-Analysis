@@ -4,8 +4,8 @@ from typing import Dict, Tuple, List
 import musicbrainzngs
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.track_downloading.genre_algorithm import GenreAlgorithm
-from track_analysis.components.track_analysis.features.track_downloading.metadata_manipulator import MetadataKey
+from track_analysis.components.track_analysis.features.track_downloading.utils.genre_algorithm import GenreAlgorithm
+from track_analysis.components.track_analysis.features.track_downloading.utils.metadata_manipulator import MetadataKey
 from track_analysis.components.track_analysis.features.track_downloading.model.genre_model import GenreDataModel
 from track_analysis.components.track_analysis.features.track_downloading.model.recording_model import RecordingModel
 from track_analysis.components.track_analysis.features.track_downloading.model.release_model import ReleaseModel

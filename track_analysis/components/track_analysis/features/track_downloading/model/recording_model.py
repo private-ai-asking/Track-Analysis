@@ -3,7 +3,7 @@ from typing import Dict, Optional, List
 
 import pydantic
 
-from track_analysis.components.track_analysis.features.track_downloading.metadata_manipulator import MetadataKey
+from track_analysis.components.track_analysis.features.track_downloading.utils.metadata_manipulator import MetadataKey
 
 
 class RecordingModel(pydantic.BaseModel):

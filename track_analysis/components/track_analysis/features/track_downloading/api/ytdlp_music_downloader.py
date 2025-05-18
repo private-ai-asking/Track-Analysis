@@ -11,7 +11,7 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.track_analysis.constants import COOKIES_FILE, OUTPUT_DIRECTORY, FFMPEG_PATH, \
     DOWNLOAD_CSV_FILE
 from track_analysis.components.track_analysis.features.track_downloading.model.download_model import DownloadModel
-from track_analysis.components.track_analysis.features.track_downloading.music_download_interface import \
+from track_analysis.components.track_analysis.features.track_downloading.api.music_download_interface import \
     MusicDownloadInterface
 
 

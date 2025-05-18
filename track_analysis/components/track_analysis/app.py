@@ -35,12 +35,12 @@ from track_analysis.components.track_analysis.features.data_generation.model.hea
 from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import BuildCSVPipeline
 from track_analysis.components.track_analysis.features.data_generation.pipeline.locate_paths_pipeline import LocatePathsPipeline
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import PipelineContextModel
-from track_analysis.components.track_analysis.features.track_downloading.genre_algorithm import GenreAlgorithm
-from track_analysis.components.track_analysis.features.track_downloading.metadata_api import MetadataAPI
+from track_analysis.components.track_analysis.features.track_downloading.utils.genre_algorithm import GenreAlgorithm
+from track_analysis.components.track_analysis.features.track_downloading.api.metadata_api import MetadataAPI
 from track_analysis.components.track_analysis.features.track_downloading.model.download_model import DownloadModel
-from track_analysis.components.track_analysis.features.track_downloading.ytdlp_music_downloader import \
+from track_analysis.components.track_analysis.features.track_downloading.api.ytdlp_music_downloader import \
     YTDLPMusicDownloader
-from track_analysis.components.track_analysis.features.track_downloading.music_download_interface import \
+from track_analysis.components.track_analysis.features.track_downloading.api.music_download_interface import \
     MusicDownloadInterface
 from track_analysis.tests.embedding_test import EmbeddingTest
 from track_analysis.tests.extract_tags_test import ExtractTagsTest
