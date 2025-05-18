@@ -17,13 +17,28 @@ class ExtractUniqueEntries(IPipe):
     def flow(self, ctx: AlgorithmContext) -> AlgorithmContext:
         """Compute a unique key for each scrobble and drop duplicates."""
         self._logger.debug("Extracting unique keys.", separator=self._separator)
-        scrobble_data_frame: pd.DataFrame = ctx.scrobble_data_frame.copy()
-        scrobble_data_frame['__key'] = scrobble_data_frame.apply(
-            lambda r: self._scrobble_utils.compute_key(r['_n_title'], r['_n_artist'], r['_n_album']),
-            axis=1
+
+        # Work directly on the original DF to avoid an unnecessary full copy
+        df = ctx.scrobble_data_frame
+
+        # 1) Early-drop raw duplicates on the columns that define the key
+        df = df.drop_duplicates(
+            subset=['_n_title', '_n_artist', '_n_album'],
+            keep='first',
         )
 
-        ctx.scrobble_data_frame = scrobble_data_frame.drop_duplicates('__key').reset_index(drop=True)
-        ctx.previous_pipe_description = "extracting unique entries"
+        # 2) Compute the unique key via a list comprehension (faster than apply)
+        keys = [
+            self._scrobble_utils.compute_key(t, a, b)
+            for t, a, b in zip(df['_n_title'], df['_n_artist'], df['_n_album'])
+        ]
+        df = df.assign(__key=keys)
 
+        # 3) Final dedup on the computed key, reset the index in-place
+        df.drop_duplicates(subset='__key', keep='first', inplace=True)
+        df.reset_index(drop=True, inplace=True)
+
+        # Write back into the context
+        ctx.scrobble_data_frame = df
+        ctx.previous_pipe_description = "extracting unique entries"
         return ctx
