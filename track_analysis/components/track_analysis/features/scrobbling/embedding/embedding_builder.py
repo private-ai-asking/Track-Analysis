@@ -62,7 +62,6 @@ class EmbeddingBuilder:
 
     def _load_library_data(self) -> DataFrame:
         """Load full or sampled library data."""
-        self._loader.load(sample_rows=self._sample_scrobbles)
         return self._loader.get_library_data()
 
     def _persist_keys(self, library_data: DataFrame) -> None:

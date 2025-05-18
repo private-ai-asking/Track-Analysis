@@ -77,7 +77,6 @@ class ParameterTester:
 
     def tune(self) -> None:
         # Load data once
-        self._data_loader.load(sample_rows=None)
         self._library_lookup = self._data_loader.get_direct_lookup()
         self._library_df = self._data_loader.get_library_data()
 

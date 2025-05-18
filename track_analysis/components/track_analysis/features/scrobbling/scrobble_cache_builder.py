@@ -104,7 +104,6 @@ class ScrobbleCacheBuilder:
     def _prepare_data(self) -> Tuple[Dict[str, str], List[str], pd.DataFrame, pd.DataFrame, faiss.Index]:
         """Load scrobble and library data, index, and lib_keys."""
         self._logger.debug("Loading data...", separator=self._SEPARATOR)
-        self._data_loader.load(sample_rows=self._sample_size)
 
         library_lookup_key_to_uuid = self._data_loader.get_direct_lookup()
         library_data_frame = self._data_loader.get_library_data()

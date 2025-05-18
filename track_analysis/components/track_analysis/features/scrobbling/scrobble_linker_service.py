@@ -100,9 +100,7 @@ class ScrobbleLinkerService:
         """Links scrobble data to library data by matching tracks and writing the associated Track ID
         (if any) into the enriched scrobble data csv."""
         self._logger.info("Starting to link scrobbles...", separator=self._separator)
-        self._scrobble_data_loader.load(sample_rows=TEST_SAMPLE_SIZE)
 
-        # library_data: DataFrame = self._scrobble_data_loader.get_library_data()
         scrobble_data: DataFrame = self._scrobble_data_loader.get_scrobble_data()
 
         enriched_scrobble_data: DataFrame = self._scrobble_matcher.link_scrobbles(scrobble_data)

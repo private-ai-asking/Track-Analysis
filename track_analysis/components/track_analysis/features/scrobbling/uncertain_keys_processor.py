@@ -47,14 +47,9 @@ class UncertainKeysProcessor:
             return []
 
         # Load library
-        self._loader.load()
         library_index = self._loader.get_index()
         library_keys = self._loader.get_keys()
-        library_rows = (
-            self._loader.get_library_data()[["UUID", "_n_title", "_n_artist", "_n_album"]]
-            .set_index("UUID")
-            .to_dict(orient="index")
-        )
+        library_rows = self._loader.get_library_row_by_uuid_lookup()
 
         # Sort
         df = df.sort_values("__key").reset_index(drop=True)

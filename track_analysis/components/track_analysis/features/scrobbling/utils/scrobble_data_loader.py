@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Union, Dict, Optional, List
 
 import faiss
+import numpy as np
 import pandas as pd
 from dateutil import parser, tz
 
@@ -146,14 +147,43 @@ class ScrobbleDataLoader:
         self._index = faiss.read_index(str(index_path))
 
     def _normalize_data(self) -> None:
-        # Normalize text fields
+        # 1) Vectorized text normalization via StringUtils
+        normalization_map = {
+            "Title":     "_n_title",
+            "Artist(s)": "_n_artist",
+            "Album":     "_n_album",
+        }
         for df in (self._library_data, self._scrobble_data):
-            df["_n_title"] = df["Title"].map(self._string_utils.normalize_field)
-            df["_n_artist"] = df["Artist(s)"].map(self._string_utils.normalize_field)
-            df["_n_album"] = df["Album"].map(self._string_utils.normalize_field)
+            for original_col, normalized_col in normalization_map.items():
+                df[normalized_col] = self._string_utils.normalize_series(
+                    df[original_col]
+                )
 
+        # 2) Ultra-fast vectorized datetime parsing, shift, and formatting
+        #    a) Parse all UTC timestamps in one C-loop
+        dt_utc = pd.to_datetime(
+            self._scrobble_data["Scrobble Datetime"],
+            format="%Y-%m-%dT%H:%M:%SZ",
+            utc=True
+        )
 
-        self._scrobble_data["Scrobble Datetime"] = self._scrobble_data["Scrobble Datetime"].map(self._localize_time_string)
+        #    b) Downcast to numpy datetime64[s] array (drops tzinfo)
+        arr_utc = dt_utc.values.astype("datetime64[s]")
+
+        #    c) Compute local-zone offset once and apply in bulk
+        local_tz   = tz.tzlocal()
+        now_local  = pd.Timestamp.now(local_tz)    # or datetime.now(local_tz)
+        offset_secs = int(local_tz.utcoffset(now_local).total_seconds())
+        arr_local   = arr_utc + np.timedelta64(offset_secs, "s")
+
+        #    d) Vectorized ISO-string formatting + simple T→space + append TZ name
+        s_local = np.datetime_as_string(arr_local, unit="s")
+        s_local = np.char.replace(s_local, "T", " ")
+        tzname  = local_tz.tzname(now_local)
+        s_local = np.char.add(s_local, f" {tzname}")
+
+        #    e) Assign back
+        self._scrobble_data["Scrobble Datetime"] = s_local
 
     def _localize_time_string(self, utc_date_string: str) -> str:
         """

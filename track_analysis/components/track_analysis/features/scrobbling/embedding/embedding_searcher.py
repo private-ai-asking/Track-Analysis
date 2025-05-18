@@ -48,7 +48,6 @@ class EmbeddingSearcher:
         if candidate_evaluators is None:
             candidate_evaluators = []
 
-        self._loader.load()
         library_index: faiss.Index = self._loader.get_index()
         embeddings = self._utils.build_combined_embeddings(n_titles, n_artists, n_albums)
         indices, distances = self._search(embeddings, library_index)
@@ -81,7 +80,6 @@ class EmbeddingSearcher:
         if candidate_evaluators is None:
             candidate_evaluators = []
 
-        self._loader.load()
         library_index: faiss.Index = self._loader.get_index()
         embeddings = self._utils.build_combined_embeddings([n_title], [n_artist], [n_album])
 

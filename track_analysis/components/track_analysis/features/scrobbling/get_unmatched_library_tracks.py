@@ -17,7 +17,6 @@ class UnmatchedLibraryTracker:
 
     def print_unmatched_tracks(self) -> None:
         # 1) load library
-        self._loader.load()
         library_df = self._loader.get_library_data()
         if library_df is None:
             self._logger.error("Library data not available.", separator=self._separator)

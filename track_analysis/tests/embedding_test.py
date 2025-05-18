@@ -36,7 +36,6 @@ class EmbeddingTest(TestInterface):
             n_to_print: int = 5
     ) -> None:
         """Embed the key, search the index, and log the top-n results."""
-        self._data_loader.load(sample_rows=5)
         library_df: pd.DataFrame = self._data_loader.get_library_data()
         key_to_test: str = self._input_helper.get_user_input("Enter the key you want to test.", expected_response_type=str, validator_func=lambda s: (True, ""))
 
