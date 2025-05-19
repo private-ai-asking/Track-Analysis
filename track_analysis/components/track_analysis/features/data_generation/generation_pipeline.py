@@ -3,6 +3,7 @@ from typing import List
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import AbPipeline
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
+from track_analysis.components.md_common_python.py_common.utils import StringUtils
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.contexts import DataGenerationPipeContext, \
@@ -20,10 +21,12 @@ class DataGenerationPipeline(AbPipeline):
                  audio_file_handler: AudioFileHandler,
                  audio_calculator: AudioCalculator,
                  time_utils: TimeUtils,
+                 string_utils: StringUtils,
                  batch_size: int=64):
         self._logger = logger
         self._headers_to_fill = headers_to_fill
         self._time_utils = time_utils
+        self._string_utils = string_utils
 
         self._data_generation_pipe_context: DataGenerationPipeContext = DataGenerationPipeContext(
             logger=logger,
@@ -41,5 +44,5 @@ class DataGenerationPipeline(AbPipeline):
 
     def build_pipeline(self):
         self._add_step(LoadCache(self._logger))
-        self._add_step(DataGenerationPipe(self._data_generation_pipe_context, self._data_generation_pipe_configuration))
+        self._add_step(DataGenerationPipe(self._data_generation_pipe_context, self._data_generation_pipe_configuration, self._string_utils))
         self._add_step(MakeCSV(self._logger))

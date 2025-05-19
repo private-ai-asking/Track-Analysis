@@ -3,6 +3,7 @@ from typing import List, Dict, Union
 from track_analysis.components.md_common_python.py_common.multithreading.thread_manager import ThreadManagerConfig, \
     ThreadManager
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
+from track_analysis.components.md_common_python.py_common.utils import StringUtils
 from track_analysis.components.track_analysis.features.data_generation.contexts import DataGenerationPipeContext, \
     DataGenerationPipeConfiguration, BatchContext
 from track_analysis.components.track_analysis.features.data_generation.track_processor_interface import \
@@ -11,6 +12,8 @@ from track_analysis.components.track_analysis.features.data_generation.track_pro
     BPMTrackProcessor
 from track_analysis.components.track_analysis.features.data_generation.track_processors.energy_processor import \
     EnergyTrackProcessor
+from track_analysis.components.track_analysis.features.data_generation.track_processors.primary_artist_processor import \
+    PrimaryArtistProcessor
 from track_analysis.components.track_analysis.features.data_generation.track_processors.true_peak_processor import \
     TruePeakTrackProcessor
 from track_analysis.components.track_analysis.features.data_generation.model.audio_info import AudioInfo
@@ -19,11 +22,12 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
 
 
 class DataGenerationPipe(IPipe):
-    def __init__(self, context: DataGenerationPipeContext, configuration: DataGenerationPipeConfiguration):
+    def __init__(self, context: DataGenerationPipeContext, configuration: DataGenerationPipeConfiguration, string_utils: StringUtils):
         self._separator = "DataGenerator.DataGenerationPipe"
         self._logger = context.logger
         self._audio_file_handler = context.audio_file_handler
         self._audio_calculator = context.audio_calculator
+        self._string_utils = string_utils
 
         self._configuration = configuration
 
@@ -40,7 +44,8 @@ class DataGenerationPipe(IPipe):
         processor_mapping: Dict[Header, ITrackProcessorStrategy] = {
             Header.True_Peak: TruePeakTrackProcessor(self._logger, self._audio_file_handler, self._audio_calculator),
             Header.BPM: BPMTrackProcessor(self._logger),
-            Header.Energy_Level: EnergyTrackProcessor(self._logger)
+            Header.Energy_Level: EnergyTrackProcessor(self._logger),
+            Header.Primary_Artist: PrimaryArtistProcessor(self._logger, self._string_utils)
         }
 
         processor = processor_mapping.get(header, None)

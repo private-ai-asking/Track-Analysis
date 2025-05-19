@@ -4,6 +4,7 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.md_common_python.py_common.patterns import AbPipeline
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
 from track_analysis.components.md_common_python.py_common.time_handling.time_utils import time_operation
+from track_analysis.components.md_common_python.py_common.utils import StringUtils
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
@@ -18,13 +19,15 @@ class DataGenerator:
                  logger: HoornLogger,
                  audio_file_handler: AudioFileHandler,
                  audio_calculator: AudioCalculator,
-                 time_utils: TimeUtils):
+                 time_utils: TimeUtils,
+                 string_utils: StringUtils):
         self._separator = "DataGenerator"
 
         self._logger = logger
         self._audio_file_handler = audio_file_handler
         self._audio_calculator = audio_calculator
         self._time_utils = time_utils
+        self._string_utils = string_utils
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
@@ -43,6 +46,6 @@ class DataGenerator:
 
         self._logger.trace("Generating data.", separator=self._separator)
 
-        pipeline = DataGenerationPipeline(self._logger, headers, self._audio_file_handler, self._audio_calculator, self._time_utils, batch_size)
+        pipeline = DataGenerationPipeline(self._logger, headers, self._audio_file_handler, self._audio_calculator, self._time_utils, self._string_utils, batch_size=batch_size)
         pipeline.build_pipeline()
         self._flow_pipeline(pipeline, context)

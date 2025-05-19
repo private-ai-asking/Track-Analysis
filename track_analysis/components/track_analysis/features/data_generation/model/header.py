@@ -7,6 +7,7 @@ class Header(Enum):
     Title = "Title"
     Album = "Album"
     Artists = "Artist(s)"
+    Primary_Artist = "Primary Artist"
     Album_Artists = "Album Artist(s)"
     Label = "Label"
     Extension = "Audio File Extension"

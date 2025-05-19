@@ -246,8 +246,8 @@ class App:
         exit()
 
     def _generate_new_data(self):
-        data_generator: DataGenerator = DataGenerator(self._logger, self._audio_file_handler, self._audio_calculator, self._time_utils)
-        data_generator.generate_data([Header.BPM], batch_size=128)
+        data_generator: DataGenerator = DataGenerator(self._logger, self._audio_file_handler, self._audio_calculator, self._time_utils, self._string_utils)
+        data_generator.generate_data([Header.Primary_Artist], batch_size=128)
 
     def _generate_embeddings(self):
         self._scrobble_linker.build_embeddings_for_library()
@@ -296,7 +296,7 @@ class App:
             main_data_output_file_path=OUTPUT_DIRECTORY.joinpath("data.csv")
         )
 
-        pipeline = BuildCSVPipeline(self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._audio_calculator)
+        pipeline = BuildCSVPipeline(self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._audio_calculator, self._string_utils)
         pipeline.build_pipeline()
         pipeline.flow(pipeline_context)
 
