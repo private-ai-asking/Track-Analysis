@@ -54,7 +54,8 @@ class ScrobbleLinkerService:
         self._scrobble_matcher: ScrobbleMatcher = ScrobbleMatcher(
             logger,
             cache_builder,
-            scrobble_utils
+            scrobble_utils,
+            data_loader=self._scrobble_data_loader
         )
 
         self._embedding_builder: EmbeddingBuilder = EmbeddingBuilder(
