@@ -14,3 +14,4 @@ scikit-learn
 yt-dlp
 musicbrainzngs
 pymediainfo
+pyebur128

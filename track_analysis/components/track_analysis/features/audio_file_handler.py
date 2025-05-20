@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, List, Dict
+from typing import Optional, List
 
 import librosa
 import pydantic
@@ -8,7 +8,6 @@ from pymediainfo import MediaInfo
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.apis.ffprobe_client import FFprobeClient
-from track_analysis.components.track_analysis.exceptions.ffprobe_error import FFprobeError
 from track_analysis.components.track_analysis.util.audio_format_converter import AudioFormatConverter
 
 

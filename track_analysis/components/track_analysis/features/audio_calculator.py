@@ -1,9 +1,8 @@
-from typing import List, Tuple
-
 import librosa
 import numpy as np
-import pyloudnorm
+import pyebur128
 from numpy import ndarray
+from pyebur128.pyebur128 import get_loudness_global, R128State, MeasurementMode
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import VERBOSE
@@ -49,15 +48,34 @@ class AudioCalculator:
 
         return data_rate_per_second
 
-    def calculate_lufs(self, sample_rate: float, samples: ndarray) -> float:
+    def calculate_lufs(self, sr: float, samples: ndarray) -> float:
+        # 1) Re-shape into frames × channels
+        if samples.ndim == 1:
+            n_channels = 1
+            frames = samples.shape[0]
+            interleaved = samples.astype(np.float64)
+        else:
+            n_channels, n_samples = samples.shape
+            frames = n_samples
+            interleaved = samples.T.reshape(-1).astype(np.float64)
+
+        # 3) Fresh R128State for this buffer
+        state = R128State(
+            channels=n_channels,
+            samplerate=int(sr),
+            mode=MeasurementMode.MODE_I
+        )
+
+        # 4) Feed everything in one go
+        state.add_frames(interleaved, frames)
+
+        # 5) Get integrated loudness (calls ff_ebur128_loudness_global)
+        lufs = get_loudness_global(state)
+
         if VERBOSE:
-            self._logger.debug(f"Sample rate: {sample_rate}", separator=self._separator)
+            self._logger.debug(f"Integrated LUFS: {lufs}", separator=self._separator)
 
-        meter = pyloudnorm.Meter(sample_rate)
-        loudness = meter.integrated_loudness(samples)
-
-        self._logger.debug(f"Calculated Loudness: {loudness}", separator=self._separator)
-        return loudness
+        return lufs
 
     def calculate_true_peak(self, sample_rate: float, samples: ndarray, oversampling_rate: int = 4) -> float:
         # Oversample the audio
@@ -71,56 +89,3 @@ class AudioCalculator:
 
         self._logger.debug(f"Calculated True Peak (dBPT): {true_peak_dbfs}", separator=self._separator)
         return true_peak_dbfs
-
-    def _calculate_lufs_with_sliding_window(self, window_length_seconds: float, sample_rate: float, samples: ndarray) -> List[Tuple[float, float]]:
-        """
-        Calculates LUFS values with a sliding window approach and associates each LUFS value with a timestamp.
-
-        Args:
-            window_length_seconds (float): The length of the sliding window in seconds.
-            sample_rate (float): The sample rate of the audio.
-            samples (ndarray): The audio samples as a NumPy array.
-
-        Returns:
-            List[Tuple[float, float]]: A list of tuples, where each tuple contains the timestamp (in seconds) of the start of the window
-                                     and the corresponding LUFS value.
-        """
-        meter = pyloudnorm.Meter(sample_rate)
-        window_size_samples = int(window_length_seconds * sample_rate)
-
-        # Ensure window size is not larger than the audio length
-        if window_size_samples > len(samples):
-            self._logger.warning("Window size is larger than the audio length. Reducing window size.", separator=self._separator)
-            window_size_samples = len(samples)
-
-        lufs_values_with_timestamps = []
-
-        # Iterate through the audio data using a sliding window
-        for i in range(0, len(samples) - window_size_samples + 1):
-            window = samples[i:i + window_size_samples]
-            timestamp = i / sample_rate  # Calculate the timestamp in seconds
-            try:
-                momentary_lufs = meter.integrated_loudness(window)
-                lufs_values_with_timestamps.append((timestamp, momentary_lufs))
-            except Exception as e:
-                self._logger.warning(f"Error calculating loudness for window at {i}: {e}", separator=self._separator)
-                lufs_values_with_timestamps.append((timestamp, 0.0))  # Use 0.0 as a default LUFS value in case of error
-
-        return lufs_values_with_timestamps
-
-    def calculate_momentary_short_term_lufs(self, sample_rate: float, samples: ndarray) -> (List[Tuple[float, float]], List[Tuple[float, float]]):
-        """Calculates momentary and short-term LUFS of an audio file."""
-        self._logger.trace(f"Calculating time series lufs with sample rate: {sample_rate}", separator=self._separator)
-
-        try:
-            # Calculate momentary LUFS
-            momentary_lufs = self._calculate_lufs_with_sliding_window(0.4, sample_rate, samples)
-
-            # Calculate short-term LUFS
-            short_term_lufs = self._calculate_lufs_with_sliding_window(3, sample_rate, samples)
-
-            return momentary_lufs, short_term_lufs
-
-        except Exception as e:
-            self._logger.warning(f"Error calculating LUFS: {e}", separator=self._separator)
-            return None, None
