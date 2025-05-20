@@ -1,36 +1,31 @@
 import math
 from typing import Tuple
 
+import numba
 import numpy as np
-from numba import njit, prange
+from numba import njit
 from numpy import ndarray
 from pyebur128.pyebur128 import get_loudness_global, R128State, MeasurementMode, get_true_peak, get_loudness_range
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 
-
-@njit(parallel=True, fastmath=True, cache=True)
-def _peak_rms(arr: np.ndarray) -> (float, float):
+@njit((numba.float32[:],), fastmath=True, cache=True)
+def _peak_rms_vec(arr: np.ndarray) -> (float, float):
+    # LLVM + fastmath will vectorize this loop
     n = arr.size
     if n == 0:
         return 0.0, 0.0
 
-    sum_sq   = 0.0
-    peak_sq  = 0.0
+    sum_sq  = 0.0
+    peak_sq = 0.0
+    for i in range(n):
+        sq = arr[i] * arr[i]
+        sum_sq += sq
+        if sq > peak_sq:
+            peak_sq = sq
 
-    # single prange with two reductions: += and max()
-    for i in prange(n):
-        v   = arr[i]
-        sq  = v * v
-        sum_sq  += sq
-        peak_sq = max(peak_sq, sq)
-
-    # finalize
-    peak = math.sqrt(peak_sq)
-    rms  = math.sqrt(sum_sq / n)
-
-    return peak, rms
+    return math.sqrt(peak_sq), math.sqrt(sum_sq / n)
 
 
 class AudioCalculator:
@@ -49,7 +44,7 @@ class AudioCalculator:
 
         # 1) do crest factor on a fresh copy, _before_ any pyebur128 call:
         float_frames = np.ascontiguousarray(samples, dtype=np.float32).ravel()
-        peak, rms    = _peak_rms(float_frames)
+        peak, rms    = _peak_rms_vec(float_frames)
 
         ratio = peak / rms if rms != 0.0 else 0.0
         with np.errstate(divide='ignore', invalid='ignore'):
@@ -153,4 +148,3 @@ class AudioCalculator:
 
         self._logger.debug(f"True peak: {tp_db:.2f} dBTP", separator=self._separator)
         return tp_db
-
