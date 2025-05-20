@@ -4,7 +4,7 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
+from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import CacheBuildingAlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.embedding.evaluation.best_candidate_selector import \
     BestCandidateSelector
@@ -62,7 +62,7 @@ class NearestNeighborSearch(IPipe):
 
         self._logger.trace("Initialized NearestNeighborSearch.", separator=self._separator)
 
-    def flow(self, ctx: AlgorithmContext) -> AlgorithmContext:
+    def flow(self, ctx: CacheBuildingAlgorithmContext) -> CacheBuildingAlgorithmContext:
         scrobble_data = ctx.scrobble_data_frame
         if scrobble_data is None or scrobble_data.empty:
             self._logger.warning("No scrobbles to process.", separator=self._separator)
@@ -114,7 +114,7 @@ class NearestNeighborSearch(IPipe):
             self._logger.debug(f"Marked key \"{key}\" as uncertain! (conf={candidate.associated_confidence},sim={candidate.combined_token_similarity})", separator=self._separator)
             self._uncertain_keys.append(key)
 
-    def _finalize(self, ctx: AlgorithmContext) -> None:
+    def _finalize(self, ctx: CacheBuildingAlgorithmContext) -> None:
         df = ctx.scrobble_data_frame.copy()
         df['__confidence']     = df['__key'].map(self._confidences).fillna(0.0)
         df['__predicted_uuid'] = df['__key'].map(self._predictions)

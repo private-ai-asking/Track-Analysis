@@ -1,13 +1,13 @@
-import json
-
-import pandas as pd
 from pathlib import Path
 from typing import Dict, Tuple, List
+
+import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.track_analysis.constants import KEYS_TO_BE_IGNORED_IN_CACHE_CHECK
-from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
+from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import \
+    CacheBuildingAlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.embedding.evaluation.best_candidate_selector import \
     BestCandidateSelector
@@ -30,7 +30,6 @@ class FilterManualOverride(IPipe):
         self._separator = "CacheBuilder.FilterManualOverride"
         self._override_path: Path = manual_override_json_path
         self._embedding_searcher: EmbeddingSearcher = embedding_searcher
-        self._lookup = self._build_lookup()
 
         self._token_accept_threshold = params.token_accept_threshold / 100.0
         self._confidence_accept_threshold = params.confidence_accept_threshold
@@ -43,14 +42,13 @@ class FilterManualOverride(IPipe):
             DecisionEvaluator(logger, self._confidence_accept_threshold, self._confidence_reject_threshold, self._token_accept_threshold)
         ]
 
-        self._logger.trace(f"Loaded {len(self._lookup)} manual overrides.", separator=self._separator)
-
-    def flow(self, ctx: AlgorithmContext) -> AlgorithmContext:
+    def flow(self, ctx: CacheBuildingAlgorithmContext) -> CacheBuildingAlgorithmContext:
         """Apply any manual overrides: accept, reject, or leave for later."""
         self._logger.debug("Applying manual override.", separator=self._separator)
+        manual_override_lookup: Dict[str, str] = ctx.manual_override_lookup
 
         df = ctx.scrobble_data_frame.copy()
-        df_override, df_remaining = self._split_overrides(df)
+        df_override, df_remaining = self._split_overrides(df, manual_override_lookup)
 
         accepted, rejected = self._partition_by_override(df_override)
 
@@ -61,11 +59,12 @@ class FilterManualOverride(IPipe):
 
         return self._finalize_context(ctx, df_remaining)
 
-    def _split_overrides(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    @staticmethod
+    def _split_overrides(df: pd.DataFrame, lookup: Dict[str, str]) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Return (overrides, remaining) based on keys in the lookup."""
-        mask = df['__key'].isin(self._lookup)
+        mask = df['__key'].isin(lookup)
         df_override  = df[mask].copy()
-        df_override['override_uuid'] = df_override['__key'].map(self._lookup)
+        df_override['override_uuid'] = df_override['__key'].map(lookup)
         df_remaining = df[~mask].copy()
         return df_override, df_remaining
 
@@ -76,7 +75,7 @@ class FilterManualOverride(IPipe):
         df_rejected = df_override[df_override['override_uuid'].isna()].copy()
         return df_accepted, df_rejected
 
-    def _handle_accepted(self, df_accepted: pd.DataFrame, ctx: AlgorithmContext) -> None:
+    def _handle_accepted(self, df_accepted: pd.DataFrame, ctx: CacheBuildingAlgorithmContext) -> None:
         """Assign predictions for accepted scrobbles and update context."""
         df_processed = (
             df_accepted
@@ -101,7 +100,7 @@ class FilterManualOverride(IPipe):
             separator=self._separator
         )
 
-    def _handle_rejected(self, df_rejected: pd.DataFrame, ctx: AlgorithmContext) -> None:
+    def _handle_rejected(self, df_rejected: pd.DataFrame, ctx: CacheBuildingAlgorithmContext) -> None:
         """Assign predictions for rejected scrobbles and update context."""
         df_processed = (
             df_rejected
@@ -167,21 +166,8 @@ class FilterManualOverride(IPipe):
                 )
 
     @staticmethod
-    def _finalize_context(ctx: AlgorithmContext, df_remaining: pd.DataFrame) -> AlgorithmContext:
+    def _finalize_context(ctx: CacheBuildingAlgorithmContext, df_remaining: pd.DataFrame) -> CacheBuildingAlgorithmContext:
         """Reset the working frame and update the pipeline description."""
         ctx.scrobble_data_frame    = df_remaining.reset_index(drop=True)
         ctx.previous_pipe_description = "filtering manual override"
         return ctx
-
-
-    def _build_lookup(self) -> Dict[str, str]:
-        if not self._override_path.is_file():
-            self._logger.warning("Cannot load override cache, file is non-existent.", separator=self._separator)
-            return {}
-        if not self._override_path.name.endswith('.json'):
-            self._logger.warning("Cannot load override cache, file is not json.", separator=self._separator)
-            return {}
-
-        with open(self._override_path, 'r') as f:
-            data = json.load(f)
-            return data

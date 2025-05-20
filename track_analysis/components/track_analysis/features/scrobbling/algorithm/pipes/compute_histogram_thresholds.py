@@ -2,7 +2,7 @@ from typing import Tuple, Optional
 
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
+from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import CacheBuildingAlgorithmContext
 import numpy as np
 
 
@@ -29,7 +29,7 @@ class ComputeHistogramThresholds(IPipe):
             separator=self._separator,
         )
 
-    def flow(self, ctx: AlgorithmContext) -> AlgorithmContext:
+    def flow(self, ctx: CacheBuildingAlgorithmContext) -> CacheBuildingAlgorithmContext:
         confidences = self._gather_confidences(ctx)
         if confidences.size < self._n_classes:
             self._logger.error(
@@ -54,7 +54,7 @@ class ComputeHistogramThresholds(IPipe):
         )
         return ctx
 
-    def _gather_confidences(self, ctx: AlgorithmContext) -> np.ndarray:
+    def _gather_confidences(self, ctx: CacheBuildingAlgorithmContext) -> np.ndarray:
         parts = []
         df = getattr(ctx, 'scrobble_data_frame', None)
         if df is not None and not df.empty and '__confidence' in df.columns:

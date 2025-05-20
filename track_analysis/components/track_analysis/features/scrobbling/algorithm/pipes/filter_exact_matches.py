@@ -2,7 +2,7 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
+from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import CacheBuildingAlgorithmContext
 
 
 class FilterExactMatches(IPipe):
@@ -12,7 +12,7 @@ class FilterExactMatches(IPipe):
         self._separator: str = "CacheBuilder.FilterExactMatches"
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
-    def flow(self, ctx: AlgorithmContext) -> AlgorithmContext:
+    def flow(self, ctx: CacheBuildingAlgorithmContext) -> CacheBuildingAlgorithmContext:
         """Mark exact‐key matches as auto‐accepted (100% confidence), but don't persist yet."""
         self._logger.debug("Applying exact match.", separator=self._separator)
 

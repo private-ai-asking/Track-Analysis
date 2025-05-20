@@ -6,7 +6,7 @@ import pandas as pd
 import pydantic
 
 
-class AlgorithmContext(pydantic.BaseModel):
+class CacheBuildingAlgorithmContext(pydantic.BaseModel):
     """Context for the Cache Building Algorithm."""
     original_scrobble_count: int
     previous_pipe_description: str
@@ -19,6 +19,8 @@ class AlgorithmContext(pydantic.BaseModel):
     library_keys: List[str]
 
     library_index: faiss.Index
+
+    manual_override_lookup: Optional[Dict[str, str]] = None
 
     auto_accepted_scrobbles: Optional[pd.DataFrame] = None
     auto_rejected_scrobbles: Optional[pd.DataFrame] = None

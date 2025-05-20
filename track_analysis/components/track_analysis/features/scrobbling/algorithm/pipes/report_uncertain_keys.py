@@ -2,7 +2,7 @@ from pathlib import Path
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
+from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import CacheBuildingAlgorithmContext
 
 
 class ReportUncertainKeys(IPipe):
@@ -12,7 +12,7 @@ class ReportUncertainKeys(IPipe):
         self._separator = "CacheBuilder.ReportUncertainKeys"
         self._uncertain_keys_path = uncertain_keys_path
 
-    def flow(self, ctx: AlgorithmContext) -> AlgorithmContext:
+    def flow(self, ctx: CacheBuildingAlgorithmContext) -> CacheBuildingAlgorithmContext:
         """Log any keys marked uncertain, in alphabetical order."""
         if not ctx.uncertain_keys:
             self._logger.info("No uncertain entries.", separator=self._separator)

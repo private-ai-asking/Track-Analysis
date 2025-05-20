@@ -1,6 +1,6 @@
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
+from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import CacheBuildingAlgorithmContext
 
 
 class StatusReport(IPipe):
@@ -9,7 +9,7 @@ class StatusReport(IPipe):
         self._logger = logger
         self._separator = "CacheBuilder.StatusReport"
 
-    def flow(self, ctx: AlgorithmContext) -> AlgorithmContext:
+    def flow(self, ctx: CacheBuildingAlgorithmContext) -> CacheBuildingAlgorithmContext:
         scrobble_count: int = len(ctx.scrobble_data_frame)
         original: int = ctx.original_scrobble_count
 

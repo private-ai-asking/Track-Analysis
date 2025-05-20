@@ -9,7 +9,7 @@ from sentence_transformers import SentenceTransformer
 from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.utils import SimilarityScorer
-from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
+from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import CacheBuildingAlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.cache_builder_pipeline import \
     CacheBuilderPipeline
 from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
@@ -84,7 +84,7 @@ class ScrobbleCacheBuilder:
         self._logger.info("Starting cache build...", separator=self._SEPARATOR)
         library_lookup_key_to_uuid, library_keys, scrobble_data_frame, library_data_frame, library_index = self._prepare_data()
 
-        initial_ctx: AlgorithmContext = AlgorithmContext(
+        initial_ctx: CacheBuildingAlgorithmContext = CacheBuildingAlgorithmContext(
             original_scrobble_count=len(scrobble_data_frame),
             previous_pipe_description="None",
             scrobble_data_frame=scrobble_data_frame,

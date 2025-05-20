@@ -10,7 +10,7 @@ from track_analysis.components.track_analysis.features.scrobbling.algorithm.cach
 from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
-from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
+from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import CacheBuildingAlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import ScrobbleCacheAlgorithmParameters
 from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
 
@@ -112,7 +112,7 @@ class ParameterTester:
                             pipeline.build_pipeline()
 
                             # init context
-                            ctx = AlgorithmContext(
+                            ctx = CacheBuildingAlgorithmContext(
                                 original_scrobble_count=self._total_gold,
                                 previous_pipe_description="None",
                                 scrobble_data_frame=self._gold_df.drop(columns=["Predicted UUID", "Correct UUID"], errors="ignore"),

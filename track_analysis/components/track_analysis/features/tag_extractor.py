@@ -1,12 +1,11 @@
 import uuid
 from pathlib import Path
 from typing import Union, List
+
 import mutagen
+import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-
-from track_analysis.components.track_analysis.features.data_generation.model.audio_info import AudioInfo
-from track_analysis.components.track_analysis.features.data_generation.model.audio_metadata_item import AudioMetadataItem
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 
 
@@ -31,7 +30,8 @@ class TagExtractor:
 
         return file
 
-    def _get_artists(self, file: mutagen.File) -> List[str]:
+    @staticmethod
+    def _get_artists(file: mutagen.File) -> List[str]:
         artists = file.get('artists', "Unknown")
         if artists == "Unknown":
             artists = file.get('artist', "Unknown")
@@ -40,21 +40,20 @@ class TagExtractor:
 
         return artists
 
-    def extract(self, audio_file: Path) -> AudioInfo:
+    def add_extracted_metadata_to_track(self, track: pd.Series) -> None:
         """
         Extracts mp3 tags from the given audio file.
 
         Args:
-            audio_file (Path): The path to the audio file.
+            track (pd.Series): The data generation track.
 
         Returns:
             AudioMetadataItem: An object containing the extracted mp3 tags.
         """
-        self._logger.trace(f"Extracting tags from {audio_file}", separator=self._module_separator)
+        self._logger.trace(f"Extracting tags from {track}", separator=self._module_separator)
 
-        metadata: List[AudioMetadataItem] = []
-
-        file: mutagen.File = self._load_file(audio_file)
+        track_path: Path = Path(track[Header.Audio_Path.value])
+        file: mutagen.File = self._load_file(track_path)
 
         artists = self._get_artists(file)
         album_artists = file.get('albumartist', ["Unknown"])
@@ -65,28 +64,26 @@ class TagExtractor:
         uid = uuid.uuid4()
 
         # Relational purposes
-        metadata.append(AudioMetadataItem(header=Header.UUID, description="Unique identifier for the track.", value=str(uid)))
+        track[Header.UUID.value] = str(uid)
 
         # Basic Metadata
-        metadata.append(AudioMetadataItem(header=Header.Title, description="The track title.", value=file.get('title', ["Unknown"])[0]))
-        metadata.append(AudioMetadataItem(header=Header.Album, description="The album where this track is part of.", value=file.get('album', ["Unknown"])[0]))
-        metadata.append(AudioMetadataItem(header=Header.Artists, description="The track artists.", value=artists))
-        metadata.append(AudioMetadataItem(header=Header.Album_Artists, description="The album artists.", value=album_artists))
-        metadata.append(AudioMetadataItem(header=Header.Label, description="The label associated with the track.", value=file.get('label', ["Unknown"])[0]))
+        track[Header.Title.value] = file.get('title', ["Unknown"])[0]
+        track[Header.Album.value] = file.get('album', ["Unknown"])[0]
+        track[Header.Artists.value] = artists
+        track[Header.Album_Artists.value] = album_artists
+        track[Header.Label.value] = file.get('label', ["Unknown"])[0]
 
-        metadata.append(AudioMetadataItem(header=Header.Release_Year, description="The original year this track was released.", value=release_year))
-        metadata.append(AudioMetadataItem(header=Header.Release_Date, description="The original date this track was released.", value=release_date))
+        track[Header.Release_Year.value] = release_year
+        track[Header.Release_Date.value] = release_date
 
-        metadata.append(AudioMetadataItem(header=Header.Genre, description="The genre of the music.", value=file.get('genre', ["Unknown"])[0]))
-        metadata.append(AudioMetadataItem(header=Header.Bought, description="Whether the track was bought or not.", value=True if "[01] hq" in str(audio_file) else False))
-        metadata.append(AudioMetadataItem(header=Header.Extension, description="The Extension of the track.", value=audio_file.suffix))
-        metadata.append(AudioMetadataItem(header=Header.Audio_Path, description="The path of the track.", value=str(audio_file)))
+        track[Header.Genre.value] = file.get('genre', ["Unknown"])[0]
+        track[Header.Bought.value] = True if "[01] hq" in str(track_path) else False
+        track[Header.Extension.value] = track_path.suffix
 
         # Sonic Metadata
-        metadata.append(AudioMetadataItem(header=Header.BPM, description="The tempo of the track.", value=file.get('bpm', ["Unknown"])[0]))
-        metadata.append(AudioMetadataItem(header=Header.Energy_Level, description="The energy level of the track.", value=file.get('energylevel', ["Unknown"])[0]))
-        metadata.append(AudioMetadataItem(header=Header.Key, description="The camelot key of the track.", value=file.get('initialkey', ["Unknown"])[0]))
+        track[Header.BPM.value] = file.get('bpm', ["Unknown"])[0]
+        track[Header.Energy_Level.value] = file.get('energy', ["Unknown"])[0]
+        track[Header.Key.value] = file.get('key', ["Unknown"])[0]
 
-
-        self._logger.trace(f"Finished extracting tags from {audio_file}", separator=self._module_separator)
-        return AudioInfo(metadata=metadata, path=audio_file)
+        self._logger.trace(f"Finished extracting tags from {track}", separator=self._module_separator)
+        return None

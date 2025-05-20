@@ -4,7 +4,7 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
+from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import CacheBuildingAlgorithmContext
 
 
 class FormGoldStandard(IPipe):
@@ -21,7 +21,7 @@ class FormGoldStandard(IPipe):
         self._rejected_max: int = int(max_gold_standard_entries * 0.25)
         self._uncertain_max: int = int(max_gold_standard_entries * 0.5)
 
-    def flow(self, ctx: AlgorithmContext) -> AlgorithmContext:
+    def flow(self, ctx: CacheBuildingAlgorithmContext) -> CacheBuildingAlgorithmContext:
         auto_accepted: pd.DataFrame = ctx.auto_accepted_scrobbles
         auto_rejected: pd.DataFrame = ctx.auto_rejected_scrobbles
         confused_scrobbles: pd.DataFrame = ctx.confused_scrobbles

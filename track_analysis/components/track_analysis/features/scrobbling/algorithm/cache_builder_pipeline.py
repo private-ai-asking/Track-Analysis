@@ -18,6 +18,8 @@ from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipe
     ReportUncertainKeys
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.status_report import StatusReport
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.store_in_cache import StoreInCache
+from track_analysis.components.track_analysis.features.scrobbling.algorithm.pipes.validate_manual_override import \
+    ValidateManualOverride
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import \
     ScrobbleCacheAlgorithmParameters
@@ -46,6 +48,7 @@ class CacheBuilderPipeline(AbPipeline):
 
         self._add_step(ExtractUniqueEntries(self._logger, self._scrobble_utils))
         self._add_step(status_report)
+        self._add_step(ValidateManualOverride(self._logger, self._manual_json_path))
         self._add_step(FilterManualOverride(self._logger, self._manual_json_path, self._searcher, self._parameters))
         self._add_step(status_report)
         self._add_step(FilterExactMatches(self._logger))

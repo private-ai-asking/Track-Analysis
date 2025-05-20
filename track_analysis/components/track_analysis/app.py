@@ -1,5 +1,4 @@
 import traceback
-
 from datetime import datetime
 from pathlib import Path
 from typing import List, Callable, TypeVar, Any
@@ -24,35 +23,33 @@ from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRAR
     DOWNLOAD_CSV_FILE, TEST_SAMPLE_SIZE, PROFILE_DATA_LOADING, EMBED_BATCH_SIZE
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
-from track_analysis.components.track_analysis.features.data_generation.data_generator import DataGenerator
+from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import \
+    BuildLibraryDataCSVPipeline
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
+    LibraryDataGenerationPipelineContext
 from track_analysis.components.track_analysis.features.scrobbling.embedding.default_candidate_retriever import \
     DefaultCandidateRetriever
-from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.get_unmatched_library_tracks import \
     UnmatchedLibraryTracker
-from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_linker_service import ScrobbleLinkerService
-from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
 from track_analysis.components.track_analysis.features.scrobbling.uncertain_keys_processor import UncertainKeysProcessor
+from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
-from track_analysis.components.track_analysis.features.data_generation.model.header import Header
-from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import BuildCSVPipeline
-from track_analysis.components.track_analysis.features.data_generation.pipeline.locate_paths_pipeline import LocatePathsPipeline
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.components.track_analysis.features.track_downloading.api.metadata_api import MetadataAPI
+from track_analysis.components.track_analysis.features.track_downloading.api.music_download_interface import \
+    MusicDownloadInterface
+from track_analysis.components.track_analysis.features.track_downloading.api.ytdlp_music_downloader import \
+    YTDLPMusicDownloader
+from track_analysis.components.track_analysis.features.track_downloading.model.download_model import DownloadModel
 from track_analysis.components.track_analysis.features.track_downloading.pipeline.download_pipeline import \
     DownloadPipeline
 from track_analysis.components.track_analysis.features.track_downloading.pipeline.download_pipeline_context import \
     DownloadPipelineContext
 from track_analysis.components.track_analysis.features.track_downloading.utils.genre_algorithm import GenreAlgorithm
-from track_analysis.components.track_analysis.features.track_downloading.api.metadata_api import MetadataAPI
-from track_analysis.components.track_analysis.features.track_downloading.model.download_model import DownloadModel
-from track_analysis.components.track_analysis.features.track_downloading.api.ytdlp_music_downloader import \
-    YTDLPMusicDownloader
-from track_analysis.components.track_analysis.features.track_downloading.api.music_download_interface import \
-    MusicDownloadInterface
 from track_analysis.tests.embedding_test import EmbeddingTest
-from track_analysis.tests.extract_tags_test import ExtractTagsTest
 from track_analysis.tests.registration_test import RegistrationTest
 
 T = TypeVar("T")
@@ -176,7 +173,6 @@ class App:
 
         registration_test: RegistrationTest = RegistrationTest(logger, self._registration)
         embedding_test: EmbeddingTest = EmbeddingTest(logger, embedder=self._embedder, keys_path=keys_path, data_loader=self._scrobble_data_loader)
-        extract_tags_test: ExtractTagsTest = ExtractTagsTest(logger, self._user_input_helper, self._tag_extractor)
 
         tests: List[TestConfiguration] = [
             TestConfiguration(
@@ -190,13 +186,7 @@ class App:
                 keyword_arguments=[10],
                 command_description="Tests the embedding similarity matcher.",
                 command_keys=["test_embeddings", "te"]
-            ),
-            TestConfiguration(
-                associated_test=extract_tags_test,
-                keyword_arguments=[],
-                command_description="Debugs the extract tags function.",
-                command_keys=["extract_tags_debug", "etd"]
-            ),
+            )
         ]
 
         self._test_coordinator: TestCoordinator = TestCoordinator(logger, tests)
@@ -206,9 +196,8 @@ class App:
     def run(self):
         cmd: CommandLineInterface = CommandLineInterface(self._logger, exit_command=self._exit)
         cmd.add_command(["launch_tests", "lt"], "Hops into the test framework CLI.", self._test_coordinator.start_test_cli)
-        cmd.add_command(["make_csv", "mc"], "Makes a CSV file from the extracted metadata.", self._make_csv)
-        cmd.add_command(["add_path_to_metadata", "apm"], "Adds the path of a file to the metadata.", self._add_path_to_metadata)
-        cmd.add_command(["generate_new_data", "gnd"], "Fills in the newly added header(s) since last cache update.", self._generate_new_data)
+        cmd.add_command(["make_csv", "mc"], "Builds a CSV for the library data. Fills in any missing values for existing entries.", self._make_csv, arguments=[False])
+        cmd.add_command(["make_csv-p", "mc-p"], "Builds a CSV for the library data. Fills in any missing values for existing entries. Also profiles the function.", self._make_csv, arguments=[True])
         cmd.add_command(["generate_embeddings", "ge"], "Generates embeddings for the library.", self._generate_embeddings)
         cmd.add_command(["test_params", "tp"], "Tests various parameter combinations for the algorithm.", self._scrobble_linker.test_parameters)
         cmd.add_command(["process_uncertain", "pu"], "Processes the uncertain keys interactively.", self._uncertain_keys_processor.process)
@@ -245,10 +234,6 @@ class App:
         self._logger.save()
         exit()
 
-    def _generate_new_data(self):
-        data_generator: DataGenerator = DataGenerator(self._logger, self._audio_file_handler, self._audio_calculator, self._time_utils, self._string_utils)
-        data_generator.generate_data([Header.Primary_Artist], batch_size=128)
-
     def _generate_embeddings(self):
         self._scrobble_linker.build_embeddings_for_library()
 
@@ -278,26 +263,21 @@ class App:
         # Regular execution
         _perform_linking()
 
-    def _add_path_to_metadata(self):
-        pipeline_context = PipelineContextModel(
+    def _make_csv(self, profile: bool = False) -> None:
+        pipeline_context = LibraryDataGenerationPipelineContext(
             source_dir=ROOT_MUSIC_LIBRARY,
             main_data_output_file_path=OUTPUT_DIRECTORY.joinpath("data.csv"),
+            use_threads=True
         )
 
-        pipeline = LocatePathsPipeline(self._logger, self._file_handler, self._tag_extractor)
-        pipeline.build_pipeline()
-        pipeline.flow(pipeline_context)
+        pipeline = BuildLibraryDataCSVPipeline(self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._audio_calculator, self._string_utils)
 
-        self._logger.info("Paths have been successfully matched.")
+        def __run():
+            pipeline.build_pipeline()
+            pipeline.flow(pipeline_context)
 
-    def _make_csv(self):
-        pipeline_context = PipelineContextModel(
-            source_dir=ROOT_MUSIC_LIBRARY,
-            main_data_output_file_path=OUTPUT_DIRECTORY.joinpath("data.csv")
-        )
-
-        pipeline = BuildCSVPipeline(self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._audio_calculator, self._string_utils)
-        pipeline.build_pipeline()
-        pipeline.flow(pipeline_context)
+        if profile:
+            _run_with_profiling(__run, "Building Library CSV")
+        else: __run()
 
         self._logger.info("CSV has been successfully created.")

@@ -2,7 +2,7 @@ from typing import List
 
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.track_analysis.features.data_generation.model.album_cost import AlbumCostModel
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import PipelineContextModel
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import LibraryDataGenerationPipelineContext
 
 
 class GetAlbumCosts(IPipe):
@@ -10,7 +10,7 @@ class GetAlbumCosts(IPipe):
         album_costs.append(AlbumCostModel(Album_Title=title, Album_Cost=cost))
         return album_costs
 
-    def flow(self, data: PipelineContextModel) -> PipelineContextModel:
+    def flow(self, data: LibraryDataGenerationPipelineContext) -> LibraryDataGenerationPipelineContext:
         album_costs = []
 
         album_costs = self._add_album_cost(album_costs, "Classical Best", 10.49)

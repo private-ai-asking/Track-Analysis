@@ -2,7 +2,7 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import AlgorithmContext
+from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import CacheBuildingAlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
 
 
@@ -14,7 +14,7 @@ class ExtractUniqueEntries(IPipe):
         self._scrobble_utils: ScrobbleUtility = scrobble_utils
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
-    def flow(self, ctx: AlgorithmContext) -> AlgorithmContext:
+    def flow(self, ctx: CacheBuildingAlgorithmContext) -> CacheBuildingAlgorithmContext:
         """Compute a unique key for each scrobble and drop duplicates."""
         self._logger.debug("Extracting unique keys.", separator=self._separator)
 
