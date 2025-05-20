@@ -12,21 +12,24 @@ from track_analysis.components.track_analysis.features.audio_file_handler import
 
 @njit(parallel=True, fastmath=True, cache=True)
 def _peak_rms(arr: np.ndarray) -> (float, float):
-    sum_sq = 0.0
-    peak   = 0.0
-    count  = 0
-    n      = arr.size
+    n = arr.size
+    if n == 0:
+        return 0.0, 0.0
 
-    # single parallel loop with sum, count, and max reductions
+    sum_sq   = 0.0
+    peak_sq  = 0.0
+
+    # single prange with two reductions: += and max()
     for i in prange(n):
-        v = arr[i]
-        if math.isfinite(v):
-            sum_sq += v * v
-            peak    = max(peak, abs(v))
-            count  += 1            
+        v   = arr[i]
+        sq  = v * v
+        sum_sq  += sq
+        peak_sq = max(peak_sq, sq)
 
-    # compute RMS, avoid div-by-zero
-    rms = math.sqrt(sum_sq / count) if count > 0 else 0.0
+    # finalize
+    peak = math.sqrt(peak_sq)
+    rms  = math.sqrt(sum_sq / n)
+
     return peak, rms
 
 
