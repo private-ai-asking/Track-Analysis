@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional, List, Dict
 
 import librosa
 import pydantic
@@ -18,7 +19,7 @@ class AudioStreamsInfoModel(pydantic.BaseModel):
     bit_depth: int
     channels: int
     format: str
-    samples_librosa: ndarray
+    samples_librosa: Optional[ndarray] = None
 
     model_config = {
         "arbitrary_types_allowed": True
@@ -47,8 +48,8 @@ class AudioFileHandler:
             AudioStreamsInfoModel: An object containing audio stream information.  Returns an object with default values in case of error.
         """
         try:
-            info = self._ffprobe_client.run_ffprobe(str(audio_file))
-            return self._extract_audio_info(info, audio_file)
+            info: Dict[str, Dict] = self._ffprobe_client.run_ffprobe_batch([str(audio_file)])
+            return self._extract_audio_info(info[str(audio_file)], audio_file)
 
         except FileNotFoundError:
             self._logger.error("ffprobe not found. Please install FFmpeg.", separator=self._separator)
@@ -59,6 +60,37 @@ class AudioFileHandler:
         except Exception as e:
             self._logger.warning(f"An unexpected error occurred: {e}", separator=self._separator)
             return AudioStreamsInfoModel(duration=0.0, bitrate=0, sample_rate_kHz=0, sample_rate_Hz=0, bit_depth=0, channels=0, format="")
+
+    def get_audio_streams_info_batch(self, audio_files: List[Path]) -> List[AudioStreamsInfoModel]:
+        """
+        Retrieves audio stream information from a file.
+
+        Args:
+            audio_files: Paths to the audio files.
+
+        Returns:
+            AudioStreamsInfoModel: An object containing audio stream information.  Returns an object with default values in case of error.
+        """
+        try:
+            paths: List[str] = [str(p) for p in audio_files]
+            infos: Dict[str, Dict] = self._ffprobe_client.run_ffprobe_batch(paths)
+
+            models: List[AudioStreamsInfoModel] = []
+
+            for audio_file in audio_files:
+                models.append(self._extract_audio_info(infos[str(audio_file)], audio_file))
+
+            return models
+
+        except FileNotFoundError:
+            self._logger.error("ffprobe not found. Please install FFmpeg.", separator=self._separator)
+            return []
+        except FFprobeError as e:
+            self._logger.warning(f"ffprobe error: {e}", separator=self._separator)
+            return []
+        except Exception as e:
+            self._logger.warning(f"An unexpected error occurred: {e}", separator=self._separator)
+            return []
 
     def _extract_audio_info(self, info: dict, audio_file: Path) -> AudioStreamsInfoModel:
         """Extracts audio information from ffprobe output."""

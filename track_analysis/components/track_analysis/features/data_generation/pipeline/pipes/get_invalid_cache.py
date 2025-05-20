@@ -18,6 +18,10 @@ class GetInvalidCache(IPipe):
     def flow(self, data: LibraryDataGenerationPipelineContext) -> LibraryDataGenerationPipelineContext:
         self._logger.trace("Validating cache entries...", separator=self._separator)
 
+        if len(data.loaded_audio_info_cache) <= 0:
+            data.invalid_cached_paths = []
+            return data
+
         # Extract all cached paths as strings
         cache_paths_str = data.loaded_audio_info_cache[Header.Audio_Path.value].tolist()
 
