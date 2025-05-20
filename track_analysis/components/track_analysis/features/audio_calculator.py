@@ -83,8 +83,10 @@ class AudioCalculator:
             peak = np.sqrt(max_abs_sq)
             rms = np.sqrt(sum_sq / (frames * channels)) if frames > 0 else 0.0
             crest_db = 20.0 * np.log10(peak / rms)
-            
-            self._logger.info(f"Processed {self._processed}/{total} ({self._processed/total*100:.2f}%) samples.")
+
+            self._processed += 1
+
+            self._logger.info(f"Processed {self._processed}/{total} ({self._processed/total*100:.2f}%) tracks.", separator=self._separator)
 
             return true_peak, lufs, lra, crest_db
 
@@ -111,6 +113,7 @@ class AudioCalculator:
         sample_rates = np.array([i.sample_rate_kHz   for i in infos], dtype=np.float32)
         maxdps       = np.array([self._calculate_max_data_per_second(i) for i in infos],
                                 dtype=np.float32)
+        bit_depths = np.array(i.bit_depth for i in infos)
 
         # 2. Use the passed-in paths for size/duration
         actual_bits_per_sec = np.empty(len(paths), dtype=np.float32)
@@ -131,10 +134,13 @@ class AudioCalculator:
             Header.Max_Data_Per_Second.value:  maxdps / 1_000,
             Header.Actual_Data_Rate.value:     actual_bits_per_sec / 1_000,
             Header.Efficiency.value:           effs,
+            Header.Bit_Depth.value: bit_depths,
         }
 
     def _calculate_max_data_per_second(self, stream_info: AudioStreamsInfoModel) -> float:
         """Calculates the data rate per second in bits."""
+        if stream_info.bit_depth is None:
+            return 0.0
         if stream_info.sample_rate_Hz == 0 or stream_info.bit_depth == 0 or stream_info.channels == 0:
             return 0.0
 

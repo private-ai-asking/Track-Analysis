@@ -35,13 +35,13 @@ class FilterFiles(IPipe):
             cached_paths = [p for p in all_paths if str(p) in cache_set]
 
         # Assign back into the pipeline context
-        data.filtered_audio_file_paths = new_paths
+        data.filtered_audio_file_paths = new_paths[:data.max_new_tracks_per_run]
         data.cached_audio_paths = cached_paths
 
         # Log progress
         self._logger.info(
-            f"Audio files left to process: {len(new_paths)}/{total_disk} "
-            f"({round(len(new_paths) / total_disk * 100, 2)}%)",
+            f"Audio files left to process: {len(data.filtered_audio_file_paths)}/{total_disk} "
+            f"({round(len(data.filtered_audio_file_paths) / total_disk * 100, 2)}%)",
             separator=self._separator,
         )
         self._logger.debug(f"Left to process: {new_paths}", separator=self._separator)

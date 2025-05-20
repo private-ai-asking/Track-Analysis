@@ -12,6 +12,7 @@ class LibraryDataGenerationPipelineContext(pydantic.BaseModel):
     source_dir: Path
     main_data_output_file_path: Path
     use_threads: bool = True
+    max_new_tracks_per_run: Optional[int] = 50
 
     loaded_audio_info_cache: Optional[pd.DataFrame] = None
 

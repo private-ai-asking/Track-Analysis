@@ -13,12 +13,12 @@ from track_analysis.components.track_analysis.util.audio_format_converter import
 
 
 class AudioStreamsInfoModel(pydantic.BaseModel):
-    duration: float
-    bitrate: float
-    sample_rate_kHz: float
-    sample_rate_Hz: float
-    bit_depth: int
-    channels: int
+    duration: float = 0
+    bitrate: float = 0
+    sample_rate_kHz: float = 0
+    sample_rate_Hz: float = 0
+    bit_depth: Optional[int] = 0
+    channels: int = 0
     format: str
     samples: Optional[ndarray] = None
 

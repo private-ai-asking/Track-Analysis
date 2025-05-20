@@ -20,7 +20,8 @@ from track_analysis.components.md_common_python.py_common.utils import Similarit
 from track_analysis.components.md_common_python.py_common.utils.string_utils import StringUtils
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
     DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START, CACHE_DIRECTORY, CLEAR_CACHE, \
-    DOWNLOAD_CSV_FILE, TEST_SAMPLE_SIZE, PROFILE_DATA_LOADING, EMBED_BATCH_SIZE, NUM_WORKERS_CPU_HEAVY
+    DOWNLOAD_CSV_FILE, TEST_SAMPLE_SIZE, PROFILE_DATA_LOADING, EMBED_BATCH_SIZE, NUM_WORKERS_CPU_HEAVY, \
+    MAX_NEW_TRACKS_PER_RUN
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import \
@@ -269,10 +270,11 @@ class App:
         pipeline_context = LibraryDataGenerationPipelineContext(
             source_dir=ROOT_MUSIC_LIBRARY,
             main_data_output_file_path=output_path,
-            use_threads=True
+            use_threads=True,
+            max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN
         )
 
-        output_path.unlink(missing_ok=True)
+        # output_path.unlink(missing_ok=True)
 
         pipeline = BuildLibraryDataCSVPipeline(self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._audio_calculator, self._string_utils, num_workers=NUM_WORKERS_CPU_HEAVY)
 

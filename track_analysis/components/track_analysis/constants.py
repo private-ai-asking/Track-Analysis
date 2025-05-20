@@ -17,7 +17,7 @@ DATA_DIRECTORY: Path = Path("X:\Track Analysis\data")
 CACHE_DIRECTORY: Path = Path("X:\Track Analysis\cache")
 BENCHMARK_DIRECTORY: Path = Path(r"X:\Track Analysis\track_analysis\benchmarks")
 
-DEBUG: bool = True
+DEBUG: bool = False
 VERBOSE: bool = False
 PROFILE_DATA_LOADING: bool = False
 EMBED_BATCH_SIZE: int = 1500
@@ -31,7 +31,8 @@ TEST_SAMPLE_SIZE: int = None  # The number of scrobbles to load (only applies to
 NO_MATCH_LABEL: str = "<NO MATCH>"
 
 CPU_COUNT: int = os.cpu_count()
-NUM_WORKERS_CPU_HEAVY = CPU_COUNT + 6
+NUM_WORKERS_CPU_HEAVY = CPU_COUNT + 10
+MAX_NEW_TRACKS_PER_RUN = 50
 
 # ======================================================================================================================
 
