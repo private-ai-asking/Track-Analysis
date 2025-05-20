@@ -22,10 +22,12 @@ class AudioCalculator:
         self._max_data_rate_cache_path: Path = CACHE_DIRECTORY / "max_data_rate_cache.pkl"
         self._max_data_rate_cache_lookup: Dict[Tuple[float, int, int], float] = self._load_max_data_rate_cache_lookup()
 
+        self._processed: int = 0
+
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
-    @staticmethod
     def calculate_batch_sample_metrics(
+            self,
             samples_list: List[np.ndarray],
             sample_rates: List[float],
             chunk_size: int = 4096,
@@ -41,6 +43,8 @@ class AudioCalculator:
 
         All metrics calculated together to minimize iterations over samples.
         """
+        self._processed = 0
+        total: int = len(samples_list)
 
         def _worker(samples: np.ndarray, sr: int) -> Tuple[float, float, float, float]:
             frames, channels = samples.shape
@@ -79,6 +83,8 @@ class AudioCalculator:
             peak = np.sqrt(max_abs_sq)
             rms = np.sqrt(sum_sq / (frames * channels)) if frames > 0 else 0.0
             crest_db = 20.0 * np.log10(peak / rms)
+            
+            self._logger.info(f"Processed {self._processed}/{total} ({self._processed/total*100:.2f}%) samples.")
 
             return true_peak, lufs, lra, crest_db
 
