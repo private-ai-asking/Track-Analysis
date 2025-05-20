@@ -15,3 +15,4 @@ yt-dlp
 musicbrainzngs
 pymediainfo
 pyebur128
+numba

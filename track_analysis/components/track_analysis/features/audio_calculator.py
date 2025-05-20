@@ -1,11 +1,30 @@
+import math
 from typing import Tuple
 
 import numpy as np
+import numba as nb
 from numpy import ndarray
 from pyebur128.pyebur128 import get_loudness_global, R128State, MeasurementMode, get_true_peak, get_loudness_range
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
+
+
+@nb.njit(parallel=True)
+def _peak_rms(arr: np.ndarray) -> (float, float):
+    # mask out NaNs/Infs
+    # (this creates a new array, so it’s only worth it for very large buffers)
+    finite_mask = np.isfinite(arr)
+    clean       = arr[finite_mask]
+
+    # Numba will parallelize these built-ins as reductions:
+    sum_sq = np.sum(clean * clean)
+    peak   = np.max(np.abs(clean))
+
+    # combine
+    n   = clean.size
+    rms = math.sqrt(sum_sq / n)
+    return peak, rms
 
 
 class AudioCalculator:
@@ -15,30 +34,27 @@ class AudioCalculator:
         self._logger = logger
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
-    def calculate_program_dynamic_range_and_crest_factor(
-            self,
-            samples: np.ndarray,
-            samplerate: int
-    ) -> Tuple[float, float]:
-        # --- 1) Program DR via EBU R128 LRA:
+    def calculate_program_dynamic_range_and_crest_factor(self,
+                                                         samples: np.ndarray,
+                                                         samplerate: int
+                                                         ) -> Tuple[float, float]:
+
         frames, nch = samples.shape
-        # pyebur128 wants float arrays
-        float_frames = samples.flatten()
+
+        # 1) do crest factor on a fresh copy, _before_ any pyebur128 call:
+        float_frames = np.ascontiguousarray(samples, dtype=np.float32).ravel()
+        peak, rms    = _peak_rms(float_frames)
+
+        ratio = peak / rms if rms != 0.0 else 0.0
+        with np.errstate(divide='ignore', invalid='ignore'):
+            crest_db = 20.0 * np.log10(ratio)
+
+        # 2) now do your LRA on a second copy (so it can't clobber your raw data):
         state = R128State(channels=nch,
                           samplerate=samplerate,
                           mode=MeasurementMode.MODE_LRA)
         state.add_frames(float_frames, frames)
-        program_dr_db = get_loudness_range(state)  # in LU = dB
-
-        # --- 2) Crest Factor in dB (peak vs. RMS):
-        # Replace any NaN or Inf just in case:
-        flat = np.nan_to_num(float_frames, nan=0.0, posinf=0.0, neginf=0.0)
-        peak = np.max(np.abs(flat))
-        rms  = np.sqrt(np.mean(flat**2))
-        if rms == 0:
-            crest_db = float('inf') if peak > 0 else -float('inf')
-        else:
-            crest_db = 20 * np.log10(peak / rms)
+        program_dr_db = get_loudness_range(state)
 
         self._logger.debug(
             f"Program DR (LRA): {program_dr_db:.2f} dB, "
@@ -131,3 +147,4 @@ class AudioCalculator:
 
         self._logger.debug(f"True peak: {tp_db:.2f} dBTP", separator=self._separator)
         return tp_db
+

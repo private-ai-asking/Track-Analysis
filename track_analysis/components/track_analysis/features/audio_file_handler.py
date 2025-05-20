@@ -61,7 +61,7 @@ class AudioFileHandler:
         audio_format = audio.format
 
         # --- 2) read raw samples in one call, auto-detecting container/codec ---
-        samples, sr = sf.read(str(audio_file), dtype="float64", always_2d=True)
+        samples, sr = sf.read(str(audio_file), dtype="float32", always_2d=True)
         # samples.shape == (frames, channels)
 
         # --- 3) sanity-check sample rate match ---
