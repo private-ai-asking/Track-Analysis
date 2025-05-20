@@ -1,14 +1,9 @@
-import os
-from concurrent.futures import ThreadPoolExecutor
-from typing import Tuple, List
-
 import numpy as np
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
-from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
@@ -19,11 +14,12 @@ class AddAdvancedMetadata(IPipe):
             self,
             logger: HoornLogger,
             audio_calculator: AudioCalculator,
+            num_workers: int
     ):
         self._separator = "BuildCSV.AddAdvancedMetadataPipe"
         self._logger = logger
         self._audio_calculator = audio_calculator
-        self._processed: int = 0
+        self._num_workers = num_workers
         self._logger.trace("Successfully initialized pipe.", separator=self._separator)
 
     def flow(self, data: LibraryDataGenerationPipelineContext):
@@ -39,7 +35,7 @@ class AddAdvancedMetadata(IPipe):
         crest_dbs = 20.0 * np.log10(peaks / rmss)
 
         # 2) batch the rest
-        true_peaks = self._audio_calculator.calculate_batch_true_peak(samples_list, max_workers=8)
+        true_peaks = self._audio_calculator.calculate_batch_true_peak(samples_list, sample_rates=[info.sample_rate_Hz for info in infos], max_workers=self._num_workers, quality="LQ")
         rest = self._audio_calculator.calculate_batch_rest(infos, df[Header.Audio_Path.value].tolist())
 
         # 3) assemble one result DataFrame

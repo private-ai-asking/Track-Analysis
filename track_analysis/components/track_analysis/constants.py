@@ -30,7 +30,8 @@ TEST_SAMPLE_SIZE: int = None  # The number of scrobbles to load (only applies to
 
 NO_MATCH_LABEL: str = "<NO MATCH>"
 
-CPU_COUNT: int = 10
+CPU_COUNT: int = os.cpu_count()
+NUM_WORKERS_CPU_HEAVY = CPU_COUNT + 6
 
 # ======================================================================================================================
 

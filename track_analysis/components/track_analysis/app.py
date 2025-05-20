@@ -20,7 +20,7 @@ from track_analysis.components.md_common_python.py_common.utils import Similarit
 from track_analysis.components.md_common_python.py_common.utils.string_utils import StringUtils
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
     DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START, CACHE_DIRECTORY, CLEAR_CACHE, \
-    DOWNLOAD_CSV_FILE, TEST_SAMPLE_SIZE, PROFILE_DATA_LOADING, EMBED_BATCH_SIZE
+    DOWNLOAD_CSV_FILE, TEST_SAMPLE_SIZE, PROFILE_DATA_LOADING, EMBED_BATCH_SIZE, NUM_WORKERS_CPU_HEAVY
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import \
@@ -103,7 +103,7 @@ class App:
         self._user_input_helper: UserInputHelper = UserInputHelper(logger)
         self._tag_extractor: TagExtractor = TagExtractor(logger)
         self._file_handler: FileHandler = FileHandler()
-        self._audio_file_handler: AudioFileHandler = AudioFileHandler(logger, num_workers=10)
+        self._audio_file_handler: AudioFileHandler = AudioFileHandler(logger, num_workers=NUM_WORKERS_CPU_HEAVY)
         self._audio_calculator: AudioCalculator = AudioCalculator(logger)
         self._time_utils: TimeUtils = TimeUtils()
         self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)
@@ -274,7 +274,7 @@ class App:
 
         output_path.unlink(missing_ok=True)
 
-        pipeline = BuildLibraryDataCSVPipeline(self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._audio_calculator, self._string_utils)
+        pipeline = BuildLibraryDataCSVPipeline(self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._audio_calculator, self._string_utils, num_workers=NUM_WORKERS_CPU_HEAVY)
 
         def __run():
             pipeline.build_pipeline()

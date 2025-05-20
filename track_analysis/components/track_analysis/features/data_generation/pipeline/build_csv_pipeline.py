@@ -26,13 +26,15 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
                  tag_extractor: TagExtractor,
                  audio_file_handler: AudioFileHandler,
                  audio_calculator: AudioCalculator,
-                 string_utils: StringUtils):
+                 string_utils: StringUtils,
+                 num_workers: int):
         self._logger = logger
         self._filehandler = filehandler
         self._tag_extractor = tag_extractor
         self._audio_file_handler = audio_file_handler
         self._audio_calculator = audio_calculator
         self._string_utils = string_utils
+        self._num_workers: int = num_workers
         super().__init__(logger)
 
     def build_pipeline(self):
@@ -47,6 +49,6 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._add_exit_check(__exit_if_no_files_to_process)
         self._add_step(GetStreamInfo(self._logger, self._audio_file_handler))
         self._add_step(GetAndBuildAudioMetadata(self._logger, self._tag_extractor))
-        self._add_step(AddAdvancedMetadata(self._logger, self._audio_calculator))
+        self._add_step(AddAdvancedMetadata(self._logger, self._audio_calculator, self._num_workers))
         self._add_step(PreprocessData(self._logger, self._string_utils))
         self._add_step(MakeCSV(self._logger))

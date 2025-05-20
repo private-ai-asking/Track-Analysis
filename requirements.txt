@@ -17,3 +17,4 @@ pymediainfo
 pyebur128
 numba
 samplerate
+soxr

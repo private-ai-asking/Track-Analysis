@@ -1,15 +1,13 @@
 import os
 import pickle
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pathlib import Path
-from typing import Tuple, Dict, List, Union
+from typing import Tuple, Dict, List, Union, Optional
 
 import numpy as np
-import samplerate
+import soxr
 from numba import njit, prange
-from numpy import ndarray
-from pyebur128.pyebur128 import get_loudness_global, R128State, MeasurementMode, get_true_peak, get_loudness_range
-from scipy.signal import resample_poly
+from pyebur128.pyebur128 import get_loudness_global, R128State, MeasurementMode, get_loudness_range
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
@@ -42,14 +40,22 @@ def _batch_peak_rms(
     return peaks, rmss
 
 
-def _tp_worker_resample(
+def _tp_worker_soxr(
         samples: np.ndarray,
-        oversample_rate: int
+        in_rate: int,
+        oversample_rate: int,
+        quality: str
 ) -> float:
-    # noinspection PyUnresolvedReferences
-    res = samplerate.resample(samples, oversample_rate, 'sinc_fastest')
-    peak = np.max(np.abs(res))
-    return 20 * np.log10(peak) if peak > 0 else -np.inf
+    """
+    Upsample `samples` from `in_rate` to `in_rate * oversample_rate`
+    and compute dB True-Peak.
+    """
+    # ensure float32 for soxr
+    data = samples.astype(np.float32)
+    # resample in one shot; quality ∈ {"QQ","LQ","MQ","HQ","VHQ"}
+    out = soxr.resample(data, in_rate, in_rate * oversample_rate, quality=quality)  # :contentReference[oaicite:0]{index=0}
+    peak = np.max(np.abs(out))
+    return 20.0 * np.log10(peak) if peak > 0 else -np.inf
 
 
 class AudioCalculator:
@@ -82,26 +88,34 @@ class AudioCalculator:
     @staticmethod
     def calculate_batch_true_peak(
             samples_list: List[np.ndarray],
+            sample_rates: List[float],
             oversample_rate: int = 4,
-            max_workers: Union[int, None] = None
+            quality: str = "MQ",
+            max_workers: Optional[int] = None
     ) -> Dict[str, np.ndarray]:
         """
-        Compute dBTP for a batch of tracks via fast C upsampling,
-        parallelized across cores without using any lambdas.
+        Compute per-track dB True-Peak via libsoxr, in parallel.
+        - `samples_list[i]` has sample rate `sample_rates[i]`.
+        - `oversample_rate` of 4–8 is usually plenty; higher gives diminishing returns.
+        - `quality` can be “LQ” or “MQ” for extra speed (see speed bench).
         """
         n = len(samples_list)
-        # build two parallel iterables:
-        #  - one of your sample‐arrays
-        #  - one of the same oversample_rate repeated
+        # build parallel iterables
         rates = [oversample_rate] * n
+        quals = [quality] * n
 
-        with ProcessPoolExecutor(max_workers=max_workers) as exe:
-            # map our top-level function over two iterables
-            results = exe.map(_tp_worker_resample, samples_list, rates)
+        with ThreadPoolExecutor(max_workers=max_workers) as exec:
+            # map our top-level worker over four iterables
+            results = exec.map(
+                _tp_worker_soxr,
+                samples_list,
+                sample_rates,
+                rates,
+                quals
+            )
 
-        # pack into your header dict
         return {
-            Header.True_Peak.value: np.array(list(results), dtype=np.float32)
+            Header.True_Peak.value: np.fromiter(results, dtype=np.float32)
         }
 
     def calculate_batch_rest(
