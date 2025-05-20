@@ -103,7 +103,7 @@ class App:
         self._user_input_helper: UserInputHelper = UserInputHelper(logger)
         self._tag_extractor: TagExtractor = TagExtractor(logger)
         self._file_handler: FileHandler = FileHandler()
-        self._audio_file_handler: AudioFileHandler = AudioFileHandler(logger)
+        self._audio_file_handler: AudioFileHandler = AudioFileHandler(logger, num_workers=10)
         self._audio_calculator: AudioCalculator = AudioCalculator(logger)
         self._time_utils: TimeUtils = TimeUtils()
         self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)

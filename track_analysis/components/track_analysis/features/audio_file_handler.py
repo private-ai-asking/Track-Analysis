@@ -1,9 +1,10 @@
 from pathlib import Path
-from typing import Optional, List
-
+from typing import Optional, List, Tuple
+import numpy as np
 import soundfile as sf
 import pydantic
 from numpy import ndarray
+from concurrent.futures import ThreadPoolExecutor
 from pymediainfo import MediaInfo
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
@@ -27,44 +28,69 @@ class AudioStreamsInfoModel(pydantic.BaseModel):
 
 
 class AudioFileHandler:
-    """Handles audio file information retrieval using ffprobe."""
+    """Handles audio file information retrieval using ffprobe and block-wise reading in parallel."""
 
-    def __init__(self, logger: HoornLogger):
+    def __init__(
+            self,
+            logger: HoornLogger,
+            block_size: int = 4096 * 128,
+            num_workers: int = 4
+    ):
         self._separator = "AudioFileHandler"
         self._logger = logger
         self._ffprobe_client = FFprobeClient(logger)
         self._audio_format_converter = AudioFormatConverter(logger)
+        self._block_size = block_size
+        self._num_workers = num_workers
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
-    def get_audio_streams_info_batch(self, audio_files: List[Path]) -> List[AudioStreamsInfoModel]:
+    def get_audio_streams_info_batch(
+            self,
+            audio_files: List[Path]
+    ) -> List[AudioStreamsInfoModel]:
+        """
+        Process a batch of audio files in parallel, each read in block-wise chunks.
+        Returns the list of AudioStreamsInfoModel in the same order as input files.
+        """
+        total = len(audio_files)
         models: List[AudioStreamsInfoModel] = []
-        to_process: int = len(audio_files)
 
-        for i, audio_file in enumerate(audio_files):
-            models.append(self._extract_audio_info(audio_file))
-            self._logger.info(f"Processed {i}/{to_process} ({i/to_process*100:.4f}%)", separator=self._separator)
+        # Use ThreadPoolExecutor to parallelize I/O-bound block reads
+        with ThreadPoolExecutor(max_workers=self._num_workers) as executor:
+            for idx, model in enumerate(
+                    executor.map(self._extract_audio_info, audio_files),
+                    start=1
+            ):
+                models.append(model)
+                progress = idx / total * 100
+                self._logger.info(
+                    f"Processed {idx}/{total} ({progress:.2f}%)",
+                    separator=self._separator
+                )
 
         return models
 
-    def _extract_audio_info(self, audio_file: Path) -> AudioStreamsInfoModel:
-        """Extracts audio information from ffprobe and reads samples at full native precision."""
-        # --- 1) MediaInfo metadata ---
-        media_info   = MediaInfo.parse(str(audio_file))
-        audio        = media_info.audio_tracks[0]
+    def _extract_audio_info(
+            self,
+            audio_file: Path
+    ) -> AudioStreamsInfoModel:
+        """Extracts metadata via MediaInfo and reads samples block-wise."""
+        # 1) Fast metadata via MediaInfo
+        media_info = MediaInfo.parse(str(audio_file))
+        audio_track = media_info.audio_tracks[0]
 
-        duration_s   = float(audio.duration) / 1000.0
-        bitrate_bps  = int(audio.bit_rate)
-        sample_rate  = int(audio.sampling_rate)
-        bit_depth    = int(audio.bit_depth) if audio.bit_depth else None
-        channels     = int(audio.channel_s)
-        audio_format = audio.format
+        duration_s   = float(audio_track.duration) / 1000.0
+        bitrate_bps  = int(audio_track.bit_rate)
+        sample_rate  = int(audio_track.sampling_rate)
+        bit_depth    = int(audio_track.bit_depth) if audio_track.bit_depth else None
+        channels     = int(audio_track.channel_s)
+        audio_format = audio_track.format
 
-        # --- 2) read raw samples in one call, auto-detecting container/codec ---
-        samples, sr = sf.read(str(audio_file), dtype="float32", always_2d=True)
-        # samples.shape == (frames, channels)
+        # 2) Block-wise sample reading
+        samples, sr = self._read_samples_blockwise(audio_file)
 
-        # --- 3) sanity-check sample rate match ---
+        # 3) Sanity-check sample rate
         if sr != sample_rate:
             self._logger.warning(
                 f"Sample-rate mismatch for {audio_file}: "
@@ -72,7 +98,7 @@ class AudioFileHandler:
                 separator=self._separator
             )
 
-        # --- 4) return structured info (you can adjust field names as needed) ---
+        # 4) Package into model
         return AudioStreamsInfoModel(
             duration        = duration_s,
             bitrate         = bitrate_bps / 1000,
@@ -81,5 +107,28 @@ class AudioFileHandler:
             bit_depth       = bit_depth,
             channels        = channels,
             format          = audio_format,
-            samples= samples,
+            samples         = samples,
         )
+
+    def _read_samples_blockwise(
+            self,
+            audio_file: Path
+    ) -> Tuple[ndarray, int]:
+        """Read a file into a pre-allocated buffer using block-size frames."""
+        with sf.SoundFile(str(audio_file), mode='r') as f:
+            total_frames = f.frames
+            channels = f.channels
+            samplerate = f.samplerate
+
+            buf = np.empty((total_frames, channels), dtype='float32')
+            idx = 0
+            for block in f.blocks(
+                    blocksize=self._block_size,
+                    always_2d=True,
+                    dtype='float32'
+            ):
+                n = block.shape[0]
+                buf[idx: idx + n] = block
+                idx += n
+
+        return buf, samplerate
