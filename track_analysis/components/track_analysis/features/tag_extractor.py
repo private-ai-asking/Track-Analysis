@@ -82,8 +82,8 @@ class TagExtractor:
 
         # Sonic Metadata
         track[Header.BPM.value] = file.get('bpm', ["Unknown"])[0]
-        track[Header.Energy_Level.value] = file.get('energylevel', ["Unknown"])[0]
-        track[Header.Key.value] = file.get('initialkey', ["Unknown"])[0]
+        track[Header.Energy_Level.value] = file.get('energy', ["Unknown"])[0]
+        track[Header.Key.value] = file.get('key', ["Unknown"])[0]
 
         self._logger.trace(f"Finished extracting tags from {track}", separator=self._module_separator)
         return None

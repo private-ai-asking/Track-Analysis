@@ -18,8 +18,7 @@ class GetAudioFiles(IPipe):
 
         track_paths = self._file_handler.get_children_paths_fast(data.source_dir, [".flac", ".mp3", ".opus"], recursive=True)
 
-        # TODO - Remove 20 limit after optimization
-        data.all_audio_file_paths = track_paths[:20]
+        data.all_audio_file_paths = track_paths
 
         self._logger.trace("Successfully gotten audio file paths.", separator=self._separator)
 

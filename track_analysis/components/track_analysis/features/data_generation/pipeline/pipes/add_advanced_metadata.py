@@ -1,6 +1,5 @@
 import os
 from concurrent.futures import ThreadPoolExecutor
-from typing import Tuple, List
 
 import pandas as pd
 
@@ -17,93 +16,75 @@ class AddAdvancedMetadata(IPipe):
     def __init__(
             self,
             logger: HoornLogger,
+            audio_file_handler: AudioFileHandler,
             audio_calculator: AudioCalculator,
     ):
         self._separator = "BuildCSV.AddAdvancedMetadataPipe"
         self._logger = logger
+        self._audio_file_handler = audio_file_handler
         self._audio_calculator = audio_calculator
         self._logger.trace("Successfully initialized pipe.", separator=self._separator)
 
-    def _process_row(
-            self,
-            item: Tuple[int, str],
-            stream_info: AudioStreamsInfoModel
-    ) -> dict:
+    def _process_row(self, item: pd.Series):
         idx, path = item
 
         # 1. Load and compute
+        file_info: AudioStreamsInfoModel = self._audio_file_handler.get_audio_streams_info(path)
         dyn_range, crest = self._audio_calculator.calculate_dynamic_range_and_crest_factor(
-            stream_info.samples_librosa
+            file_info.samples_librosa
         )
-        max_dps = self._audio_calculator.calculate_max_data_per_second(stream_info)
+        max_dps = self._audio_calculator.calculate_max_data_per_second(file_info)
         lufs = self._audio_calculator.calculate_lufs(
-            stream_info.sample_rate_Hz, stream_info.samples_librosa
+            file_info.sample_rate_Hz, file_info.samples_librosa
         )
         true_peak = self._audio_calculator.calculate_true_peak(
-            stream_info.sample_rate_Hz, stream_info.samples_librosa
+            file_info.sample_rate_Hz, file_info.samples_librosa
         )
 
         # 2. Compute derived size/rate/efficiency
         size_b = os.path.getsize(path)
         size_bits = size_b * 8
-        actual_rate = size_bits / stream_info.duration if stream_info.duration > 0 else 0
+        actual_rate = size_bits / file_info.duration if file_info.duration > 0 else 0
         efficiency = (actual_rate / max_dps) * 100 if max_dps > 0 else 0
 
         return {
             "idx": idx,
-            Header.Duration.value: stream_info.duration,
-            Header.Bitrate.value: stream_info.bitrate,
-            Header.Sample_Rate.value: stream_info.sample_rate_kHz,
+            Header.Duration.value: file_info.duration,
+            Header.Bitrate.value: file_info.bitrate,
+            Header.Sample_Rate.value: file_info.sample_rate_kHz,
             Header.Peak_To_RMS.value: dyn_range,
             Header.Crest_Factor.value: crest,
-            Header.Bit_Depth.value: stream_info.bit_depth,
+            Header.Bit_Depth.value: file_info.bit_depth,
             Header.Max_Data_Per_Second.value: max_dps / 1000,
             Header.Actual_Data_Rate.value: actual_rate / 1000,
             Header.Efficiency.value: efficiency,
-            Header.Format.value: stream_info.format,
+            Header.Format.value: file_info.format,
             Header.Loudness.value: lufs,
             Header.True_Peak.value: true_peak,
         }
 
-    def flow(
-            self,
-            data: LibraryDataGenerationPipelineContext
-    ) -> LibraryDataGenerationPipelineContext:
+    def flow(self, data: LibraryDataGenerationPipelineContext) -> LibraryDataGenerationPipelineContext:
         df = data.generated_audio_info
-        stream_infos: List[AudioStreamsInfoModel] = data.extracted_stream_info
         total = len(df)
         self._logger.trace("Adding advanced metadata...", separator=self._separator)
 
-        if not stream_infos or len(stream_infos) != total:
-            raise ValueError(
-                f"Expected {total} stream info entries, got {len(stream_infos)}"
-            )
-
-        # pair each DataFrame row (idx, path) with its corresponding stream_info
-        iterator = zip(df[Header.Audio_Path.value].items(), stream_infos)
-
+        # If you expect heavy I/O you can swap Sequential vs ThreadPool
+        iterator = df[Header.Audio_Path.value].items()
         if data.use_threads:
             with ThreadPoolExecutor() as exe:
-                results = list(
-                    exe.map(lambda pair: self._process_row(pair[0], pair[1]), iterator)
-                )
+                results = list(exe.map(self._process_row, iterator))
         else:
-            results = [
-                self._process_row(item, info)
-                for item, info in iterator
-            ]
+            results = [self._process_row(item) for item in iterator]
 
-        # 3. Write results back into the DataFrame
+        # 3. Assign back into DataFrame, logging each step
         for count, res in enumerate(results, start=1):
             idx = res.pop("idx")
             for col, val in res.items():
-                df.loc[idx, col] = val
-
+                df.loc[idx, col] = val    # recommended bracket + .loc pattern :contentReference[oaicite:1]{index=1}
             path = df.loc[idx, Header.Audio_Path.value]
-            self._logger.trace(f"Finished adding metadata for track: {path}",
-                               separator=self._separator)
+            self._logger.trace(f"Finished adding metadata for track: {path}", separator=self._separator)
             self._logger.info(
-                f"Processed {count}/{total} ({count/total*100:.2f}%) tracks.",
+                f"Processed {count}/{total} ({count/total*100:.4f}%) tracks.",
                 separator=self._separator,
             )
 

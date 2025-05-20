@@ -264,15 +264,11 @@ class App:
         _perform_linking()
 
     def _make_csv(self, profile: bool = False) -> None:
-        output_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
-
         pipeline_context = LibraryDataGenerationPipelineContext(
             source_dir=ROOT_MUSIC_LIBRARY,
-            main_data_output_file_path=output_path,
+            main_data_output_file_path=OUTPUT_DIRECTORY.joinpath("data.csv"),
             use_threads=True
         )
-
-        output_path.unlink(missing_ok=True)
 
         pipeline = BuildLibraryDataCSVPipeline(self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._audio_calculator, self._string_utils)
 

@@ -52,9 +52,7 @@ class ScrobbleDataLoader:
             self._logger.info("Data is already loaded. Skipping.", separator=self._separator)
             return
 
-        if not self._load_data(self._library_data_path, self._scrobble_data_path, sample_rows=sample_rows):
-            return
-
+        self._load_data(self._library_data_path, self._scrobble_data_path, sample_rows=sample_rows)
         self._normalize_data()
         self._build_lookup()
 
@@ -107,12 +105,10 @@ class ScrobbleDataLoader:
 
         return self._gold_standard_data
 
-    def _load_data(self, library_data_path: Path, scrobble_data_path: Path, sample_rows: int=None) -> bool:
+    def _load_data(self, library_data_path: Path, scrobble_data_path: Path, sample_rows: int=None):
         self._logger.trace("Loading data...", separator=self._separator)
 
-        if not self._load_csvs(library_data_path, scrobble_data_path, sample_rows):
-            return False
-
+        self._load_csvs(library_data_path, scrobble_data_path, sample_rows)
         self._load_keys()
         self._load_index()
 
@@ -122,13 +118,8 @@ class ScrobbleDataLoader:
         # )
 
         self._logger.debug("Successfully loaded data.", separator=self._separator)
-        return True
 
-    def _load_csvs(self, library_data_path: Path, scrobble_data_path: Path, sample_rows: int=None) -> bool:
-        if not library_data_path.exists():
-            self._logger.warning("There is no library to build on!", separator=self._separator)
-            return False
-
+    def _load_csvs(self, library_data_path: Path, scrobble_data_path: Path, sample_rows: int=None):
         self._library_data = pd.read_csv(library_data_path)
         self._scrobble_data = pd.read_csv(
             scrobble_data_path,
@@ -137,8 +128,6 @@ class ScrobbleDataLoader:
             delimiter="\t",
             header=0
         )
-
-        return True
 
     def _load_keys(self):
         if not self._keys_path.is_file():

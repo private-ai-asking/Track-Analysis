@@ -17,7 +17,6 @@ class LoadCache(IPipe):
         self._logger.trace("Loading cache if existing...", separator=self._separator)
 
         if not data.main_data_output_file_path.exists() or not data.main_data_output_file_path.is_file():
-            data.loaded_audio_info_cache = pd.DataFrame()
             return data
 
         self._logger.trace("Cache exists, proceeding to load...", separator=self._separator)
