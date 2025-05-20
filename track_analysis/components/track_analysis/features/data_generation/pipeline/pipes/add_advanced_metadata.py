@@ -27,24 +27,26 @@ class AddAdvancedMetadata(IPipe):
         infos = data.extracted_stream_info
 
         samples_list = [info.samples for info in infos]
+        sample_rates = [info.sample_rate_Hz for info in infos]
 
-        # 1) batch crest/peak
         peaks, rmss = self._audio_calculator.calculate_batch_crest(
             samples_list
         )
         crest_dbs = 20.0 * np.log10(peaks / rmss)
 
-        # 2) batch the rest
-        true_peaks = self._audio_calculator.calculate_batch_true_peak(samples_list, sample_rates=[info.sample_rate_Hz for info in infos], max_workers=self._num_workers, quality="LQ")
+        true_peaks = self._audio_calculator.calculate_batch_true_peak(samples_list, sample_rates=sample_rates, max_workers=self._num_workers, quality="LQ")
+        lufs = self._audio_calculator.calculate_batch_lufs(samples_list, sample_rates=sample_rates, max_workers=self._num_workers)
+
         rest = self._audio_calculator.calculate_batch_rest(infos, df[Header.Audio_Path.value].tolist())
 
         # 3) assemble one result DataFrame
         result = {
             "idx":         df.index.values,
             Header.Crest_Factor.value: crest_dbs,
-            Header.Peak_To_RMS.value:  np.array([self._audio_calculator.calculate_program_dr(i.samples, i.sample_rate_Hz) for i in infos]),
+            Header.Program_Dynamic_Range_LRA.value:  np.array([self._audio_calculator.calculate_program_dr(i.samples, i.sample_rate_Hz) for i in infos]),
             **rest,
-            **true_peaks
+            **true_peaks,
+            **lufs
         }
         res_df = pd.DataFrame(result).set_index("idx")
 
