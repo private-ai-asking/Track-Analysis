@@ -13,3 +13,4 @@ huggingface
 scikit-learn
 yt-dlp
 musicbrainzngs
+pymediainfo

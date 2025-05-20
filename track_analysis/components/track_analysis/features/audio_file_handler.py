@@ -4,6 +4,7 @@ from typing import Optional, List, Dict
 import librosa
 import pydantic
 from numpy import ndarray
+from pymediainfo import MediaInfo
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.apis.ffprobe_client import FFprobeClient
@@ -37,125 +38,32 @@ class AudioFileHandler:
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
-    def get_audio_streams_info(self, audio_file: Path) -> AudioStreamsInfoModel:
-        """
-        Retrieves audio stream information from a file.
-
-        Args:
-            audio_file: Path to the audio file.
-
-        Returns:
-            AudioStreamsInfoModel: An object containing audio stream information.  Returns an object with default values in case of error.
-        """
-        try:
-            info: Dict[str, Dict] = self._ffprobe_client.run_ffprobe_batch([str(audio_file)])
-            return self._extract_audio_info(info[str(audio_file)], audio_file)
-
-        except FileNotFoundError:
-            self._logger.error("ffprobe not found. Please install FFmpeg.", separator=self._separator)
-            return AudioStreamsInfoModel(duration=0.0, bitrate=0, sample_rate_kHz=0, sample_rate_Hz=0, bit_depth=0, channels=0, format="")
-        except FFprobeError as e:
-            self._logger.warning(f"ffprobe error: {e}", separator=self._separator)
-            return AudioStreamsInfoModel(duration=0.0, bitrate=0, sample_rate_kHz=0, sample_rate_Hz=0, bit_depth=0, channels=0, format="")
-        except Exception as e:
-            self._logger.warning(f"An unexpected error occurred: {e}", separator=self._separator)
-            return AudioStreamsInfoModel(duration=0.0, bitrate=0, sample_rate_kHz=0, sample_rate_Hz=0, bit_depth=0, channels=0, format="")
-
     def get_audio_streams_info_batch(self, audio_files: List[Path]) -> List[AudioStreamsInfoModel]:
-        """
-        Retrieves audio stream information from a file.
+        models: List[AudioStreamsInfoModel] = []
+        to_process: int = len(audio_files)
 
-        Args:
-            audio_files: Paths to the audio files.
+        for i, audio_file in enumerate(audio_files):
+            models.append(self._extract_audio_info(audio_file))
+            self._logger.info(f"Processed {i}/{to_process} ({i/to_process*100:.4f}%)", separator=self._separator)
 
-        Returns:
-            AudioStreamsInfoModel: An object containing audio stream information.  Returns an object with default values in case of error.
-        """
-        try:
-            paths: List[str] = [str(p) for p in audio_files]
-            infos: Dict[str, Dict] = self._ffprobe_client.run_ffprobe_batch(paths)
+        return models
 
-            models: List[AudioStreamsInfoModel] = []
-
-            for audio_file in audio_files:
-                models.append(self._extract_audio_info(infos[str(audio_file)], audio_file))
-
-            return models
-
-        except FileNotFoundError:
-            self._logger.error("ffprobe not found. Please install FFmpeg.", separator=self._separator)
-            return []
-        except FFprobeError as e:
-            self._logger.warning(f"ffprobe error: {e}", separator=self._separator)
-            return []
-        except Exception as e:
-            self._logger.warning(f"An unexpected error occurred: {e}", separator=self._separator)
-            return []
-
-    def _extract_audio_info(self, info: dict, audio_file: Path) -> AudioStreamsInfoModel:
+    def _extract_audio_info(self, audio_file: Path) -> AudioStreamsInfoModel:
         """Extracts audio information from ffprobe output."""
-        duration = self._extract_duration(info)
-        bitrate = self._extract_bitrate(info)
-        sample_rate, bit_depth, audio_format, channels = self._extract_stream_info(info)
+        media_info = MediaInfo.parse(str(audio_file))
+        audio = media_info.audio_tracks[0]
+
+        duration_s   = float(audio.duration) / 1000.0
+        bitrate_bps  = int(audio.bit_rate)
+        sample_rate  = int(audio.sampling_rate)
+        bit_depth    = int(audio.bit_depth) if audio.bit_depth else None
+        channels     = int(audio.channel_s)
+        audio_format = audio.format
 
         samples_librosa, sr = librosa.load(audio_file, sr=None)
 
         if sr != sample_rate:
             self._logger.warning(f"Librosa reported a different sample rate than ffprobe for: {audio_file}, {sr} vs {sample_rate}.", separator=self._separator)
 
-        return AudioStreamsInfoModel(duration=duration, bitrate=bitrate / 1000, sample_rate_kHz=sample_rate / 1000, sample_rate_Hz=sample_rate,
+        return AudioStreamsInfoModel(duration=duration_s, bitrate=bitrate_bps / 1000, sample_rate_kHz=sample_rate / 1000, sample_rate_Hz=sample_rate,
                                      bit_depth=bit_depth, channels=channels, format=audio_format, samples_librosa=samples_librosa)
-
-    def _extract_duration(self, info: dict) -> float:
-        """Extracts duration from the ffprobe 'format' section."""
-        duration = 0.0
-        if 'format' in info and 'duration' in info['format']:
-            try:
-                duration = float(info['format']['duration'])
-            except ValueError:
-                self._logger.warning(
-                    f"Could not convert duration to float. Raw duration: {info['format']['duration']}",
-                    separator=self._separator)
-        return duration
-
-    def _extract_bitrate(self, info: dict) -> int:
-        """Extracts bitrate from the ffprobe 'format' section."""
-        bitrate = 0
-        if 'format' in info and 'bit_rate' in info['format']:
-            try:
-                bitrate = int(info['format']['bit_rate'])
-            except ValueError:
-                self._logger.warning(
-                    f"Could not convert bitrate to int. Raw bitrate: {info['format']['bit_rate']}",
-                    separator=self._separator)
-        return bitrate
-
-    def _extract_stream_info(self, info: dict) -> tuple[int, int, str, int]:
-        """Extracts stream-specific information from the ffprobe output."""
-        sample_rate = 0
-        bit_depth = 0
-        audio_format = ""
-        channels = 0
-
-        if 'streams' in info:
-            for stream in info['streams']:
-                if 'sample_rate' in stream:
-                    sample_rate = self._parse_int(stream['sample_rate'], "sample_rate")
-                if 'bits_per_sample' in stream:
-                    bit_depth = self._parse_int(stream['bits_per_sample'], "bit_depth")
-                if 'sample_fmt' in stream and bit_depth == 0:
-                    audio_format = stream["sample_fmt"]
-                    bit_depth = self._audio_format_converter.get_bit_depth_from_format(audio_format)
-                if 'channels' in stream:
-                    channels = self._parse_int(stream['channels'], "channels")
-
-        return sample_rate, bit_depth, audio_format, channels
-
-    def _parse_int(self, value: str, field_name: str) -> int:
-        """Helper function to parse an integer value from the ffprobe output."""
-        try:
-            return int(value)
-        except ValueError:
-            self._logger.warning(f"Could not convert {field_name} to int. Raw {field_name}: {value}",
-                                 separator=self._separator)
-            return 0
