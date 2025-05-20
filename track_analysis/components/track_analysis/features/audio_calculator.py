@@ -1,5 +1,7 @@
 import math
-from typing import Tuple
+import pickle
+from pathlib import Path
+from typing import Tuple, Dict
 
 import numba
 import numpy as np
@@ -8,6 +10,7 @@ from numpy import ndarray
 from pyebur128.pyebur128 import get_loudness_global, R128State, MeasurementMode, get_true_peak, get_loudness_range
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 
 @njit((numba.float32[:],), fastmath=True, cache=True)
@@ -31,9 +34,16 @@ def _peak_rms_vec(arr: np.ndarray) -> (float, float):
 class AudioCalculator:
     def __init__(self, logger: HoornLogger):
         self._separator = "AudioCalculator"
-
         self._logger = logger
+
+        self._max_data_rate_cache_path: Path = CACHE_DIRECTORY / "max_data_rate_cache.pkl"
+        self._max_data_rate_cache_lookup: Dict[Tuple[float, int, int], float] = self._load_max_data_rate_cache_lookup()
+
         self._logger.trace("Successfully initialized.", separator=self._separator)
+
+    def save_cache(self):
+        """Persists the cache on disk. Call when finished with all calculations for optimization gains."""
+        self._save_max_data_rate_cache_lookup()
 
     def calculate_program_dynamic_range_and_crest_factor(self,
                                                          samples: np.ndarray,
@@ -66,10 +76,21 @@ class AudioCalculator:
 
     def calculate_max_data_per_second(self, stream_info: AudioStreamsInfoModel) -> float:
         """Calculates the data rate per second in bits."""
-        if stream_info.sample_rate_kHz == 0 or stream_info.bit_depth == 0 or stream_info.channels == 0:
+        if stream_info.sample_rate_Hz == 0 or stream_info.bit_depth == 0 or stream_info.channels == 0:
             return 0.0
 
-        data_rate_per_second = (stream_info.sample_rate_kHz * 1000) * stream_info.bit_depth * stream_info.channels
+        cache_key: Tuple[float, int, int] = (stream_info.sample_rate_Hz, stream_info.bit_depth, stream_info.channels)
+
+        cached_value = self._max_data_rate_cache_lookup.get(
+            cache_key,
+            None
+        )
+
+        if cached_value is not None:
+            return cached_value
+
+        data_rate_per_second = stream_info.sample_rate_Hz * stream_info.bit_depth * stream_info.channels
+        self._max_data_rate_cache_lookup[cache_key] = data_rate_per_second
 
         self._logger.debug(f"Calculated data rate per second: {data_rate_per_second}", separator=self._separator)
 
@@ -148,3 +169,16 @@ class AudioCalculator:
 
         self._logger.debug(f"True peak: {tp_db:.2f} dBTP", separator=self._separator)
         return tp_db
+
+    def _load_max_data_rate_cache_lookup(self) -> Dict[Tuple[float, int, int], float]:
+        if not self._max_data_rate_cache_path.exists():
+            self._logger.warning("Max data rate cache not found. Initializing empty cache.", separator=self._separator)
+            return {}
+
+        with open(self._max_data_rate_cache_path, "rb") as f:
+            return pickle.load(f)
+
+    def _save_max_data_rate_cache_lookup(self) -> None:
+        with open(self._max_data_rate_cache_path, "wb") as f:
+            # noinspection PyTypeChecker
+            pickle.dump(self._max_data_rate_cache_lookup, f)

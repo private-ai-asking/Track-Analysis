@@ -91,6 +91,8 @@ class AddAdvancedMetadata(IPipe):
                 for item, info in iterator
             ]
 
+        self._audio_calculator.save_cache()
+
         # 3. Write results back into the DataFrame
         for count, res in enumerate(results, start=1):
             idx = res.pop("idx")
