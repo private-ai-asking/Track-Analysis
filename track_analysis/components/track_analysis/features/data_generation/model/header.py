@@ -27,7 +27,7 @@ class Header(Enum):
     Duration = "Duration"
     Bitrate = "Bitrate"
     Sample_Rate = "Sample Rate"
-    Program_Dynamic_Range_LRA = "Program Dynamic Range (LRA proxy)"
+    Program_Dynamic_Range_LRA = "Program Dynamic Range (LRA proxy -> LU)"
     Crest_Factor = "Crest Factor (peak-to-RMS/dB)"
     Bit_Depth = "Bit Depth"
     Max_Data_Per_Second = "Max Data Per Second (Kilobits)"
