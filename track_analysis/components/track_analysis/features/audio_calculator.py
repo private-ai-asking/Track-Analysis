@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Tuple, Dict, List
 
 import numpy as np
+import pyloudnorm as pyln
 from numba import njit, prange
 from numpy import ndarray
 from pyebur128.pyebur128 import get_loudness_global, R128State, MeasurementMode, get_true_peak, get_loudness_range
@@ -26,7 +27,6 @@ def _batch_peak_rms(
     for i in prange(n):
         start = offsets[i]
         length = counts[i]
-        # loop is JIT‐compiled + parallelized
         max_sq = 0.0
         sum_sq = 0.0
         for j in range(start, start + length):
@@ -36,8 +36,26 @@ def _batch_peak_rms(
             if sq > max_sq:
                 max_sq = sq
         peaks[i] = np.sqrt(max_sq)
-        rmss[i]  = np.sqrt(sum_sq / length)  # safe because length>0
+        rmss[i]  = np.sqrt(sum_sq / length)
     return peaks, rmss
+
+_METER: pyln.Meter
+
+def _tp_pool_init(sample_rate: int):
+    """
+    initializer for each worker process:
+    create exactly one Meter in that process for this sample_rate
+    """
+    global _METER
+    _METER = pyln.Meter(sample_rate)
+
+
+def _tp_worker(samples: np.ndarray) -> float:
+    """
+    called in each worker: reuses the global _METER
+    """
+    # pyloudnorm expects float32/float64 1D or 2D arrays
+    return _METER.(samples)
 
 
 class AudioCalculator:
