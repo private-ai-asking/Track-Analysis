@@ -22,13 +22,13 @@ class AddAdvancedMetadata(IPipe):
         self._separator = "BuildCSV.AddAdvancedMetadataPipe"
         self._logger = logger
         self._audio_calculator = audio_calculator
+        self._processed: int = 0
         self._logger.trace("Successfully initialized pipe.", separator=self._separator)
 
     def _process_row(
             self,
             item: Tuple[int, str],
             stream_info: AudioStreamsInfoModel,
-            current_idx: int,
             total: int
     ) -> dict:
         idx, path = item
@@ -51,10 +51,12 @@ class AddAdvancedMetadata(IPipe):
         actual_rate = size_bits / stream_info.duration if stream_info.duration > 0 else 0
         efficiency = (actual_rate / max_dps) * 100 if max_dps > 0 else 0
 
+        self._processed += 1
+
         self._logger.trace(f"Finished adding metadata for track: {path}",
                            separator=self._separator)
         self._logger.info(
-            f"Processed {current_idx}/{total} ({current_idx/total*100:.2f}%) tracks.",
+            f"Processed {self._processed}/{total} ({self._processed/total*100:.2f}%) tracks.",
             separator=self._separator,
         )
 
@@ -89,17 +91,18 @@ class AddAdvancedMetadata(IPipe):
             )
 
         # pair each DataFrame row (idx, path) with its corresponding stream_info
-        iterator = zip(df[Header.Audio_Path.value].items(), stream_infos, [i+1 for i in range(total)])
+        self._processed = 0
+        iterator = zip(df[Header.Audio_Path.value].items(), stream_infos)
 
         if data.use_threads:
             with ThreadPoolExecutor() as exe:
                 results = list(
-                    exe.map(lambda pair: self._process_row(pair[0], pair[1], pair[2], total), iterator)
+                    exe.map(lambda pair: self._process_row(pair[0], pair[1], total), iterator)
                 )
         else:
             results = [
-                self._process_row(item, info, current, total)
-                for item, info, current in iterator
+                self._process_row(item, info, total)
+                for item, info in iterator
             ]
 
         self._audio_calculator.save_cache()

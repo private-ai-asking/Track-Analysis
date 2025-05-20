@@ -1,34 +1,14 @@
-import math
 import pickle
 from pathlib import Path
 from typing import Tuple, Dict
 
-import numba
 import numpy as np
-from numba import njit
 from numpy import ndarray
 from pyebur128.pyebur128 import get_loudness_global, R128State, MeasurementMode, get_true_peak, get_loudness_range
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
-
-@njit((numba.float32[:],), fastmath=True, cache=True)
-def _peak_rms_vec(arr: np.ndarray) -> (float, float):
-    # LLVM + fastmath will vectorize this loop
-    n = arr.size
-    if n == 0:
-        return 0.0, 0.0
-
-    sum_sq  = 0.0
-    peak_sq = 0.0
-    for i in range(n):
-        sq = arr[i] * arr[i]
-        sum_sq += sq
-        if sq > peak_sq:
-            peak_sq = sq
-
-    return math.sqrt(peak_sq), math.sqrt(sum_sq / n)
 
 
 class AudioCalculator:
@@ -49,23 +29,10 @@ class AudioCalculator:
                                                          samples: np.ndarray,
                                                          samplerate: int
                                                          ) -> Tuple[float, float]:
+        float_frames: np.ndarray[np.float32] = np.ascontiguousarray(samples, dtype=np.float32).ravel()  # type: ignore
 
-        frames, nch = samples.shape
-
-        # 1) do crest factor on a fresh copy, _before_ any pyebur128 call:
-        float_frames = np.ascontiguousarray(samples, dtype=np.float32).ravel()
-        peak, rms    = _peak_rms_vec(float_frames)
-
-        ratio = peak / rms if rms != 0.0 else 0.0
-        with np.errstate(divide='ignore', invalid='ignore'):
-            crest_db = 20.0 * np.log10(ratio)
-
-        # 2) now do your LRA on a second copy (so it can't clobber your raw data):
-        state = R128State(channels=nch,
-                          samplerate=samplerate,
-                          mode=MeasurementMode.MODE_LRA)
-        state.add_frames(float_frames, frames)
-        program_dr_db = get_loudness_range(state)
+        crest_db: float = self._get_crest_factor(float_frames)
+        program_dr_db: float = self._get_program_dynamic_range(float_frames, samples, samplerate)
 
         self._logger.debug(
             f"Program DR (LRA): {program_dr_db:.2f} dB, "
@@ -73,6 +40,25 @@ class AudioCalculator:
             separator=self._separator
         )
         return program_dr_db, crest_db
+
+    def _get_crest_factor(self, samples: np.ndarray[np.float32]) -> float:
+        peak, rms    = self._peak_and_rms(samples)
+        ratio = peak / rms if rms != 0.0 else 0.0
+        with np.errstate(divide='ignore', invalid='ignore'):
+            crest_db = 20.0 * np.log10(ratio)
+
+        return crest_db
+
+    @staticmethod
+    def _get_program_dynamic_range(float_frames: np.ndarray, samples: np.ndarray, samplerate: int) -> float:
+        frames, nch = samples.shape
+
+        state = R128State(channels=nch,
+                          samplerate=samplerate,
+                          mode=MeasurementMode.MODE_LRA)
+        state.add_frames(float_frames, frames)
+        program_dr_db = get_loudness_range(state)
+        return program_dr_db
 
     def calculate_max_data_per_second(self, stream_info: AudioStreamsInfoModel) -> float:
         """Calculates the data rate per second in bits."""
@@ -169,6 +155,12 @@ class AudioCalculator:
 
         self._logger.debug(f"True peak: {tp_db:.2f} dBTP", separator=self._separator)
         return tp_db
+
+    @staticmethod
+    def _peak_and_rms(arr: np.ndarray[np.float32]) -> Tuple[float, float]:
+        peak = np.max(np.abs(arr))
+        rms  = np.sqrt(np.mean(arr**2))
+        return float(peak), float(rms)
 
     def _load_max_data_rate_cache_lookup(self) -> Dict[Tuple[float, int, int], float]:
         if not self._max_data_rate_cache_path.exists():
