@@ -26,7 +26,6 @@ def _batch_peak_rms(
     for i in prange(n):
         start = offsets[i]
         length = counts[i]
-        # loop is JIT‐compiled + parallelized
         max_sq = 0.0
         sum_sq = 0.0
         for j in range(start, start + length):
@@ -36,7 +35,7 @@ def _batch_peak_rms(
             if sq > max_sq:
                 max_sq = sq
         peaks[i] = np.sqrt(max_sq)
-        rmss[i]  = np.sqrt(sum_sq / length)  # safe because length>0
+        rmss[i]  = np.sqrt(sum_sq / length) 
     return peaks, rmss
 
 
