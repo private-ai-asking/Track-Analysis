@@ -16,3 +16,4 @@ musicbrainzngs
 pymediainfo
 pyebur128
 numba
+samplerate

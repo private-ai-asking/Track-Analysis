@@ -30,13 +30,16 @@ class AddAdvancedMetadata(IPipe):
         df   = data.generated_audio_info
         infos = data.extracted_stream_info
 
+        samples_list = [info.samples for info in infos]
+
         # 1) batch crest/peak
         peaks, rmss = self._audio_calculator.calculate_batch_crest(
-            [info.samples for info in infos]
+            samples_list
         )
         crest_dbs = 20.0 * np.log10(peaks / rmss)
 
         # 2) batch the rest
+        true_peaks = self._audio_calculator.calculate_batch_true_peak(samples_list, max_workers=8)
         rest = self._audio_calculator.calculate_batch_rest(infos, df[Header.Audio_Path.value].tolist())
 
         # 3) assemble one result DataFrame
@@ -44,7 +47,8 @@ class AddAdvancedMetadata(IPipe):
             "idx":         df.index.values,
             Header.Crest_Factor.value: crest_dbs,
             Header.Peak_To_RMS.value:  np.array([self._audio_calculator.calculate_program_dr(i.samples, i.sample_rate_Hz) for i in infos]),
-            **rest
+            **rest,
+            **true_peaks
         }
         res_df = pd.DataFrame(result).set_index("idx")
 

@@ -1,12 +1,15 @@
 import os
 import pickle
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Union
 
 import numpy as np
+import samplerate
 from numba import njit, prange
 from numpy import ndarray
 from pyebur128.pyebur128 import get_loudness_global, R128State, MeasurementMode, get_true_peak, get_loudness_range
+from scipy.signal import resample_poly
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
@@ -35,8 +38,18 @@ def _batch_peak_rms(
             if sq > max_sq:
                 max_sq = sq
         peaks[i] = np.sqrt(max_sq)
-        rmss[i]  = np.sqrt(sum_sq / length) 
+        rmss[i]  = np.sqrt(sum_sq / length)
     return peaks, rmss
+
+
+def _tp_worker_resample(
+        samples: np.ndarray,
+        oversample_rate: int
+) -> float:
+    # noinspection PyUnresolvedReferences
+    res = samplerate.resample(samples, oversample_rate, 'sinc_fastest')
+    peak = np.max(np.abs(res))
+    return 20 * np.log10(peak) if peak > 0 else -np.inf
 
 
 class AudioCalculator:
@@ -66,6 +79,31 @@ class AudioCalculator:
         peaks, rmss = _batch_peak_rms(all_data, offsets, counts)
         return peaks, rmss
 
+    @staticmethod
+    def calculate_batch_true_peak(
+            samples_list: List[np.ndarray],
+            oversample_rate: int = 4,
+            max_workers: Union[int, None] = None
+    ) -> Dict[str, np.ndarray]:
+        """
+        Compute dBTP for a batch of tracks via fast C upsampling,
+        parallelized across cores without using any lambdas.
+        """
+        n = len(samples_list)
+        # build two parallel iterables:
+        #  - one of your sample‐arrays
+        #  - one of the same oversample_rate repeated
+        rates = [oversample_rate] * n
+
+        with ProcessPoolExecutor(max_workers=max_workers) as exe:
+            # map our top-level function over two iterables
+            results = exe.map(_tp_worker_resample, samples_list, rates)
+
+        # pack into your header dict
+        return {
+            Header.True_Peak.value: np.array(list(results), dtype=np.float32)
+        }
+
     def calculate_batch_rest(
             self,
             infos: List[AudioStreamsInfoModel],
@@ -78,8 +116,6 @@ class AudioCalculator:
         maxdps       = np.array([self._calculate_max_data_per_second(i) for i in infos],
                                 dtype=np.float32)
         lufs         = np.array([self._calculate_lufs(i.sample_rate_Hz, i.samples)
-                                 for i in infos], dtype=np.float32)
-        tps          = np.array([self._calculate_true_peak(i.sample_rate_Hz, i.samples)
                                  for i in infos], dtype=np.float32)
 
         # 2. Use the passed-in paths for size/duration
@@ -102,7 +138,6 @@ class AudioCalculator:
             Header.Actual_Data_Rate.value:     actual_bits_per_sec / 1_000,
             Header.Efficiency.value:           effs,
             Header.Loudness.value:             lufs,
-            Header.True_Peak.value:            tps,
         }
 
     def calculate_program_dr(self,
@@ -174,57 +209,6 @@ class AudioCalculator:
         self._logger.debug(f"Integrated LUFS: {lufs}", separator=self._separator)
 
         return lufs
-
-    def _calculate_true_peak(
-            self,
-            sample_rate: float,
-            samples: ndarray
-    ) -> float:
-        """
-        Calculates the true-peak level in dBTP (≤ 0.0 dB).
-
-        Args:
-          sample_rate (float): Sample rate in Hz.
-          samples     (ndarray): shape = (frames, channels) or (n,) for mono,
-                                 dtype float64 with ±1.0 == full scale.
-
-        Returns:
-          float: True-peak in dBTP (–inf if completely silent).
-        """
-        # 1) Flatten to interleaved 1D
-        flat = samples.flatten()
-
-        # 2) Normalize full-scale to ±1.0 if any |sample| > 1.0
-        max_val = np.max(np.abs(flat))
-        if max_val > 1.0:
-            flat = flat / max_val
-
-        # 3) Determine channel count
-        try:
-            n_ch = samples.shape[1]
-        except IndexError:
-            n_ch = 1
-
-        # 4) Build the true-peak state
-        state = R128State(
-            channels   = n_ch,
-            samplerate = int(sample_rate),
-            mode       = MeasurementMode.MODE_TRUE_PEAK
-        )
-
-        # 5) Feed all frames so it can oversample & interpolate
-        n_frames = flat.size // n_ch
-        state.add_frames(flat, n_frames)
-
-        # 6) Get each channel’s raw true peak and pick the highest
-        peaks = [ get_true_peak(state, ch) for ch in range(n_ch) ]
-        tp_raw = max(peaks)
-
-        # 7) Convert to dBTP, guarding against log(0)
-        tp_db = 20 * np.log10(tp_raw) if tp_raw > 0 else -float('inf')
-
-        self._logger.debug(f"True peak: {tp_db:.2f} dBTP", separator=self._separator)
-        return tp_db
 
     def save_cache(self):
         """Persists the cache on disk. Call when finished with all calculations for optimization gains."""
