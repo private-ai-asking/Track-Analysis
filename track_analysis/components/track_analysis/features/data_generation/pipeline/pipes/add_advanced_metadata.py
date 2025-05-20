@@ -2,12 +2,10 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import Tuple, List
 
-import pandas as pd
-
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
-from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler, AudioStreamsInfoModel
+from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
@@ -32,15 +30,15 @@ class AddAdvancedMetadata(IPipe):
         idx, path = item
 
         # 1. Load and compute
-        dyn_range, crest = self._audio_calculator.calculate_dynamic_range_and_crest_factor(
-            stream_info.samples_librosa
+        dyn_range, crest = self._audio_calculator.calculate_program_dynamic_range_and_crest_factor(
+            stream_info.samples, int(stream_info.sample_rate_Hz)
         )
         max_dps = self._audio_calculator.calculate_max_data_per_second(stream_info)
         lufs = self._audio_calculator.calculate_lufs(
-            stream_info.sample_rate_Hz, stream_info.samples_librosa
+            stream_info.sample_rate_Hz, stream_info.samples
         )
         true_peak = self._audio_calculator.calculate_true_peak(
-            stream_info.sample_rate_Hz, stream_info.samples_librosa
+            stream_info.sample_rate_Hz, stream_info.samples
         )
 
         # 2. Compute derived size/rate/efficiency

@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Optional, List
 
-import librosa
+import soundfile as sf
 import pydantic
 from numpy import ndarray
 from pymediainfo import MediaInfo
@@ -19,7 +19,7 @@ class AudioStreamsInfoModel(pydantic.BaseModel):
     bit_depth: int
     channels: int
     format: str
-    samples_librosa: Optional[ndarray] = None
+    samples: Optional[ndarray] = None
 
     model_config = {
         "arbitrary_types_allowed": True
@@ -48,9 +48,10 @@ class AudioFileHandler:
         return models
 
     def _extract_audio_info(self, audio_file: Path) -> AudioStreamsInfoModel:
-        """Extracts audio information from ffprobe output."""
-        media_info = MediaInfo.parse(str(audio_file))
-        audio = media_info.audio_tracks[0]
+        """Extracts audio information from ffprobe and reads samples at full native precision."""
+        # --- 1) MediaInfo metadata ---
+        media_info   = MediaInfo.parse(str(audio_file))
+        audio        = media_info.audio_tracks[0]
 
         duration_s   = float(audio.duration) / 1000.0
         bitrate_bps  = int(audio.bit_rate)
@@ -59,10 +60,26 @@ class AudioFileHandler:
         channels     = int(audio.channel_s)
         audio_format = audio.format
 
-        samples_librosa, sr = librosa.load(audio_file, sr=None)
+        # --- 2) read raw samples in one call, auto-detecting container/codec ---
+        samples, sr = sf.read(str(audio_file), dtype="float64", always_2d=True)
+        # samples.shape == (frames, channels)
 
+        # --- 3) sanity-check sample rate match ---
         if sr != sample_rate:
-            self._logger.warning(f"Librosa reported a different sample rate than ffprobe for: {audio_file}, {sr} vs {sample_rate}.", separator=self._separator)
+            self._logger.warning(
+                f"Sample-rate mismatch for {audio_file}: "
+                f"media_info={sample_rate} Hz vs soundfile={sr} Hz",
+                separator=self._separator
+            )
 
-        return AudioStreamsInfoModel(duration=duration_s, bitrate=bitrate_bps / 1000, sample_rate_kHz=sample_rate / 1000, sample_rate_Hz=sample_rate,
-                                     bit_depth=bit_depth, channels=channels, format=audio_format, samples_librosa=samples_librosa)
+        # --- 4) return structured info (you can adjust field names as needed) ---
+        return AudioStreamsInfoModel(
+            duration        = duration_s,
+            bitrate         = bitrate_bps / 1000,
+            sample_rate_kHz = sample_rate / 1000,
+            sample_rate_Hz  = sample_rate,
+            bit_depth       = bit_depth,
+            channels        = channels,
+            format          = audio_format,
+            samples= samples,
+        )

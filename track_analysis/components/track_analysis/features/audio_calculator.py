@@ -1,11 +1,10 @@
-import librosa
+from typing import Tuple
+
 import numpy as np
-import pyebur128
 from numpy import ndarray
-from pyebur128.pyebur128 import get_loudness_global, R128State, MeasurementMode
+from pyebur128.pyebur128 import get_loudness_global, R128State, MeasurementMode, get_true_peak, get_loudness_range
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.constants import VERBOSE
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 
 
@@ -16,26 +15,37 @@ class AudioCalculator:
         self._logger = logger
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
-    def calculate_dynamic_range_and_crest_factor(self, samples: ndarray) -> (float, float):
-        """Calculates the peak-to-RMS dynamic range of an audio signal.
+    def calculate_program_dynamic_range_and_crest_factor(
+            self,
+            samples: np.ndarray,
+            samplerate: int
+    ) -> Tuple[float, float]:
+        # --- 1) Program DR via EBU R128 LRA:
+        frames, nch = samples.shape
+        # pyebur128 wants float arrays
+        float_frames = samples.flatten()
+        state = R128State(channels=nch,
+                          samplerate=samplerate,
+                          mode=MeasurementMode.MODE_LRA)
+        state.add_frames(float_frames, frames)
+        program_dr_db = get_loudness_range(state)  # in LU = dB
 
-         Args:
-             samples (ndarray): An ndarray of the audio signals.
+        # --- 2) Crest Factor in dB (peak vs. RMS):
+        # Replace any NaN or Inf just in case:
+        flat = np.nan_to_num(float_frames, nan=0.0, posinf=0.0, neginf=0.0)
+        peak = np.max(np.abs(flat))
+        rms  = np.sqrt(np.mean(flat**2))
+        if rms == 0:
+            crest_db = float('inf') if peak > 0 else -float('inf')
+        else:
+            crest_db = 20 * np.log10(peak / rms)
 
-         Returns:
-             float: The dynamic range in dB, or None if an error occurs.
-         """
-        peak_amplitude = np.max(np.abs(samples))
-        rms_amplitude = np.sqrt(np.mean(samples ** 2))
-
-        if rms_amplitude == 0:
-            return float('inf') if peak_amplitude > 0 else -float('inf')
-        dynamic_range = 20 * np.log10(peak_amplitude / rms_amplitude)
-        crest_factor = peak_amplitude / rms_amplitude
-
-        self._logger.debug(f"Calculated dr & cf: {dynamic_range} & {crest_factor}", separator=self._separator)
-
-        return dynamic_range, crest_factor
+        self._logger.debug(
+            f"Program DR (LRA): {program_dr_db:.2f} dB, "
+            f"Crest Factor: {crest_db:.2f} dB",
+            separator=self._separator
+        )
+        return program_dr_db, crest_db
 
     def calculate_max_data_per_second(self, stream_info: AudioStreamsInfoModel) -> float:
         """Calculates the data rate per second in bits."""
@@ -48,44 +58,76 @@ class AudioCalculator:
 
         return data_rate_per_second
 
-    def calculate_lufs(self, sr: float, samples: ndarray) -> float:
-        # 1) Re-shape into frames × channels
-        if samples.ndim == 1:
-            n_channels = 1
-            frames = samples.shape[0]
-            interleaved = samples.astype(np.float64)
-        else:
-            n_channels, n_samples = samples.shape
-            frames = n_samples
-            interleaved = samples.T.reshape(-1).astype(np.float64)
+    def calculate_lufs(self, sample_rate: float, samples: np.ndarray) -> float:
+        # 1) Re-shape into interleaved frames×channels
+        # Multichannel: shape == (frames, channels)
+        frames, n_channels = samples.shape
+        interleaved = samples.flatten()
 
-        # 3) Fresh R128State for this buffer
+        # 2) Build a fresh R128State
         state = R128State(
-            channels=n_channels,
-            samplerate=int(sr),
-            mode=MeasurementMode.MODE_I
+            channels   = n_channels,
+            samplerate = int(sample_rate),
+            mode       = MeasurementMode.MODE_I
         )
 
-        # 4) Feed everything in one go
+        # 3) Feed all frames at once
         state.add_frames(interleaved, frames)
 
-        # 5) Get integrated loudness (calls ff_ebur128_loudness_global)
+        # 4) Compute integrated loudness
         lufs = get_loudness_global(state)
 
-        if VERBOSE:
-            self._logger.debug(f"Integrated LUFS: {lufs}", separator=self._separator)
+        self._logger.debug(f"Integrated LUFS: {lufs}", separator=self._separator)
 
         return lufs
 
-    def calculate_true_peak(self, sample_rate: float, samples: ndarray, oversampling_rate: int = 4) -> float:
-        # Oversample the audio
-        samples_resampled = librosa.resample(samples, orig_sr=sample_rate, target_sr=sample_rate*oversampling_rate)
+    def calculate_true_peak(
+            self,
+            sample_rate: float,
+            samples: ndarray
+    ) -> float:
+        """
+        Calculates the true-peak level in dBTP (≤ 0.0 dB).
 
-        # Calculate the peak amplitude
-        peak_amplitude = np.max(np.abs(samples_resampled))
+        Args:
+          sample_rate (float): Sample rate in Hz.
+          samples     (ndarray): shape = (frames, channels) or (n,) for mono,
+                                 dtype float64 with ±1.0 == full scale.
 
-        # Convert to dBFS
-        true_peak_dbfs = 20 * np.log10(peak_amplitude)
+        Returns:
+          float: True-peak in dBTP (–inf if completely silent).
+        """
+        # 1) Flatten to interleaved 1D
+        flat = samples.flatten()
 
-        self._logger.debug(f"Calculated True Peak (dBPT): {true_peak_dbfs}", separator=self._separator)
-        return true_peak_dbfs
+        # 2) Normalize full-scale to ±1.0 if any |sample| > 1.0
+        max_val = np.max(np.abs(flat))
+        if max_val > 1.0:
+            flat = flat / max_val
+
+        # 3) Determine channel count
+        try:
+            n_ch = samples.shape[1]
+        except IndexError:
+            n_ch = 1
+
+        # 4) Build the true-peak state
+        state = R128State(
+            channels   = n_ch,
+            samplerate = int(sample_rate),
+            mode       = MeasurementMode.MODE_TRUE_PEAK
+        )
+
+        # 5) Feed all frames so it can oversample & interpolate
+        n_frames = flat.size // n_ch
+        state.add_frames(flat, n_frames)
+
+        # 6) Get each channel’s raw true peak and pick the highest
+        peaks = [ get_true_peak(state, ch) for ch in range(n_ch) ]
+        tp_raw = max(peaks)
+
+        # 7) Convert to dBTP, guarding against log(0)
+        tp_db = 20 * np.log10(tp_raw) if tp_raw > 0 else -float('inf')
+
+        self._logger.debug(f"True peak: {tp_db:.2f} dBTP", separator=self._separator)
+        return tp_db
