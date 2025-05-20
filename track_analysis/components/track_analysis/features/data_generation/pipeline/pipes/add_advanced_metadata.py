@@ -2,6 +2,8 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import Tuple, List
 
+import pandas as pd
+
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
@@ -25,7 +27,9 @@ class AddAdvancedMetadata(IPipe):
     def _process_row(
             self,
             item: Tuple[int, str],
-            stream_info: AudioStreamsInfoModel
+            stream_info: AudioStreamsInfoModel,
+            current_idx: int,
+            total: int
     ) -> dict:
         idx, path = item
 
@@ -46,6 +50,13 @@ class AddAdvancedMetadata(IPipe):
         size_bits = size_b * 8
         actual_rate = size_bits / stream_info.duration if stream_info.duration > 0 else 0
         efficiency = (actual_rate / max_dps) * 100 if max_dps > 0 else 0
+
+        self._logger.trace(f"Finished adding metadata for track: {path}",
+                           separator=self._separator)
+        self._logger.info(
+            f"Processed {current_idx}/{total} ({current_idx/total*100:.2f}%) tracks.",
+            separator=self._separator,
+        )
 
         return {
             "idx": idx,
@@ -78,34 +89,23 @@ class AddAdvancedMetadata(IPipe):
             )
 
         # pair each DataFrame row (idx, path) with its corresponding stream_info
-        iterator = zip(df[Header.Audio_Path.value].items(), stream_infos)
+        iterator = zip(df[Header.Audio_Path.value].items(), stream_infos, [i+1 for i in range(total)])
 
         if data.use_threads:
             with ThreadPoolExecutor() as exe:
                 results = list(
-                    exe.map(lambda pair: self._process_row(pair[0], pair[1]), iterator)
+                    exe.map(lambda pair: self._process_row(pair[0], pair[1], pair[2], total), iterator)
                 )
         else:
             results = [
-                self._process_row(item, info)
-                for item, info in iterator
+                self._process_row(item, info, current, total)
+                for item, info, current in iterator
             ]
 
         self._audio_calculator.save_cache()
 
-        # 3. Write results back into the DataFrame
-        for count, res in enumerate(results, start=1):
-            idx = res.pop("idx")
-            for col, val in res.items():
-                df.loc[idx, col] = val
-
-            path = df.loc[idx, Header.Audio_Path.value]
-            self._logger.trace(f"Finished adding metadata for track: {path}",
-                               separator=self._separator)
-            self._logger.info(
-                f"Processed {count}/{total} ({count/total*100:.2f}%) tracks.",
-                separator=self._separator,
-            )
+        res_df = pd.DataFrame(results).set_index("idx")
+        data.generated_audio_info = df.join(res_df, how="left")
 
         self._logger.info("Finished adding advanced metadata.", separator=self._separator)
         return data
