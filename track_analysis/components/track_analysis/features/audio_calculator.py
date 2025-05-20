@@ -2,7 +2,7 @@ import math
 from typing import Tuple
 
 import numpy as np
-import numba as nb
+from numba import njit, prange
 from numpy import ndarray
 from pyebur128.pyebur128 import get_loudness_global, R128State, MeasurementMode, get_true_peak, get_loudness_range
 
@@ -10,20 +10,23 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 
 
-@nb.njit(parallel=True)
+@njit(parallel=True, fastmath=True, cache=True)
 def _peak_rms(arr: np.ndarray) -> (float, float):
-    # mask out NaNs/Infs
-    # (this creates a new array, so it’s only worth it for very large buffers)
-    finite_mask = np.isfinite(arr)
-    clean       = arr[finite_mask]
+    sum_sq = 0.0
+    peak   = 0.0
+    count  = 0
+    n      = arr.size
 
-    # Numba will parallelize these built-ins as reductions:
-    sum_sq = np.sum(clean * clean)
-    peak   = np.max(np.abs(clean))
+    # single parallel loop with sum, count, and max reductions
+    for i in prange(n):
+        v = arr[i]
+        if math.isfinite(v):
+            sum_sq += v * v
+            peak    = max(peak, abs(v))
+            count  += 1            
 
-    # combine
-    n   = clean.size
-    rms = math.sqrt(sum_sq / n)
+    # compute RMS, avoid div-by-zero
+    rms = math.sqrt(sum_sq / count) if count > 0 else 0.0
     return peak, rms
 
 
