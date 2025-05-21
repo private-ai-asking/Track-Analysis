@@ -9,6 +9,8 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
     GetStreamInfo
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.handle_rows_with_missing_data import \
     HandleRowsWithMissingData
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.remove_invalid_cached_entries import \
+    RemoveInvalidCachedEntries
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import LibraryDataGenerationPipelineContext
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.add_advanced_metadata import AddAdvancedMetadata
@@ -58,6 +60,7 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._add_step(GetStreamInfo(self._logger, self._audio_file_handler))
         self._add_step(GetAndBuildAudioMetadata(self._logger, self._tag_extractor))
         self._add_step(AddAdvancedMetadata(self._logger, self._audio_calculator, self._num_workers))
+        self._add_step(RemoveInvalidCachedEntries(self._logger))
         self._add_step(HandleRowsWithMissingData(self._logger, self._audio_file_handler))
         self._add_step(PreprocessData(self._logger, self._string_utils))
         self._add_step(MakeCSV(self._logger))
