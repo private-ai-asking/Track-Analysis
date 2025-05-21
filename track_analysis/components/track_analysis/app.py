@@ -273,7 +273,7 @@ class App:
             main_data_output_file_path=output_path,
             use_threads=True,
             max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN,
-            missing_headers_to_fill=[Header.Bit_Depth],
+            missing_headers_to_fill=[],
             headers_to_refill=[]
         )
 
