@@ -4,8 +4,11 @@ from track_analysis.components.md_common_python.py_common.patterns import AbPipe
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.filter_cache import FilterCache
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_stream_info import \
     GetStreamInfo
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.handle_rows_with_missing_data import \
+    HandleRowsWithMissingData
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import LibraryDataGenerationPipelineContext
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.add_advanced_metadata import AddAdvancedMetadata
@@ -39,10 +42,15 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
 
     def build_pipeline(self):
         def __exit_if_no_files_to_process(context: LibraryDataGenerationPipelineContext) -> bool:
-            return len(context.filtered_audio_file_paths) <= 0 and len(context.invalid_cached_paths) <= 0
+            return (
+                    len(context.filtered_audio_file_paths) <= 0
+                    and len(context.invalid_cached_paths) <= 0
+                    and len(context.missing_headers.keys()) <= 0
+            )
 
         self._add_step(GetAlbumCosts())
         self._add_step(LoadCache(self._logger))
+        self._add_step(FilterCache(self._logger))
         self._add_step(GetAudioFiles(self._logger, self._filehandler))
         self._add_step(FilterFiles(self._logger))
         self._add_step(GetInvalidCache(self._logger))
@@ -50,5 +58,6 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._add_step(GetStreamInfo(self._logger, self._audio_file_handler))
         self._add_step(GetAndBuildAudioMetadata(self._logger, self._tag_extractor))
         self._add_step(AddAdvancedMetadata(self._logger, self._audio_calculator, self._num_workers))
+        self._add_step(HandleRowsWithMissingData(self._logger, self._audio_file_handler))
         self._add_step(PreprocessData(self._logger, self._string_utils))
         self._add_step(MakeCSV(self._logger))

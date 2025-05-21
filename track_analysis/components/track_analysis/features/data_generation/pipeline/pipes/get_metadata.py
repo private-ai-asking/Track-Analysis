@@ -23,6 +23,7 @@ class GetAndBuildAudioMetadata(IPipe):
         paths = data.filtered_audio_file_paths
         total = len(paths)
         self._logger.trace("Beginning audio metadata extraction…", separator=self._separator)
+        self._logger.info(f"Paths to extract metadata: {total}", separator=self._separator)
 
         # 1. Helper that returns a dict of metadata for one file
         def extract_one(path: str) -> dict:
@@ -41,16 +42,19 @@ class GetAndBuildAudioMetadata(IPipe):
                 )
 
         # 3. Build your DataFrame in one shot
-        df = pd.DataFrame.from_records(records)
-        data.generated_audio_info = df
+        if len(records) > 0:
+            df = pd.DataFrame.from_records(records)
+            data.generated_audio_info = df
 
-        # 4. Vectorized album-cost lookup
-        album_cost_map = {info.Album_Title: info.Album_Cost for info in data.album_costs}
-        df[Header.Album_Cost.value] = (
-            df[Header.Album.value]
-            .map(album_cost_map)
-            .fillna(0)
-        )
+            # 4. Vectorized album-cost lookup
+            album_cost_map = {info.Album_Title: info.Album_Cost for info in data.album_costs}
+            df[Header.Album_Cost.value] = (
+                df[Header.Album.value]
+                .map(album_cost_map)
+                .fillna(0)
+            )
+        else:
+            data.generated_audio_info = pd.DataFrame()
 
         self._logger.info("Successfully extracted all audio metadata.", separator=self._separator)
         return data

@@ -24,6 +24,7 @@ from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRAR
     MAX_NEW_TRACKS_PER_RUN
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
+from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import \
     BuildLibraryDataCSVPipeline
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
@@ -271,7 +272,9 @@ class App:
             source_dir=ROOT_MUSIC_LIBRARY,
             main_data_output_file_path=output_path,
             use_threads=True,
-            max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN
+            max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN,
+            missing_headers_to_fill=[Header.Bit_Depth],
+            headers_to_refill=[]
         )
 
         # output_path.unlink(missing_ok=True)

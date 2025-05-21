@@ -29,6 +29,10 @@ class AddAdvancedMetadata(IPipe):
         samples_list = [info.samples for info in infos]
         sample_rates = [info.sample_rate_Hz for info in infos]
 
+        if len(samples_list) <= 0 or len(sample_rates) <= 0:
+            self._logger.debug("No tracks to add advanced metadata for...", separator=self._separator)
+            return data
+
         metrics = self._audio_calculator.calculate_batch_sample_metrics(samples_list, sample_rates, max_workers=self._num_workers)
         rest = self._audio_calculator.calculate_batch_rest(infos, df[Header.Audio_Path.value].tolist())
 

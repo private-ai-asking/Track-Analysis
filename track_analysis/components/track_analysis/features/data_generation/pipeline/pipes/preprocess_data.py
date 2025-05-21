@@ -47,6 +47,10 @@ class PreprocessData(IPipe):
         df = data.generated_audio_info
         self._logger.trace("Preprocessing data...", separator=self._separator)
 
+        if len(data.generated_audio_info) <= 0:
+            self._logger.debug("Empty generated audio info. Skipping.", separator=self._separator)
+            return data
+
         for idx in df.index:
             # Artists column
             old_artists = df.at[idx, Header.Artists.value]

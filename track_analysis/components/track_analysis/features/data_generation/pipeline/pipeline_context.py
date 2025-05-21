@@ -1,11 +1,12 @@
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import pandas as pd
 import pydantic
 
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.data_generation.model.album_cost import AlbumCostModel
+from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 
 
 class LibraryDataGenerationPipelineContext(pydantic.BaseModel):
@@ -13,8 +14,11 @@ class LibraryDataGenerationPipelineContext(pydantic.BaseModel):
     main_data_output_file_path: Path
     use_threads: bool = True
     max_new_tracks_per_run: Optional[int] = 50
+    missing_headers_to_fill: List[Header] = []
+    headers_to_refill: List[Header] = []
 
     loaded_audio_info_cache: Optional[pd.DataFrame] = None
+    missing_headers: Optional[Dict[Header, List[str]]] = None
 
     # Generated Along the Line
     album_costs: Optional[List[AlbumCostModel]] = []

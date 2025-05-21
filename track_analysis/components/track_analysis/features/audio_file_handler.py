@@ -17,7 +17,7 @@ class AudioStreamsInfoModel(pydantic.BaseModel):
     bitrate: float = 0
     sample_rate_kHz: float = 0
     sample_rate_Hz: float = 0
-    bit_depth: Optional[int] = 0
+    bit_depth: Optional[float] = 0
     channels: int = 0
     format: str
     samples: Optional[ndarray] = None
@@ -81,9 +81,9 @@ class AudioFileHandler:
         audio_track = media_info.audio_tracks[0]
 
         duration_s   = float(audio_track.duration) / 1000.0
-        bitrate_bps  = int(audio_track.bit_rate)
-        sample_rate  = int(audio_track.sampling_rate)
-        bit_depth    = int(audio_track.bit_depth) if audio_track.bit_depth else None
+        bitrate_bps  = float(audio_track.bit_rate) if audio_track.bit_rate is not None else 0
+        sample_rate  = float(audio_track.sampling_rate)
+        bit_depth    = float(audio_track.bit_depth) if audio_track.bit_depth else None
         channels     = int(audio_track.channel_s)
         audio_format = audio_track.format
 

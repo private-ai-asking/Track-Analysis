@@ -27,7 +27,7 @@ class MakeCSV(IPipe):
         existing_columns = [col for col in allowed_columns if col in to_write.columns]
         to_write = to_write[existing_columns]
 
-        to_write.to_csv(context.main_data_output_file_path)
+        to_write.to_csv(context.main_data_output_file_path, index=False)
 
         self._logger.trace("Successfully written all data.", separator=self._separator)
 
