@@ -1,4 +1,5 @@
 import os
+import subprocess
 import threading
 import traceback
 import asyncio
@@ -30,31 +31,19 @@ class ConvertTracks(IPipe):
 
                 cmd = [
                     "-y",
-                    "-i", f"\"{str(original_path)}\"",
+                    "-i", str(original_path),
                     "-c:a", "flac",
                     "-f", "flac",
-                    f"\"{str(temp_path)}\""
+                    str(temp_path)
                 ]
 
-                # run the async FFmpeg call on its own thread
-                def _run_ffmpeg():
-                    asyncio.run(
-                        self._command_helper.execute_command_v2_async(
-                            FFMPEG_PATH,
-                            cmd,
-                            hide_console=True,
-                            keep_open=False
-                        )
-                    )
-
-                thread = threading.Thread(target=_run_ffmpeg)
-                thread.start()
-                thread.join()
-
-                self._logger.info(
-                    f"Converted {original_path.name} → {final_path.name}",
-                    separator=self._separator
+                # synchronous, never hangs
+                subprocess.run(
+                    [str(FFMPEG_PATH)] + cmd,
+                    check=True
                 )
+
+                self._logger.info(f"Converted {original_path.name} → {final_path.name}", ...)
 
                 # now swap files
                 os.remove(original_path)

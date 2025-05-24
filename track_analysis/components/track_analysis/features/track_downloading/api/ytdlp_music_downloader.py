@@ -1,6 +1,7 @@
 import os.path
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List, Dict
 
@@ -69,53 +70,75 @@ class YTDLPMusicDownloader(MusicDownloadInterface):
 
         self._logger.warning(f"No path could be found for url: \"{url}\"", separator=self._separator)
 
-    def _download_urls(self, urls: List[str]) -> Dict[str, Path]:
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio'
-            }],
-            'outtmpl': os.path.join(self._output_dir, '%(title)s.%(ext)s'),
+    def _download_urls(self, urls: List[str], max_workers: int = 20) -> Dict[str, Path]:
+        """
+        Download multiple URLs in parallel, with retries and backoff.
+
+        :param urls: List of video URLs to download
+        :param max_workers: Number of tracks to download concurrently
+        :return: Mapping from URL to downloaded file Path
+        """
+        # Base options (will be shallow-copied per-task)
+        base_opts = {
+            'format': 'ba',
+            'postprocessors': [{'key': 'FFmpegExtractAudio'}],
             'noplaylist': True,
-            "cookiefile": str(COOKIES_FILE),
-            "ffmpeg_location": str(FFMPEG_PATH)
+            'cookiefile': str(COOKIES_FILE),
+            'ffmpeg_location': str(FFMPEG_PATH),
         }
 
-        downloaded_files: Dict[str, Path] = {}
+        def download_one(url: str) -> (str, Path):
+            """
+            Worker function to download a single URL with retry logic.
+            Returns (url, path) or (url, None) on failure.
+            """
+            retries = 3
+            backoff = 2
+            for attempt in range(retries):
+                try:
+                    # 1) Create a fresh YDL for info-extraction
+                    ydl_info = yt_dlp.YoutubeDL(base_opts)
+                    info = ydl_info.extract_info(url, download=False)
+                    raw_title = info.get('title', 'audio')
+                    clean_title = self._clean_filename(raw_title)
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            post_processor_helper = PostProcessorHelper(self._logger)
-            ydl.add_post_processor(post_processor_helper)
+                    # 2) Build output template for this title
+                    outtmpl = os.path.join(self._output_dir, f'{clean_title}.%(ext)s')
+                    opts = dict(base_opts, outtmpl=outtmpl)
 
-            for url in urls:
-                retries = 3
-                backoff_factor = 2
-                for i in range(retries):
-                    try:
-                        # Step 1: Pre-fetch to clean the title
-                        info_dict = ydl.extract_info(url, download=False)
-                        title = info_dict.get('title', 'audio')
-                        title = self._clean_filename(title)
+                    # 3) Create a new YDL for actual download + postprocessing
+                    ydl_dl = yt_dlp.YoutubeDL(opts)
+                    pp_helper = PostProcessorHelper(self._logger)
+                    ydl_dl.add_post_processor(pp_helper)
 
-                        # Step 2: Set custom output filename template
-                        ydl_opts['outtmpl']['default'] = os.path.join(self._output_dir, f'{title}.%(ext)s')
+                    ydl_dl.download([url])
+                    downloaded_path = Path(pp_helper.get_last_path())
+                    self._logger.info(f'Downloaded track "{clean_title}"', separator=self._separator)
+                    time.sleep(0.5)
+                    return url, downloaded_path
 
-                        ydl.download([url])
-                        downloaded_files[url] = Path(post_processor_helper.get_last_path())
+                except yt_dlp.utils.DownloadError as e:
+                    wait = backoff ** attempt
+                    self._logger.warning(
+                        f"Error downloading '{url}' (attempt {attempt+1}/{retries}): {e}. "
+                        f"Retrying in {wait}s...", separator=self._separator
+                    )
+                    time.sleep(wait)
+                except Exception as e:
+                    self._logger.error(f"Unexpected error for '{url}': {e}", separator=self._separator)
+                    break
+            return url, None
 
-                        self._logger.info(f"Downloaded track \"{title}\"", separator=self._separator)
+        downloaded: Dict[str, Path] = {}
+        # Kick off parallel downloads
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {pool.submit(download_one, url): url for url in urls}
+            for fut in as_completed(futures):
+                url, path = fut.result()
+                if path:
+                    downloaded[url] = path
 
-                        time.sleep(0.5)
-                        break  # Comment this line if you want to torment your soul for all eternity.
-                    except yt_dlp.utils.DownloadError as e:
-                        wait_time = backoff_factor ** i
-                        self._logger.warning(f"Error downloading '{url}': {e}, retrying in {wait_time} seconds...", separator=self._separator)
-                        time.sleep(wait_time)
-                    except Exception as e:
-                        self._logger.error(f"An error occurred while downloading '{url}': {e}", separator=self._separator)
-                        break
-
-        return downloaded_files
+        return downloaded
 
     def _clean_filename(self, filename: str, replacement_char: str = '_') -> str:
         """

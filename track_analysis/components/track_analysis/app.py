@@ -1,4 +1,5 @@
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import List, Callable, TypeVar, Any
@@ -222,14 +223,34 @@ class App:
             self.run()
 
     def _download_and_assign_metadata(self):
-        data: DownloadPipelineContext = self._download_pipeline.flow(DownloadPipelineContext(
-            download_csv_path=DOWNLOAD_CSV_FILE
-        ))
-
+        # Run the download pipeline
+        data: DownloadPipelineContext = self._download_pipeline.flow(
+            DownloadPipelineContext(download_csv_path=DOWNLOAD_CSV_FILE)
+        )
         download_files: List[DownloadModel] = data.downloaded_tracks
 
-        for download_model in download_files:
-            self._metadata_api.populate_metadata_from_musicbrainz_for_file(download_model)
+        # Choose a sensible pool size (e.g. cap at 32 threads for I/O-bound work)
+        max_workers = min(32, len(download_files) or 1)
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all metadata-population tasks
+            future_to_track = {
+                executor.submit(
+                    self._metadata_api.populate_metadata_from_musicbrainz_for_file,
+                    track
+                ): track
+                for track in download_files
+            }
+
+            # As each task completes, handle its result or exception
+            for future in as_completed(future_to_track):
+                track = future_to_track[future]
+                try:
+                    future.result()
+                except Exception as e:
+                    self._logger.error(
+                        f"Error populating metadata for {track}: {e}"
+                    )
 
     def _exit(self):
         self._registration.shutdown_component()

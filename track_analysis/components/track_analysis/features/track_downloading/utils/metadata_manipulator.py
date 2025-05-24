@@ -27,6 +27,9 @@ class MetadataKey(Enum):
     Encoder = "encoder"
     Length = "length"
 
+    RecordingID = "MUSICBRAINZ_TRACKID"
+    AlbumID = "MUSICBRAINZ_ALBUMID"
+
 
 class MetadataManipulator:
     """

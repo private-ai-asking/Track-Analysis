@@ -52,6 +52,8 @@ class MusicBrainzAPIHelper:
                 metadata[MetadataKey.Date] = release.metadata[MetadataKey.Date]
                 metadata[MetadataKey.Year] = release.metadata[MetadataKey.Year]
                 metadata[MetadataKey.Length] = str(recording_length / 1000)  # Convert milliseconds to seconds
+                metadata[MetadataKey.AlbumID] = release.mbid
+                metadata[MetadataKey.RecordingID] = recording_id
                 metadata[MetadataKey.Grouping] = "No Energy"
 
                 genre_data: GenreDataModel = self._genre_algorithm.get_genre_data(recording_id, release_id) if subgenres is None else None
