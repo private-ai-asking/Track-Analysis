@@ -1,3 +1,4 @@
+import pprint
 from pathlib import Path
 from typing import Tuple, List, Dict, Literal
 
@@ -13,32 +14,45 @@ class KeyProgressionTest(TestInterface):
     def __init__(self, logger: HoornLogger, modulation_penalty: float = 6.0):
         super().__init__(logger, is_child=True)
         self._separator: str = 'KeyProgressionTest'
-        # Temperley‐revised Ionian & Aeolian profiles
-        # C - C# - D - Eb - E - F - F# - G - Ab - A - Bb - B
+
+        # Temperley‑revised Ionian, Aeolian & Dorian profiles in chromatic order
+        # C, C#, D, Eb, E, F, F#, G, Ab, A, Bb, B
         ionian = np.array([5.0, 2.0, 3.5, 2.0, 4.5, 4.0, 2.0, 4.5, 2.0, 3.5, 1.5, 4.0])
         aeolian = np.array([5.0, 2.0, 3.5, 4.5, 2.0, 4.0, 2.0, 4.5, 3.5, 2.0, 1.5, 4.0])
-        dorian = np.array([5.0, 2.0, 3.5, 4.5, 2.0, 4.0, 2.0, 4.5, 2.0, 3.5, 1.5, 4.0])
+        dorian  = np.array([5.0, 2.0, 3.5, 4.5, 2.0, 4.0, 2.0, 4.5, 2.0, 3.5, 1.5, 4.0])
 
-        # 3) mean-center all three so they sum to zero
-        # for vec in (ionian, aeolian, dorian):
-        #     vec -= vec.mean()
+        # 1) Define Line‑of‑Fifths index mapping (from chromatic to LOF order)
+        lof_idx = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]
 
-        tonics = ["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"]
-        modes = {
-            "Ionian (Major)": ionian,
-            "Aeolian (Minor)": aeolian,
-            "Dorian (Minor)": dorian,
+        # 2) Reorder each profile into LOF order
+        ionian_lof  = ionian[lof_idx]
+        aeolian_lof = aeolian[lof_idx]
+        dorian_lof  = dorian[lof_idx]
+
+        # 3) Define the 12 tonics in LOF order
+        lof_tonics = ["C", "G", "D", "A", "E", "B", "F#", "C#", "G#", "D#", "A#", "F"]
+
+        # 4) Map mode names to their LOF‑ordered, centered profiles
+        modes_lof: Dict[str, np.ndarray] = {
+            "Ionian (Major)": ionian_lof,
+            "Aeolian (Minor)": aeolian_lof,
+            "Dorian (Minor)":  dorian_lof,
         }
+
+        # 5) Build templates by rotating each LOF profile by perfect‑fifth steps
         self._templates: Dict[str, np.ndarray] = {
-            f"{t} {m}": np.roll(base, i)
-            for m, base in modes.items()
-            for i, t in enumerate(tonics)
+            f"{tonic} {mode}": np.roll(profile, shift)
+            for mode, profile in modes_lof.items()
+            for shift, tonic in enumerate(lof_tonics)
         }
+
         self._pathfinder_helper = PathfindingHelper(
             logger,
+            lof_idx,
             self._compute_profile_scores_for_segment,
             lambda prev, curr: 0.0 if prev == curr else modulation_penalty
         )
+
 
     def test(self, file_path: Path, tempo_bpm: float, time_signature: Tuple[int,int] = (4,4)) -> None:
         if not file_path.is_file():
@@ -87,30 +101,17 @@ class KeyProgressionTest(TestInterface):
 
     def _compute_profile_scores_for_segment(
             self,
-            profile: np.ndarray,
-            mode: Literal["flat", "average"]
+            profile: np.ndarray
     ) -> Dict[str, float]:
         """
         Compute cosine-similarity scores between the chroma profile and each key template.
         score = (profile · template) / (||profile|| * ||template||)
         """
         scores: Dict[str, float] = {}
-        # precompute the norm of the input profile
-        if mode == "average":
-            p_norm = np.linalg.norm(profile)
-            if p_norm == 0:
-                # avoid division by zero—if no energy, fallback to zero scores
-                return {key: 0.0 for key in self._templates}
 
-            for key, tpl in self._templates.items():
-                tpl_norm = np.linalg.norm(tpl)
-                if tpl_norm == 0:
-                    scores[key] = 0.0
-                else:
-                    scores[key] = float(profile.dot(tpl) / (p_norm * tpl_norm))
-        elif mode == "flat":
-            for key, tpl in self._templates.items():
-                scores[key] = profile.dot(tpl)
+        for key, tpl in self._templates.items():
+            scores[key] = profile.dot(tpl)
+
         return scores
 
     def _segment_samples(

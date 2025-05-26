@@ -1,77 +1,77 @@
 import pprint
 from math import ceil
-from typing import Callable, Dict, List, Optional, Literal
+from typing import Callable, Dict, List, Optional
 
 import numpy as np
 from librosa.feature import chroma_stft
-from scipy.ndimage import median_filter
+
+from skimage.filters import threshold_otsu
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 
 
 class PathfindingHelper:
-    """Utility class for key calculation pathfinding helping."""
+    """Utility class for key calculation and Viterbi pathfinding using Otsu's adaptive dB thresholding."""
     def __init__(
             self,
             logger: HoornLogger,
-            raw_key_score_calculator_func: Callable[[np.ndarray, Literal], Dict[str, float]],
+            log_idx: List[int],
+            raw_key_score_calculator_func: Callable[[np.ndarray], Dict[str, float]],
             modulation_penalty_func: Optional[Callable[[str, str], float]] = None
     ):
         self._logger: HoornLogger = logger
         self._separator: str = "PathfindingHelper"
 
-        # function scoring a flat-profile -> raw scores per key
+        # function scoring a binary-profile -> raw scores per key
         self._raw_key_score_calculator = raw_key_score_calculator_func
         # penalty function for key transitions
-        if modulation_penalty_func is None:
-            self._penalty = lambda prev, curr: 0.0 if prev == curr else 6.0
-        else:
-            self._penalty = modulation_penalty_func
+        self._penalty = modulation_penalty_func or (lambda prev, curr: 0.0 if prev == curr else 6.0)
 
-        self._logger.trace("Successfully initialized.", separator=self._separator)
+        # Line-of-fifths index mapping
+        self._lof_idx: List[int] = log_idx
 
-    def _get_raw_scores_for_segment(
+        self._logger.trace("Initialized PathfindingHelper with Otsu thresholding.", separator=self._separator)
+
+    def _compute_binary_profile(
             self,
-            segment: np.ndarray,
-            sample_rate: int,
-            frames_per_segment_window: int
+            chroma: np.ndarray,
+            segment_idx: int
+    ) -> np.ndarray:
+        """
+        Convert a 12-bin raw chroma vector into a binary LOF-ordered profile
+        using Otsu's method on per-segment dB values.
+        """
+        # 1) Convert to decibels relative to segment max
+        eps = 1e-9
+        segment_max = chroma.max() or 1.0
+        decibels = 20 * np.log10(chroma / (segment_max + eps) + eps)
+
+        print(f"[Segment {segment_idx}] In dB (0 dB = segment max):")
+        pprint.pprint(decibels)
+
+        thresh_db = threshold_otsu(decibels)
+
+        print(f"[Segment {segment_idx}] Otsu threshold: {thresh_db:.2f} dB")
+
+        # 3) Binary presence
+        binary = (decibels >= thresh_db).astype(np.int8)
+        print(f"[Segment {segment_idx}] Binary presence (>=Otsu):")
+        pprint.pprint(binary)
+
+        # 4) Reorder into LOF space
+        return binary[self._lof_idx]
+
+    def _score_profile(
+            self,
+            binary_profile: np.ndarray,
+            segment_idx: int
     ) -> Dict[str, float]:
-        # 1) Compute hop_length from desired number of frames
-        segment_sample_count = segment.shape[0]
-        hop_length = ceil(segment_sample_count / frames_per_segment_window)
-
-        # 2) Compute chroma
-        chroma = chroma_stft(
-            y=segment,
-            sr=sample_rate,
-            n_fft=1024,
-            hop_length=hop_length,
-            norm=2
-        )
-
-        chroma = median_filter(chroma, size=(1, 3))
-
-        # print("Original:")
-        # pprint.pprint(chroma)
-
-        # 3) Average over time to get 12-bin profile
-        chroma = chroma.mean(axis=1)
-
-        # print("Average:")
-        # pprint.pprint(chroma)
-
-        # 4) Adaptive thresholding via percentile
-        # thr = np.percentile(chroma, 75)         # choose any percentile you like
-        # chroma = (chroma > thr).astype(np.int8)
-
-        chroma = chroma / (chroma.sum() + 1e-8)
-
-        # 5) Score against your (weighted) templates
-        scores: Dict[str, float] = self._raw_key_score_calculator(chroma, mode="average")  # type: ignore
-
-        # print("Raw key-score:")
-        # pprint.pprint(scores)
-
+        scores = self._raw_key_score_calculator(binary_profile)
+        print(f"[Segment {segment_idx}] Raw key-score:")
+        pprint.pprint(scores)
+        best = max(scores, key=scores.get)
+        print(f"[Segment {segment_idx}] Best key {best} ({scores[best]:.3f})")
+        # exit()
         return scores
 
     def process(
@@ -80,72 +80,48 @@ class PathfindingHelper:
             sample_rate: int,
             frames_per_segment_window: int
     ) -> List[str]:
-        """
-        Perform Viterbi-style cumulative_key_scores over all segments to find the optimal key sequence.
-
-        Returns:
-            A list of predicted keys, one per segment.
-        """
-        # 1) Gather raw scores per segment
-        raw_scores: List[Dict[str, float]] = []
-        total_segments: int = len(segments)
-        processed: int = 0
-        for segment in segments:
-            scores = self._get_raw_scores_for_segment(
-                segment,
-                sample_rate,
-                frames_per_segment_window
-            )
-            raw_scores.append(scores)
-            processed += 1
-            self._logger.info(
-                f"Processed {processed}/{total_segments} ({processed/total_segments*100:.2f}%) segments.",
-                separator=self._separator
-            )
-
-        if not raw_scores:
+        if not segments:
             return []
 
-        self._logger.info("Starting the backtracking process...", separator=self._separator)
+        # Precompute mean-chroma per segment
+        chromas = []
+        for idx, seg in enumerate(segments, start=1):
+            hop = ceil(seg.shape[0] / frames_per_segment_window)
+            C = chroma_stft(y=seg, sr=sample_rate, n_fft=1024, hop_length=hop, norm=None)
+            print(f"[Segment {idx}] STFT frames:")
+            pprint.pprint(C)
+            m = C.mean(axis=1)
+            print(f"[Segment {idx}] Mean energy per bin:")
+            pprint.pprint(m)
+            chromas.append(m)
 
-        # 2) Prepare cumulative_key_scores tables
+        # Compute raw scores
+        raw_scores = []
+        for idx, chi in enumerate(chromas, start=1):
+            binary = self._compute_binary_profile(chi, idx)
+            raw_scores.append(self._score_profile(binary, idx))
+            self._logger.info(f"Processed {idx}/{len(chromas)} segments", separator=self._separator)
+
+        # Viterbi
         keys = list(raw_scores[0].keys())
-        num_segments = len(raw_scores)
-        num_states = len(keys)
-
-        cumulative_key_scores = np.full((num_segments, num_states), -np.inf, dtype=float)
-        predecessor_state = np.zeros((num_segments, num_states), dtype=int)
-
-        # 3) Initialization for first segment
-        for i, key in enumerate(keys):
-            cumulative_key_scores[0, i] = raw_scores[0][key]
-            predecessor_state[0, i] = i
-
-        # 4) Recurrence
-        for t in range(1, num_segments):
-            for i, curr_key in enumerate(keys):
-                score_t = raw_scores[t][curr_key]
-                best_prev_score = -np.inf
-                best_prev_index = 0
-                for j, prev_key in enumerate(keys):
-                    penalty = self._penalty(prev_key, curr_key)
-                    candidate = cumulative_key_scores[t-1, j] - penalty + score_t
-                    if candidate > best_prev_score:
-                        best_prev_score = candidate
-                        best_prev_index = j
-                cumulative_key_scores[t, i] = best_prev_score
-                predecessor_state[t, i] = best_prev_index
-
-        # 5) Termination: pick best final state
-        final_index = int(np.argmax(cumulative_key_scores[-1, :]))
-
-        # 6) Backtracking to recover path
-        best_path: List[str] = [None] * num_segments  # type: ignore
-        best_path[-1] = keys[final_index]
-        for t in range(num_segments-1, 0, -1):
-            prev_index = predecessor_state[t, final_index]
-            best_path[t-1] = keys[prev_index]
-            final_index = prev_index
-
-        self._logger.info("Done backtracking; calculated best path.", separator=self._separator)
-        return best_path
+        N, K = len(raw_scores), len(keys)
+        C = np.full((N, K), -np.inf)
+        P = np.zeros((N, K), dtype=int)
+        for i, k in enumerate(keys):
+            C[0, i] = raw_scores[0][k]
+        for t in range(1, N):
+            for i, curr in enumerate(keys):
+                best_val, best_j = -np.inf, 0
+                for j, prev in enumerate(keys):
+                    v = C[t-1, j] - self._penalty(prev, curr) + raw_scores[t][curr]
+                    if v > best_val:
+                        best_val, best_j = v, j
+                C[t, i], P[t, i] = best_val, best_j
+        # backtrack
+        path = [None] * N
+        j = int(np.argmax(C[-1]))
+        for t in range(N-1, -1, -1):
+            path[t] = keys[j]
+            j = P[t, j]
+        self._logger.info("Completed key pathfinding.", separator=self._separator)
+        return path
