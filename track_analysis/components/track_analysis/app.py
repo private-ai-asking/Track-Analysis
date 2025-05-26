@@ -259,7 +259,7 @@ class App:
     def _test_keys(self, profiling: bool = False) -> None:
         track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\11 Nas & Damian Marley - Patience.flac")
         # track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Classical\Claude Debussy\Classical Best\31 Danse sacrée et progane - Sacred Dance.flac")
-        tester: KeyProgressionTest = KeyProgressionTest(self._logger, modulation_penalty=12.0)
+        tester: KeyProgressionTest = KeyProgressionTest(self._logger, modulation_penalty=12.0, max_beat_level=5, segment_beat_level=5)
 
         y, sr = librosa.load(track_path, sr=None)
         tempo_bpm, _ = librosa.beat.beat_track(y=y, sr=sr, units='frames')

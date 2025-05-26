@@ -11,7 +11,7 @@ from track_analysis.tests.util.pathfinder import PathfindingHelper
 
 
 class KeyProgressionTest(TestInterface):
-    def __init__(self, logger: HoornLogger, modulation_penalty: float = 6.0):
+    def __init__(self, logger: HoornLogger, modulation_penalty: float = 6.0, max_beat_level: int = 4, segment_beat_level: int = 2):
         super().__init__(logger, is_child=True)
         self._separator: str = 'KeyProgressionTest'
 
@@ -52,6 +52,9 @@ class KeyProgressionTest(TestInterface):
             self._compute_profile_scores_for_segment,
             lambda prev, curr: 0.0 if prev == curr else modulation_penalty
         )
+
+        self._max_beat_level     = max_beat_level
+        self._segment_beat_level = segment_beat_level
 
 
     def test(self, file_path: Path, tempo_bpm: float, time_signature: Tuple[int,int] = (4,4)) -> None:
@@ -117,10 +120,69 @@ class KeyProgressionTest(TestInterface):
     def _segment_samples(
             self,
             samples_and_rate: Tuple[np.ndarray, int],
-            time_signature: Tuple[int,int]
+            time_signature: Tuple[int,int],
     ) -> Tuple[List[np.ndarray], List[float]]:
-        """Detect beats and slice audio into bar‐aligned segments, returning start times in seconds"""
+        """
+        Segment on beats whose strength-level (1..max) ≥ self._segment_beat_level.
+        Falls back to bar-aligned segmentation if too few strong beats.
+        """
+        samples, sr = samples_and_rate
+
+        # 1) onset envelope & beat tracking
+        onset_env = librosa.onset.onset_strength(y=samples, sr=sr)
+        tempo, beat_frames = librosa.beat.beat_track(
+            y=samples, sr=sr, units='frames', trim=False
+        )
+        beat_times   = librosa.frames_to_time(beat_frames, sr=sr)
+        beat_samples = (beat_times * sr).astype(int)
+        strengths    = onset_env[beat_frames]
+
+        # 2) quantize strengths into discrete levels 1..max
+        edges = np.percentile(
+            strengths,
+            np.linspace(0, 100, self._max_beat_level + 1)
+        )
+        levels = np.digitize(strengths, edges[1:-1], right=True) + 1
+
+        # 3) pick only beats at or above your configured level
+        strong_idx = np.where(levels >= self._segment_beat_level)[0]
+        if len(strong_idx) < 2:
+            # fallback to old bar‐aligned segmentation
+            return self._segment_by_bars(samples_and_rate, time_signature)
+
+        starts = beat_samples[strong_idx]
+        times  = beat_times[strong_idx]
+
+        # 4) append end of audio as final boundary
+        if starts[-1] < samples.shape[0]:
+            starts = np.append(starts, samples.shape[0])
+            times  = np.append(times, samples.shape[0]/sr)
+
+        # 5) slice between successive starts
+        segments   = [
+            samples[starts[i]:starts[i+1]]
+            for i in range(len(starts)-1)
+        ]
+        start_times = times[:-1].tolist()
+
+        self._logger.debug(
+            f"Segmented into {len(segments)} segments at beats level ≥ "
+            f"{self._segment_beat_level}/{self._max_beat_level}",
+            separator=self._separator
+        )
+        return segments, start_times
+
+
+    def _segment_by_bars(
+            self,
+            samples_and_rate: Tuple[np.ndarray, int],
+            time_signature: Tuple[int,int],
+    ) -> Tuple[List[np.ndarray], List[float]]:
+        """
+        Original bar‐aligned segmentation: one segment per bar (your old logic).
+        """
         samples, sample_rate = samples_and_rate
+        beats_per_bar = time_signature[0]
 
         # 1) Beat tracking with initial tempo guess
         tempo_bpm, beat_frames = librosa.beat.beat_track(
@@ -133,15 +195,13 @@ class KeyProgressionTest(TestInterface):
         beat_samples = (beat_times * sample_rate).astype(int)
 
         # 2) Group into bars
-        beats_per_bar = time_signature[0]
         if len(beat_samples) < beats_per_bar:
             return [samples], [0.0]
         bar_sample_starts = beat_samples[::beats_per_bar]
         bar_time_starts = beat_times[::beats_per_bar]
-        # include last frame boundary
         if bar_sample_starts[-1] != beat_samples[-1]:
             bar_sample_starts = np.append(bar_sample_starts, beat_samples[-1])
-            bar_time_starts = np.append(bar_time_starts, samples.shape[0] / sample_rate)
+            bar_time_starts  = np.append(bar_time_starts, samples.shape[0] / sample_rate)
 
         segments = [
             samples[bar_sample_starts[i]:bar_sample_starts[i+1]]
