@@ -18,3 +18,5 @@ pyebur128
 numba
 samplerate
 soxr
+music21
+scikit-image

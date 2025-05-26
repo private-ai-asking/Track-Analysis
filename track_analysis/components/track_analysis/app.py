@@ -4,6 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Callable, TypeVar, Any
 
+import librosa
+import numpy as np
 from sentence_transformers import SentenceTransformer
 from viztracer import VizTracer
 
@@ -25,7 +27,6 @@ from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRAR
     MAX_NEW_TRACKS_PER_RUN
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
-from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import \
     BuildLibraryDataCSVPipeline
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
@@ -53,6 +54,7 @@ from track_analysis.components.track_analysis.features.track_downloading.pipelin
     DownloadPipelineContext
 from track_analysis.components.track_analysis.features.track_downloading.utils.genre_algorithm import GenreAlgorithm
 from track_analysis.tests.embedding_test import EmbeddingTest
+from track_analysis.tests.key_test import KeyProgressionTest
 from track_analysis.tests.registration_test import RegistrationTest
 
 T = TypeVar("T")
@@ -203,6 +205,8 @@ class App:
         cmd.add_command(["make_csv-p", "mc-p"], "Builds a CSV for the library data. Fills in any missing values for existing entries. Also profiles the function.", self._make_csv, arguments=[True])
         cmd.add_command(["generate_embeddings", "ge"], "Generates embeddings for the library.", self._generate_embeddings)
         cmd.add_command(["test_params", "tp"], "Tests various parameter combinations for the algorithm.", self._scrobble_linker.test_parameters)
+        cmd.add_command(["test_keys_extraction", "tke"], "Tests the key extraction algorithm.", self._test_keys, arguments=[False])
+        cmd.add_command(["test_keys_extraction-p", "tke-p"], "Tests the key extraction algorithm and profiles.", self._test_keys, arguments=[True])
         cmd.add_command(["process_uncertain", "pu"], "Processes the uncertain keys interactively.", self._uncertain_keys_processor.process)
         cmd.add_command(["print_unmatched", "pru"], "Prints the library entries whose UUIDs don't have an associated cached scrobble.", self._unmatch_util.print_unmatched_tracks)
         cmd.add_command(["build_cache", "bc"], "Builds the cache for the library for n samples.", self._build_cache, arguments=[False])
@@ -251,6 +255,22 @@ class App:
                     self._logger.error(
                         f"Error populating metadata for {track}: {e}"
                     )
+
+    def _test_keys(self, profiling: bool = False) -> None:
+        # track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\11 Nas & Damian Marley - Patience.flac")
+        track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Classical\Claude Debussy\Classical Best\31 Danse sacrée et progane - Sacred Dance.flac")
+        tester: KeyProgressionTest = KeyProgressionTest(self._logger, modulation_penalty=6.0)
+
+        y, sr = librosa.load(track_path, sr=None)
+        tempo_bpm, _ = librosa.beat.beat_track(y=y, sr=sr, units='frames')
+
+        print(f"Estimated BPM: {tempo_bpm}")
+
+        def __test():
+            tester.test(file_path=track_path, tempo_bpm=tempo_bpm, time_signature=(3, 2))
+
+        if profiling: _run_with_profiling(__test, category="Key Extraction")
+        else: __test()
 
     def _exit(self):
         self._registration.shutdown_component()
