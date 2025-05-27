@@ -58,6 +58,12 @@ class PathfindingHelper:
         print(f"[Segment {segment_idx}] Binary presence (>=Otsu):")
         pprint.pprint(binary)
 
+        num_present = np.count_nonzero(binary)
+        if num_present == 0:
+            self._logger.warning(f"For segment {segment_idx}, 0 notes are present!", separator=self._separator)
+        if num_present == 12:
+            self._logger.warning(f"For segment {segment_idx}, all 12 notes are present!", separator=self._separator)
+
         # 4) Reorder into LOF space
         return binary[self._lof_idx]
 
