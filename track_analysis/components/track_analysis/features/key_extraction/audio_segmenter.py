@@ -1,0 +1,67 @@
+from typing import Tuple, Optional
+
+import numpy as np
+
+from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.features.key_extraction.segmentation.beat_detector import BeatDetector
+from track_analysis.components.track_analysis.features.key_extraction.segmentation.metrical_hierarchy_constructor import \
+    MetricalHierarchyConstructor
+from track_analysis.components.track_analysis.features.key_extraction.segmentation.model.segmentation_result import \
+    SegmentationResult
+from track_analysis.components.track_analysis.features.key_extraction.segmentation.segment_slicer import SegmentSlicer
+
+
+class AudioSegmenter:
+    """
+    Coordinates beat detection, hierarchy assignment, and slicing.
+    """
+    def __init__(
+            self,
+            logger: HoornLogger,
+            subdivisions_per_beat: int = 2,
+    ):
+        self._logger = logger
+        self._separator = "AudioSegmenter"
+        self._detector = BeatDetector(logger, self._separator)
+        self._hierarchy = MetricalHierarchyConstructor(subdivisions_per_beat, logger, self._separator)
+        self._slicer = SegmentSlicer(logger, self._separator)
+
+        self._logger.trace(
+            "Initialized AudioSegmenter",
+            separator=self._separator,
+        )
+        self._logger.debug(
+            f"Configuration: subdivisions_per_beat={subdivisions_per_beat}",
+            separator=self._separator,
+        )
+
+    def get_segments(
+            self,
+            audio_samples: np.ndarray,
+            sample_rate: int,
+            time_signature: Tuple[int, int] = (4, 4),
+            min_segment_level: int = 3,
+    ) -> Optional[SegmentationResult]:
+        beats_per_bar, _ = time_signature
+        self._logger.debug(
+            f"Segmenting audio ({len(audio_samples)} samples at {sample_rate}Hz) "
+            f"with time signature {beats_per_bar}/{time_signature[1]}",
+            separator=self._separator,
+        )
+
+        tempo, frames, times = self._detector.detect(audio_samples, sample_rate)
+        if len(frames) < beats_per_bar:
+            self._logger.warning(
+                "Too few beats for a full bar; cannot segment.",
+                separator=self._separator,
+            )
+            return None
+
+        level_array, event_times = self._hierarchy.construct_hierarchy(
+            times, frames, beats_per_bar
+        )
+        strong_times = [t for t, lvl in zip(event_times, level_array) if lvl >= min_segment_level]
+
+        return self._slicer.slice_segments(
+            audio_samples, sample_rate, event_times, strong_times
+        )

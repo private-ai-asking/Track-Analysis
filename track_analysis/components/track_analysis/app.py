@@ -56,6 +56,7 @@ from track_analysis.components.track_analysis.features.track_downloading.utils.g
 from track_analysis.tests.embedding_test import EmbeddingTest
 from track_analysis.tests.key_test import KeyProgressionTest
 from track_analysis.tests.registration_test import RegistrationTest
+from track_analysis.tests.segmentation_test import SegmentationTest
 
 T = TypeVar("T")
 
@@ -257,17 +258,19 @@ class App:
                     )
 
     def _test_keys(self, profiling: bool = False) -> None:
-        track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\11 Nas & Damian Marley - Patience.flac")
-        # track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Classical\Claude Debussy\Classical Best\31 Danse sacrée et progane - Sacred Dance.flac")
+        # track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\11 Nas & Damian Marley - Patience.flac")
+        track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Classical\Claude Debussy\Classical Best\31 Danse sacrée et progane - Sacred Dance.flac")
         tester: KeyProgressionTest = KeyProgressionTest(self._logger, modulation_penalty=12.0, max_beat_level=5, segment_beat_level=5)
+        tester2: SegmentationTest = SegmentationTest(self._logger, min_segment_level=4)
 
-        y, sr = librosa.load(track_path, sr=None)
-        tempo_bpm, _ = librosa.beat.beat_track(y=y, sr=sr, units='frames')
-
-        print(f"Estimated BPM: {tempo_bpm}")
+        # y, sr = librosa.load(track_path, sr=None)
+        # tempo_bpm, _ = librosa.beat.beat_track(y=y, sr=sr, units='frames')
+        #
+        # print(f"Estimated BPM: {tempo_bpm}")
 
         def __test():
-            tester.test(file_path=track_path, tempo_bpm=tempo_bpm, time_signature=(4, 4))
+            # tester.test(file_path=track_path, tempo_bpm=tempo_bpm, time_signature=(4, 4))
+            tester2.test(track_path, (3, 2))
 
         if profiling: _run_with_profiling(__test, category="Key Extraction")
         else: __test()
