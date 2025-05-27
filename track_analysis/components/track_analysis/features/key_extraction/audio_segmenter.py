@@ -41,7 +41,7 @@ class AudioSegmenter:
             sample_rate: int,
             time_signature: Tuple[int, int] = (4, 4),
             min_segment_level: int = 3,
-    ) -> Optional[SegmentationResult]:
+    ) -> Optional[Tuple[SegmentationResult, float]]:
         beats_per_bar, _ = time_signature
         self._logger.debug(
             f"Segmenting audio ({len(audio_samples)} samples at {sample_rate}Hz) "
@@ -64,4 +64,4 @@ class AudioSegmenter:
 
         return self._slicer.slice_segments(
             audio_samples, sample_rate, event_times, strong_times
-        )
+        ), tempo

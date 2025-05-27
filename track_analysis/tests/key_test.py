@@ -64,7 +64,7 @@ class KeyProgressionTest(TestInterface):
         self._logger.info(f"Analyzing file: {file_path}", separator=self._separator)
 
         audio_samples, sample_rate = self._load_track(file_path)
-        segmentation_result: SegmentationResult = self._audio_segmenter.get_segments(
+        segmentation_result, tempo = self._audio_segmenter.get_segments(
             audio_samples=audio_samples,
             sample_rate=sample_rate,
             time_signature=time_signature,

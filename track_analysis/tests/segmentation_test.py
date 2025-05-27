@@ -20,7 +20,7 @@ class SegmentationTest:
 
     def test(self, file_path: Path, time_signature: Tuple[int, int] = (4, 4)):
         audio_samples, sample_rate = self._load_track(file_path)
-        result = self._audio_segmenter.get_segments(audio_samples, sample_rate, time_signature)
+        result, _ = self._audio_segmenter.get_segments(audio_samples, sample_rate, time_signature)
         start_times = result.start_times
         durations = result.durations
 

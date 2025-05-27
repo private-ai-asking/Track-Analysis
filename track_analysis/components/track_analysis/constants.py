@@ -18,7 +18,7 @@ CACHE_DIRECTORY: Path = Path("X:\Track Analysis\cache")
 BENCHMARK_DIRECTORY: Path = Path(r"X:\Track Analysis\track_analysis\benchmarks")
 
 DEBUG: bool = True
-VERBOSE: bool = False
+VERBOSE: bool = True
 PROFILE_DATA_LOADING: bool = False
 EMBED_BATCH_SIZE: int = 1500
 
