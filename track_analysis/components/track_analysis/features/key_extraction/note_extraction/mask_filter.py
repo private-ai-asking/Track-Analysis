@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 from scipy.ndimage import median_filter
 
@@ -15,7 +17,8 @@ class MaskFilter:
             hop_length: int,
             sample_rate: int,
             tempo: float,
-            segment_level: int
+            segment_level: int,
+            time_signature: Tuple[int, int]
     ) -> np.ndarray:
         quarter_note_duration_seconds = 60.0 / tempo
 
@@ -33,7 +36,11 @@ class MaskFilter:
             0: 1/64
         }[segment_level]
 
-        time_threshold_s = quarter_note_duration_seconds * 4 * fraction_of_bar
+        quarters_per_bar: float = time_signature[0] * (4 / time_signature[1])
+
+        self._logger.debug(f"Quarters per bar: {quarters_per_bar} with tempo: {tempo}bpm (in quarter notes), and signature: {time_signature[0]}/{time_signature[1]}", separator=self._separator)
+
+        time_threshold_s = quarter_note_duration_seconds * quarters_per_bar * fraction_of_bar
         time_threshold_ms = time_threshold_s * 1000
 
         self._logger.debug(f"Chosen time threshold: {time_threshold_ms:.3f}ms", separator=self._separator)

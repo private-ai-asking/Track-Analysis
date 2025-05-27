@@ -36,5 +36,5 @@ class NoteExtractor:
         chroma = self._chroma_extractor.extract(audio, sample_rate)
         chroma_db = self._db_converter.to_db(chroma)
         binary_mask = self._binary_mask_generator.binarize(chroma_db)
-        clean_mask = self._mask_filter.filter(binary_mask, self._hop_length_ms, sample_rate, tempo, min_segment_beat_level)
+        clean_mask = self._mask_filter.filter(binary_mask, self._hop_length_ms, sample_rate, tempo, min_segment_beat_level, time_signature)
         return self._event_note_builder.build(clean_mask, sample_rate), segment_results
