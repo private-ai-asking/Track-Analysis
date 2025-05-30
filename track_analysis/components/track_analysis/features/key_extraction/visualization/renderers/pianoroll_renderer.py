@@ -2,20 +2,16 @@ import os
 from pathlib import Path
 from typing import Optional
 
-import librosa
 import numpy as np
 from joblib import Memory
 
+from track_analysis.components.track_analysis.features.key_extraction.utils.convert_to_db import convert_to_db_func
 from track_analysis.components.track_analysis.features.key_extraction.visualization.renderers.base_renderer import \
     Renderer
 
 
-def _compute_db(audio: np.ndarray, ref: float) -> np.ndarray:
-    return librosa.amplitude_to_db(audio, ref=ref)
-
-
 class PianoRollRenderer(Renderer):
-    def __init__(self, cache_dir: Path, cmap="viridis", min_midi=0, num_ticks: Optional[int] = None, min_v: int = -60, max_v: int = 0, convert_to_db: bool = True):
+    def __init__(self, cmap="viridis", min_midi=0, num_ticks: Optional[int] = None, min_v: int = -60, max_v: int = 0, convert_to_db: bool = True):
         self._cmap = cmap
         self._min = min_midi
         self._num_ticks = num_ticks
@@ -23,9 +19,7 @@ class PianoRollRenderer(Renderer):
         self._max_v = max_v
 
         self._convert_to_db = convert_to_db
-
-        os.makedirs(cache_dir, exist_ok=True)
-        self._compute_db = Memory(cache_dir, verbose=0).cache(_compute_db)
+        self._compute_db = convert_to_db_func
 
     def render(self, ax, midi_map: np.ndarray):
         """

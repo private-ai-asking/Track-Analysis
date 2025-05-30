@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -8,11 +7,10 @@ from joblib import Memory
 from matplotlib import pyplot as plt
 from matplotlib.ticker import FuncFormatter
 
+from track_analysis.components.track_analysis.features.key_extraction.utils.convert_to_db import convert_to_db_func
 from track_analysis.components.track_analysis.features.key_extraction.visualization.renderers.base_renderer import \
     Renderer
 
-def _compute_db(audio: np.ndarray, ref: float) -> np.ndarray:
-    return librosa.amplitude_to_db(audio, ref=ref)
 
 def _compute_fft(audio: np.ndarray, fft: int, hop_length: int) -> np.ndarray:
     D = librosa.stft(audio, n_fft=fft, hop_length=hop_length)
@@ -36,8 +34,7 @@ class SpectrogramRenderer(Renderer):
             cmap: str = "magma",
             n_fft: Optional[int] = None,
     ):
-        os.makedirs(cache_dir, exist_ok=True)
-        self._compute_db = Memory(cache_dir, verbose=0).cache(_compute_db)
+        self._compute_db = convert_to_db_func
         self._compute_fft = Memory(cache_dir, verbose=0).cache(_compute_fft)
         self._compute_times_and_frequencies = Memory(cache_dir, verbose=0).cache(_compute_time_and_frequencies)
 
