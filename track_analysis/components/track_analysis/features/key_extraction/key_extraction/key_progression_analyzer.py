@@ -1,3 +1,4 @@
+import pprint
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -46,23 +47,27 @@ class KeyProgressionAnalyzer:
         templates = builder.build_templates()
         self._matcher = SimilarityMatcher(logger, templates)
 
-        mode_penalties = {
-            'Ionian (Major)': {
-                'Ionian (Major)': 0.0,
-                'Aeolian (Minor)': 0.2,
-                'Dorian (Minor)': 0.5,
-            },
-            'Aeolian (Minor)': {
-                'Ionian (Major)': 0.2,
-                'Aeolian (Minor)': 0.0,
-                'Dorian (Minor)': 0.3,
-            },
-            'Dorian (Minor)': {
-                'Ionian (Major)': 0.5,
-                'Aeolian (Minor)': 0.3,
-                'Dorian (Minor)': 0.0,
-            },
-        }
+        mode_names     = list(self._modes.keys())
+        mode_templates = [ self._modes[name] for name in mode_names ]
+
+        matcher = SimilarityMatcher(
+            logger=self._logger,
+            templates=self._modes,
+            similarity_fn=None,
+            preprocessor=None,
+            label_order=mode_names
+        )
+
+        result = matcher.match(mode_templates)
+
+        mode_penalties = {}
+        for i, m1 in enumerate(mode_names):
+            mode_penalties[m1] = {}
+            for j, m2 in enumerate(mode_names):
+                corr = result.matrix[i, j]
+                mode_penalties[m1][m2] = float(1.0 - corr)
+
+        self._logger.debug(f"Mode penalties:\n{pprint.pformat(mode_penalties)}", separator=self._separator)
 
         penalty_scaled = modulation_penalty * 2.0 / self._modes['Ionian (Major)'].sum()
         penalty_matrix = PenaltyMatrixBuilder(logger, [key for key, _ in templates.items()], self._tonics, penalty_scaled, mode_list=[mode for mode, _ in self._modes.items()], mode_penalty_matrix=mode_penalties).build()
