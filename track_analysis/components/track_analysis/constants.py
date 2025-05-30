@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from typing import List
 
+import psutil
+
 ROOT: Path = Path(os.path.realpath(__file__)).parent.parent.parent.parent
 
 FFMPEG_PATH: Path = Path(r"D:\[97] Installations\[01] Software\FFMPEG\bin\ffmpeg.exe")
@@ -30,8 +32,9 @@ TEST_SAMPLE_SIZE: int = None  # The number of scrobbles to load (only applies to
 
 NO_MATCH_LABEL: str = "<NO MATCH>"
 
-CPU_COUNT: int = os.cpu_count()
-NUM_WORKERS_CPU_HEAVY = CPU_COUNT + 10
+PHYSICAL_CPU_COUNT: int = psutil.cpu_count(logical=False)
+LOGICAL_CPU_COUNT: int = psutil.cpu_count(logical=True)
+NUM_WORKERS_CPU_HEAVY = LOGICAL_CPU_COUNT + 10
 MAX_NEW_TRACKS_PER_RUN = 50
 
 # ======================================================================================================================

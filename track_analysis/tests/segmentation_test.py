@@ -5,7 +5,8 @@ import librosa
 import numpy as np
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.key_extraction.audio_segmenter import AudioSegmenter
+from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
+from track_analysis.components.track_analysis.features.key_extraction.segmentation.audio_segmenter import AudioSegmenter
 
 
 class SegmentationTest:
@@ -15,7 +16,7 @@ class SegmentationTest:
         self._min_segment_level = min_segment_level
         # number of equal subdivisions of each beat, to generate a fixed 4-level hierarchy
         self._subdivisions_per_beat = subdivisions_per_beat
-        self._audio_segmenter: AudioSegmenter = AudioSegmenter(logger, subdivisions_per_beat)
+        self._audio_segmenter: AudioSegmenter = AudioSegmenter(logger, subdivisions_per_beat=subdivisions_per_beat, cache_dir=CACHE_DIRECTORY / "audio segmentation")
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
     def test(self, file_path: Path, time_signature: Tuple[int, int] = (4, 4)):

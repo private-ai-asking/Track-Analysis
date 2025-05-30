@@ -20,3 +20,6 @@ samplerate
 soxr
 music21
 scikit-image
+matplotlib
+joblib
+psutil

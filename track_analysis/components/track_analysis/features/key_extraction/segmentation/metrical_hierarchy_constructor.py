@@ -1,8 +1,33 @@
+import os
+from pathlib import Path
 from typing import List, Tuple
 import numpy as np
+from joblib import Memory
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import VERBOSE
+
+def _generate_subbeat_events(
+        subdivisions: int,
+        beat_times: np.ndarray,
+        beat_frames: np.ndarray) -> List[Tuple[float, int]]:
+    events: List[Tuple[float, int]] = []
+
+    for i in range(beat_times.size - 1):
+        t0, t1 = beat_times[i], beat_times[i + 1]
+        f0, f1 = beat_frames[i], beat_frames[i + 1]
+        interval = t1 - t0
+        frame_span = f1 - f0
+
+        for sub in range(subdivisions):
+            frac = sub / subdivisions
+            time_point = t0 + frac * interval
+            frame_point = int(f0 + frac * frame_span)
+            events.append((time_point, frame_point))  # type: ignore
+
+    # include the final beat
+    events.append((float(beat_times[-1]), int(beat_frames[-1])))
+    return sorted(events, key=lambda evt: evt[0])
 
 
 class MetricalHierarchyConstructor:
@@ -17,10 +42,14 @@ class MetricalHierarchyConstructor:
             subdivisions_per_beat: int,
             logger: HoornLogger,
             separator: str,
+            cache_dir: Path
     ) -> None:
         self._subdivisions = subdivisions_per_beat
         self._logger = logger
         self._separator = separator
+
+        os.makedirs(cache_dir, exist_ok=True)
+        self._compute = Memory(cache_dir, verbose=0).cache(_generate_subbeat_events)
 
     def construct_hierarchy(
             self,
@@ -85,23 +114,7 @@ class MetricalHierarchyConstructor:
         Linearly interpolate times and frames between beats for subdivisions.
         Returns a sorted list of (time, frame) tuples for each sub-beat event.
         """
-        events: List[Tuple[float, int]] = []
-
-        for i in range(beat_times.size - 1):
-            t0, t1 = beat_times[i], beat_times[i + 1]
-            f0, f1 = beat_frames[i], beat_frames[i + 1]
-            interval = t1 - t0
-            frame_span = f1 - f0
-
-            for sub in range(self._subdivisions):
-                frac = sub / self._subdivisions
-                time_point = t0 + frac * interval
-                frame_point = int(f0 + frac * frame_span)
-                events.append((time_point, frame_point))  # type: ignore
-
-        # include the final beat
-        events.append((float(beat_times[-1]), int(beat_frames[-1])))
-        return sorted(events, key=lambda evt: evt[0])
+        return self._compute(self._subdivisions, beat_times, beat_frames)
 
     def _assign_event_levels(
             self,

@@ -1,133 +1,163 @@
 from pathlib import Path
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
 
-import librosa
 import numpy as np
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.testing import TestInterface
-from track_analysis.components.track_analysis.features.key_extraction.audio_segmenter import AudioSegmenter
-from track_analysis.components.track_analysis.features.key_extraction.segmentation.model.segmentation_result import \
-    SegmentationResult
-from track_analysis.tests.util.pathfinder import PathfindingHelper
+from track_analysis.components.track_analysis.features.key_extraction.note_extraction.note_extractor import \
+    NoteExtractor
+from track_analysis.components.track_analysis.features.key_extraction.note_extraction.segment_profiler import \
+    SegmentProfiler, Segment
+
+
+def lof_mapping(arr: np.ndarray) -> np.ndarray:
+    # chromatic->LOF index map
+    idx = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]
+    return arr[idx]
 
 
 class KeyProgressionTest(TestInterface):
     def __init__(self, logger: HoornLogger, modulation_penalty: float = 6.0):
         super().__init__(logger, is_child=True)
-        self._separator: str = 'KeyProgressionTest'
+        self._separator = 'KeyProgressionTest'
 
-        # Temperley‑revised Ionian, Aeolian & Dorian profiles in chromatic order
-        # C, C#, D, Eb, E, F, F#, G, Ab, A, Bb, B
+        # base profiles in chromatic order
         ionian = np.array([5.0, 2.0, 3.5, 2.0, 4.5, 4.0, 2.0, 4.5, 2.0, 3.5, 1.5, 4.0])
         aeolian = np.array([5.0, 2.0, 3.5, 4.5, 2.0, 4.0, 2.0, 4.5, 3.5, 2.0, 1.5, 4.0])
-        dorian  = np.array([5.0, 2.0, 3.5, 4.5, 2.0, 4.0, 2.0, 4.5, 2.0, 3.5, 1.5, 4.0])
+        dorian = np.array([5.0, 2.0, 3.5, 4.5, 2.0, 4.0, 2.0, 4.5, 2.0, 3.5, 1.5, 4.0])
+        modes = {'Ionian (Major)': ionian, 'Aeolian (Minor)': aeolian, 'Dorian (Minor)': dorian}
+        lof_tonics = ['C','G','D','A','E','B','F#','C#','G#','D#','A#','F']
 
-        # 1) Define Line‑of‑Fifths index mapping (from chromatic to LOF order)
-        lof_idx = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]
+        # build LOF templates
+        self._templates: Dict[str, np.ndarray] = {}
+        for mode_name, arr in modes.items():
+            base = lof_mapping(arr)
+            for shift, tonic in enumerate(lof_tonics):
+                name = f"{tonic} {mode_name}"
+                tmpl = np.roll(base, shift)
+                self._templates[name] = tmpl / tmpl.sum()
 
-        # 2) Reorder each profile into LOF order
-        ionian_lof  = ionian[lof_idx]
-        aeolian_lof = aeolian[lof_idx]
-        dorian_lof  = dorian[lof_idx]
-
-        # 3) Define the 12 tonics in LOF order
-        lof_tonics = ["C", "G", "D", "A", "E", "B", "F#", "C#", "G#", "D#", "A#", "F"]
-
-        # 4) Map mode names to their LOF‑ordered, centered profiles
-        modes_lof: Dict[str, np.ndarray] = {
-            "Ionian (Major)": ionian_lof,
-            "Aeolian (Minor)": aeolian_lof,
-            "Dorian (Minor)":  dorian_lof,
-        }
-
-        # 5) Build templates by rotating each LOF profile by perfect‑fifth steps
-        self._templates: Dict[str, np.ndarray] = {
-            f"{tonic} {mode}": np.roll(profile, shift)
-            for mode, profile in modes_lof.items()
-            for shift, tonic in enumerate(lof_tonics)
-        }
-
-        self._pathfinder_helper = PathfindingHelper(
-            logger,
-            lof_idx,
-            self._compute_profile_scores_for_segment,
-            lambda prev, curr: 0.0 if prev == curr else modulation_penalty
+        self._penalty = modulation_penalty * 2.0 / ionian.sum()
+        self._logger.debug(
+            f"Penalty: (original={modulation_penalty};new={self._penalty:0.4f})",
+            separator=self._separator
         )
 
-        self._audio_segmenter: AudioSegmenter = AudioSegmenter(logger)
+        self._note_extractor = NoteExtractor(logger, subdivisions_per_beat=2, hop_length_samples=512)
+        self._segment_profiler = SegmentProfiler(logger)
 
-    def test(self, file_path: Path, time_signature: Tuple[int,int] = (4,4), segment_beat_level: int = 3) -> None:
+    def test(
+            self,
+            file_path: Path,
+            time_signature: Tuple[int, int] = (4, 4),
+            segment_beat_level: int = 3
+    ) -> None:
         if not file_path.is_file():
             self._logger.error(f"File not found: {file_path}", separator=self._separator)
             return
         self._logger.info(f"Analyzing file: {file_path}", separator=self._separator)
 
-        audio_samples, sample_rate = self._load_track(file_path)
-        segmentation_result, tempo = self._audio_segmenter.get_segments(
-            audio_samples=audio_samples,
-            sample_rate=sample_rate,
-            time_signature=time_signature,
-            min_segment_level=segment_beat_level
+        note_events, seg_res = self._note_extractor.extract(
+            file_path, time_signature, segment_beat_level, visualize=False
         )
+        segments = self._segment_profiler.profile_segments(seg_res, note_events)
 
-        segments = segmentation_result.segments
-        start_times = segmentation_result.start_times
+        keys = list(self._templates.keys())
+        raw_scores = self._compute_raw_scores(segments, keys)
+        path = self._compute_dp_path(raw_scores)
 
-        # Find best key path
-        best_path = self._pathfinder_helper.process(
-            segments,
-            sample_rate,
-            frames_per_segment_window=1
-        )
+        self._log_individual(segments, keys, raw_scores, path)
+        self._log_merged(segments, keys, path)
+        self._logger.info("Key progression complete.", separator=self._separator)
 
-        # Merge contiguous segments with same key and compute their time spans
-        merged = []  # List of tuples (key, start_time, end_time)
-        current_key = best_path[0]
-        seg_start = start_times[0]
-        for idx, key in enumerate(best_path[1:], start=1):
-            if key != current_key:
-                # end of current merged segment
-                seg_end = start_times[idx]
-                merged.append((current_key, seg_start, seg_end))
-                current_key = key
-                seg_start = start_times[idx]
-        # append the last segment
-        last_idx = len(best_path) - 1
-        seg_end = start_times[last_idx] + len(segments[last_idx]) / sample_rate
-        merged.append((current_key, seg_start, seg_end))
+    def _compute_raw_scores(
+            self,
+            segments: List,
+            keys: List[str]
+    ) -> np.ndarray:
+        n = len(segments)
+        m = len(keys)
+        raw_scores = np.zeros((n, m))
+        for i, seg in enumerate(segments):
+            hist = np.zeros(12)
+            for e in seg.segment_notes:
+                hist[e.pitch_class] += 1
+            lof_hist = lof_mapping(hist)
+            total = lof_hist.sum()
+            pc_norm = lof_hist / total if total > 0 else lof_hist
+            for j, kname in enumerate(keys):
+                raw_scores[i, j] = np.corrcoef(pc_norm, self._templates[kname])[0, 1]
+        return raw_scores
 
-        # Print merged segments with times
-        for key, start, end in merged:
-            self._logger.info(
-                f"{self._format_time(start)} - {self._format_time(end)} (duration={self._format_time(end - start)}): {key}",
+    def _compute_dp_path(self, raw_scores: np.ndarray) -> np.ndarray:
+        n, m = raw_scores.shape
+        dp = np.full((n, m), -np.inf)
+        backptr = np.zeros((n, m), dtype=int)
+        dp[0, :] = raw_scores[0, :]
+        for i in range(1, n):
+            for j in range(m):
+                stay = dp[i - 1, j]
+                mod_vals = dp[i - 1, :] - self._penalty
+                mod = np.max(mod_vals)
+                best_prev = j if stay >= mod else int(np.argmax(mod_vals))
+                dp[i, j] = raw_scores[i, j] + max(stay, mod)
+                backptr[i, j] = best_prev
+        path = np.zeros(n, dtype=int)
+        path[-1] = int(np.argmax(dp[-1, :]))
+        for i in range(n - 2, -1, -1):
+            path[i] = backptr[i + 1, path[i + 1]]
+        return path
+
+    def _log_individual(
+            self,
+            segments: List,
+            keys: List[str],
+            raw_scores: np.ndarray,
+            path: np.ndarray
+    ) -> None:
+        for i, seg in enumerate(segments):
+            key = keys[path[i]]
+            score = raw_scores[i, path[i]]
+            self._logger.debug(
+                f"Segment {i}: Key={key}, Score={score:.3f}",
                 separator=self._separator
             )
 
-        self._logger.info("Done", separator=self._separator)
-
-    def _compute_profile_scores_for_segment(
+    def _log_merged(
             self,
-            profile: np.ndarray
-    ) -> Dict[str, float]:
-        """
-        Compute cosine-similarity scores between the chroma profile and each key template.
-        score = (profile · template) / (||profile|| * ||template||)
-        """
-        scores: Dict[str, float] = {}
-
-        for key, tpl in self._templates.items():
-            scores[key] = profile.dot(tpl)
-
-        return scores
-
-    def _load_track(self, file_path: Path) -> Tuple[np.ndarray, int]:
-        audio, sr = librosa.load(file_path, sr=None)
-        self._logger.debug(
-            f"Loaded {len(audio)} frames @ {sr}Hz",
-            separator=self._separator
-        )
-        return audio, sr
+            segments: List[Segment],
+            keys: List[str],
+            path: np.ndarray
+    ) -> None:
+        merged = []  # type: List[Dict]
+        start_idx = 0
+        current_key = keys[path[0]]
+        for i in range(1, len(path)):
+            if keys[path[i]] != current_key:
+                merged.append({
+                    'start': segments[start_idx].segment_start_seconds,
+                    'end': segments[i - 1].segment_end_seconds,
+                    'key': current_key,
+                    'idx': start_idx
+                })
+                start_idx = i
+                current_key = keys[path[i]]
+        # append last
+        merged.append({
+            'start': segments[start_idx].segment_start_seconds,
+            'end': segments[-1].segment_end_seconds,
+            'key': current_key,
+            'idx': start_idx
+        })
+        # log
+        for seg in merged:
+            duration = seg['end'] - seg['start']
+            self._logger.info(
+                f"[segment {seg['idx']}] {self._format_time(seg['start'])} -> {self._format_time(seg['end'])} "
+                f"({duration:.2f}s) => {seg['key']}",
+                separator=self._separator
+            )
 
     @staticmethod
     def _format_time(seconds: float) -> str:

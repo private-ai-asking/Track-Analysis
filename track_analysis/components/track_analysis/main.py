@@ -1,10 +1,19 @@
 import os
+import warnings
+
+from track_analysis.components.track_analysis.constants import DEBUG, VERBOSE, PHYSICAL_CPU_COUNT
+
+os.environ['LOKY_MAX_CPU_COUNT'] = str(PHYSICAL_CPU_COUNT)
+
+warnings.filterwarnings(
+    "ignore",
+    category=RuntimeWarning,
+    module=r".*threadpoolctl.*"
+)
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger, LogType, HoornLoggerBuilder
 from track_analysis.components.track_analysis.app import App
-from track_analysis.components.track_analysis.constants import DEBUG, VERBOSE, CPU_COUNT
 
-os.environ["LOKY_MAX_CPU_COUNT"] = str(CPU_COUNT)
 
 if __name__ == "__main__":
     min_level: LogType = LogType.INFO

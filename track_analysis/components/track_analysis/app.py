@@ -4,8 +4,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Callable, TypeVar, Any
 
-import librosa
-import numpy as np
 from sentence_transformers import SentenceTransformer
 from viztracer import VizTracer
 
@@ -55,9 +53,7 @@ from track_analysis.components.track_analysis.features.track_downloading.pipelin
 from track_analysis.components.track_analysis.features.track_downloading.utils.genre_algorithm import GenreAlgorithm
 from track_analysis.tests.embedding_test import EmbeddingTest
 from track_analysis.tests.key_test import KeyProgressionTest
-from track_analysis.tests.note_extractor_test import NoteExtractorTest
 from track_analysis.tests.registration_test import RegistrationTest
-from track_analysis.tests.segmentation_test import SegmentationTest
 
 T = TypeVar("T")
 
@@ -261,12 +257,10 @@ class App:
     def _test_keys(self, profiling: bool = False) -> None:
         track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\11 Nas & Damian Marley - Patience.flac")
         # track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Classical\Claude Debussy\Classical Best\31 Danse sacrée et progane - Sacred Dance.flac")
-        tester: KeyProgressionTest = KeyProgressionTest(self._logger, modulation_penalty=12.0)
-        tester2: NoteExtractorTest = NoteExtractorTest(self._logger)
+        tester: KeyProgressionTest = KeyProgressionTest(self._logger, modulation_penalty=14.0)
 
         def __test():
-            # tester.test(file_path=track_path, time_signature=(4, 4), segment_beat_level=4)
-            tester2.test(file_path=track_path, time_signature=(4,4), segment_beat_level=4)
+            tester.test(file_path=track_path, time_signature=(4, 4), segment_beat_level=4)
 
         if profiling: _run_with_profiling(__test, category="Key Extraction")
         else: __test()

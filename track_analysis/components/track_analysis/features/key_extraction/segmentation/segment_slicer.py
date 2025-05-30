@@ -1,10 +1,17 @@
+import os
+from pathlib import Path
 from typing import List, Tuple
+
+import librosa.onset
 import numpy as np
+from joblib import Memory
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import VERBOSE
 from track_analysis.components.track_analysis.features.key_extraction.segmentation.model.segmentation_result import SegmentationResult
 
+def _compute_onset_strengths(audio: np.ndarray, sample_rate: int, hop_length_samples: int) -> np.ndarray:
+    return librosa.onset.onset_strength(y=audio, sr=sample_rate, hop_length=hop_length_samples)
 
 class SegmentSlicer:
     """
@@ -12,9 +19,12 @@ class SegmentSlicer:
     """
     _INITIAL_BOUNDARY_FACTOR = 2
 
-    def __init__(self, logger: HoornLogger, separator: str) -> None:
+    def __init__(self, logger: HoornLogger, separator: str, cache_dir: Path) -> None:
         self._logger = logger
         self._separator = separator
+
+        os.makedirs(cache_dir, exist_ok=True)
+        self._compute = Memory(cache_dir, verbose=0).cache(_compute_onset_strengths)
 
     def slice_segments(
             self,
@@ -22,17 +32,19 @@ class SegmentSlicer:
             sample_rate: int,
             event_times: List[float],
             strong_times: List[float],
+            hop_length_samples: int,
     ) -> SegmentationResult:
         """
         Slice the provided audio into segments based on filtered strong time boundaries.
         """
         self._validate_inputs(audio, sample_rate, event_times)
+        onset_strength_envelope = self._compute(audio, sample_rate, hop_length_samples)
         boundaries = self._filter_boundaries(event_times[0], strong_times)
         segments, start_times, durations = self._extract_segments(
             audio, sample_rate, event_times[0], boundaries
         )
         self._log(durations)
-        return SegmentationResult(segments, start_times, durations)
+        return SegmentationResult(segments, start_times, durations, onset_strength_envelope)
 
     @staticmethod
     def _validate_inputs(
@@ -77,7 +89,7 @@ class SegmentSlicer:
         previous = start_time
 
         for boundary in boundaries:
-            start_idx = int(previous * sample_rate)
+            start_idx = int(previous * sample_rate)  # Previous end in seconds * sample rate (samples/second) = current start sample.
             end_idx = int(boundary * sample_rate)
             segments.append(audio[start_idx:end_idx])
             durations.append(boundary - previous)

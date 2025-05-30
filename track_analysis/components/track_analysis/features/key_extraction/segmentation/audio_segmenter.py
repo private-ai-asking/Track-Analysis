@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Tuple, Optional
 
 import numpy as np
@@ -18,13 +19,17 @@ class AudioSegmenter:
     def __init__(
             self,
             logger: HoornLogger,
+            cache_dir: Path,
+            hop_length_samples: int = 512,
             subdivisions_per_beat: int = 2,
     ):
         self._logger = logger
         self._separator = "AudioSegmenter"
-        self._detector = BeatDetector(logger, self._separator)
-        self._hierarchy = MetricalHierarchyConstructor(subdivisions_per_beat, logger, self._separator)
-        self._slicer = SegmentSlicer(logger, self._separator)
+        self._detector = BeatDetector(logger, self._separator, cache_dir / "beat detection")
+        self._hierarchy = MetricalHierarchyConstructor(subdivisions_per_beat, logger, self._separator, cache_dir / "hierarchy construction")
+        self._slicer = SegmentSlicer(logger, self._separator, cache_dir / "slicing")
+
+        self._hop_length_samples = hop_length_samples
 
         self._logger.trace(
             "Initialized AudioSegmenter",
@@ -63,5 +68,5 @@ class AudioSegmenter:
         strong_times = [t for t, lvl in zip(event_times, level_array) if lvl >= min_segment_level]
 
         return self._slicer.slice_segments(
-            audio_samples, sample_rate, event_times, strong_times
+            audio_samples, sample_rate, event_times, strong_times, self._hop_length_samples
         ), tempo
