@@ -13,6 +13,8 @@ from track_analysis.components.track_analysis.features.key_extraction.key_extrac
 from track_analysis.components.md_common_python.py_common.algorithms.similarity import SimilarityMatcher
 from track_analysis.components.track_analysis.features.key_extraction.key_extraction.lof_feature_transformer import \
     LOFFeatureTransformer
+from track_analysis.components.track_analysis.features.key_extraction.key_extraction.penalty_matrix_builder import \
+    PenaltyMatrixBuilder
 from track_analysis.components.track_analysis.features.key_extraction.note_extraction.note_extractor import \
     NoteExtractor
 from track_analysis.components.track_analysis.features.key_extraction.note_extraction.segment_profiler import \
@@ -44,8 +46,27 @@ class KeyProgressionAnalyzer:
         templates = builder.build_templates()
         self._matcher = SimilarityMatcher(logger, templates)
 
+        mode_penalties = {
+            'Ionian (Major)': {
+                'Ionian (Major)': 0.0,
+                'Aeolian (Minor)': 0.2,
+                'Dorian (Minor)': 0.5,
+            },
+            'Aeolian (Minor)': {
+                'Ionian (Major)': 0.2,
+                'Aeolian (Minor)': 0.0,
+                'Dorian (Minor)': 0.3,
+            },
+            'Dorian (Minor)': {
+                'Ionian (Major)': 0.5,
+                'Aeolian (Minor)': 0.3,
+                'Dorian (Minor)': 0.0,
+            },
+        }
+
         penalty_scaled = modulation_penalty * 2.0 / self._modes['Ionian (Major)'].sum()
-        self._decoder = StateSequenceDecoder(logger, switching_penalty=penalty_scaled)
+        penalty_matrix = PenaltyMatrixBuilder(logger, [key for key, _ in templates.items()], self._tonics, penalty_scaled, mode_list=[mode for mode, _ in self._modes.items()], mode_penalty_matrix=mode_penalties).build()
+        self._decoder = StateSequenceDecoder(logger, penalty_matrix=penalty_matrix)
         self._merger = RunLengthMerger(logger)
 
         self._note_extractor = NoteExtractor(logger, subdivisions_per_beat=2, hop_length_samples=512)
