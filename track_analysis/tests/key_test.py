@@ -14,7 +14,7 @@ class KeyProgressionTest(TestInterface):
         self._analyzer = KeyProgressionAnalyzer(logger, modulation_penalty)
 
     def test(self, file_path: Path, time_signature: Tuple[int,int] = (4,4), segment_beat_level: int = 3) -> None:
-        runs = self._analyzer.analyze(file_path, time_signature, segment_beat_level)
+        runs, global_key = self._analyzer.analyze(file_path, time_signature, segment_beat_level)
         for run in runs:
             duration = run.end_time - run.start_time
             self._logger.info(
@@ -22,6 +22,7 @@ class KeyProgressionTest(TestInterface):
                 f" ({duration:.2f}s) => {run.state_label}",
                 separator=self._separator
             )
+        self._logger.info(f"The global key is {global_key}", separator=self._separator)
         self._logger.info("Key progression complete.", separator=self._separator)
 
     @staticmethod

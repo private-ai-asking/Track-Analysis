@@ -1,17 +1,17 @@
-import pprint
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 
 from track_analysis.components.md_common_python.py_common.algorithms.dynamic_programming import StateSequenceDecoder
 from track_analysis.components.md_common_python.py_common.algorithms.sequence import RunLengthMerger
+from track_analysis.components.md_common_python.py_common.algorithms.sequence.run_length_merger import StateRun
+from track_analysis.components.md_common_python.py_common.algorithms.similarity import SimilarityMatcher
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.features.key_extraction.key_extraction.feature_vector_extractor import \
     FeatureVectorExtractor
 from track_analysis.components.track_analysis.features.key_extraction.key_extraction.key_template_builder import \
     KeyTemplateBuilder
-from track_analysis.components.md_common_python.py_common.algorithms.similarity import SimilarityMatcher
 from track_analysis.components.track_analysis.features.key_extraction.key_extraction.lof_feature_transformer import \
     LOFFeatureTransformer
 from track_analysis.components.track_analysis.features.key_extraction.key_extraction.penalty_matrix_builder import \
@@ -24,7 +24,8 @@ from track_analysis.components.track_analysis.features.key_extraction.note_extra
 
 class KeyProgressionAnalyzer:
     """
-    Orchestrates key progression analysis: extraction, matching, decoding, merging.
+    Orchestrates key progression analysis: extraction, matching, decoding, merging,
+    and infers a global key for the entire piece.
     """
     def __init__(
             self,
@@ -43,36 +44,43 @@ class KeyProgressionAnalyzer:
         }
         self._tonics = tonics or ['C','G','D','A','E','B','F#','C#','G#','D#','A#','F']
 
+        # Build pitch-class templates for local key decoding
         builder = KeyTemplateBuilder(logger, self._modes, self._tonics)
-        templates = builder.build_templates()
-        self._matcher = SimilarityMatcher(logger, templates)
+        self._local_templates = builder.build_templates()
+        self._matcher = SimilarityMatcher(logger, self._local_templates)
 
+        # Build transition penalty matrix for local decoding
         mode_names     = list(self._modes.keys())
-        mode_templates = [ self._modes[name] for name in mode_names ]
-
         matcher = SimilarityMatcher(
-            logger=self._logger,
+            logger=logger,
             templates=self._modes,
             similarity_fn=None,
             preprocessor=None,
             label_order=mode_names
         )
-
-        result = matcher.match(mode_templates)
-
-        mode_penalties = {}
-        for i, m1 in enumerate(mode_names):
-            mode_penalties[m1] = {}
-            for j, m2 in enumerate(mode_names):
-                corr = result.matrix[i, j]
-                mode_penalties[m1][m2] = float(1.0 - corr)
-
-        self._logger.debug(f"Mode penalties:\n{pprint.pformat(mode_penalties)}", separator=self._separator)
-
+        result = matcher.match([self._modes[n] for n in mode_names])
+        mode_penalties = {
+            m1: {m2: float(1.0 - result.matrix[i,j])
+                 for j, m2 in enumerate(mode_names)}
+            for i, m1 in enumerate(mode_names)
+        }
         penalty_scaled = modulation_penalty * 2.0 / self._modes['Ionian (Major)'].sum()
-        penalty_matrix = PenaltyMatrixBuilder(logger, [key for key, _ in templates.items()], self._tonics, penalty_scaled, mode_list=[mode for mode, _ in self._modes.items()], mode_penalty_matrix=mode_penalties).build()
+        penalty_matrix = PenaltyMatrixBuilder(
+            logger,
+            list(self._local_templates.keys()),
+            self._tonics,
+            penalty_scaled,
+            mode_list=mode_names,
+            mode_penalty_matrix=mode_penalties
+        ).build()
+
+        self._penalty_matrix = penalty_matrix
         self._decoder = StateSequenceDecoder(logger, penalty_matrix=penalty_matrix)
         self._merger = RunLengthMerger(logger)
+
+        # Prepare global-key templates (same as local but labeled)
+        self._global_templates = self._local_templates.copy()
+        self._global_states = list(self._global_templates.keys())
 
         self._note_extractor = NoteExtractor(logger, subdivisions_per_beat=2, hop_length_samples=512)
         self._segment_profiler = SegmentProfiler(logger)
@@ -84,12 +92,18 @@ class KeyProgressionAnalyzer:
             file_path: Path,
             time_signature: Tuple[int,int] = (4,4),
             segment_beat_level: int = 3
-    ) -> List:
+    ) -> Tuple[List[StateRun], Optional[str]]:
+        """
+        Returns a tuple:
+          - List of StateRun for local key progressions
+          - global key label (str) or None if analysis failed
+        """
         if not file_path.is_file():
             self._logger.error(f"File not found: {file_path}", separator=self._separator)
-            return []
+            return [], None
         self._logger.info(f"Starting analysis on file: {file_path}", separator=self._separator)
 
+        # --- Local key pass ---
         notes, profiled = self._note_extractor.extract(
             file_path, time_signature, segment_beat_level, visualize=False
         )
@@ -98,9 +112,26 @@ class KeyProgressionAnalyzer:
         extractor = FeatureVectorExtractor(self._logger, LOFFeatureTransformer())
         vectors, intervals = extractor.extract(segments)
 
-        result = self._matcher.match(vectors)
-        path = self._decoder.decode(result.matrix)
-        runs = self._merger.merge(intervals, path.tolist(), result.labels)
+        local_match = self._matcher.match(vectors)
+        local_path = self._decoder.decode(local_match.matrix)
+        local_runs = self._merger.merge(intervals, local_path.tolist(), local_match.labels)
+        self._logger.info("Local key analysis complete.", separator=self._separator)
+
+        # --- Global key second pass ---
+        n = len(local_path)
+        m = len(self._global_states)
+        # Build one-hot score matrix from local labels
+        one_hot = np.zeros((n, m), dtype=float)
+        for t, label in enumerate(local_match.labels[i] for i in local_path):
+            j = self._global_states.index(label)
+            one_hot[t, j] = 1.0
+
+        global_decoder = StateSequenceDecoder(self._logger, penalty_matrix=self._penalty_matrix)
+        global_path = global_decoder.decode(one_hot)
+        global_key = None
+        if len(global_path) > 0:
+            idx = int(global_path[0])
+            global_key = self._global_states[idx]
 
         self._logger.info("Analysis complete.", separator=self._separator)
-        return runs
+        return local_runs, global_key
