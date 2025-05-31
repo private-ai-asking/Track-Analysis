@@ -30,48 +30,63 @@ class KeyProgressionAnalyzer:
     def __init__(
             self,
             logger: HoornLogger,
-            modulation_penalty: float = 6.0,
+            tone_modulation_penalty: float = 6.0,
+            mode_modulation_penalty: Optional[float] = None,
             modes: Dict[str, np.ndarray] = None,
-            tonics: List[str] = None
+            tonics: List[str] = None,
+            visualize: bool = False,
     ):
+        self._visualize = visualize
+
         self._logger = logger
         self._separator = self.__class__.__name__
         # default music modes and tonics
         self._modes = modes or {
             'Ionian (Major)': np.array([5.0,2.0,3.5,2.0,4.5,4.0,2.0,4.5,2.0,3.5,1.5,4.0]),
             'Aeolian (Minor)': np.array([5.0,2.0,3.5,4.5,2.0,4.0,2.0,4.5,3.5,2.0,1.5,4.0]),
-            'Dorian (Minor)': np.array([5.0,2.0,3.5,4.5,2.0,4.0,2.0,4.5,2.0,3.5,1.5,4.0])
         }
-        self._tonics = tonics or ['C','G','D','A','E','B','F#','C#','G#','D#','A#','F']
+        self._tonics_order_of_fifths = tonics or ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#', 'F']
+
+        # C, C♯, D, D♯, E, F, F♯, G, G♯, A, A♯, B
+        # 0, 1,  2, 3,  4, 5, 6,  7, 8,  9, 10, 11
+
+        # C, D#, F, G, A#
 
         # Build pitch-class templates for local key decoding
-        builder = KeyTemplateBuilder(logger, self._modes, self._tonics)
+        builder = KeyTemplateBuilder(logger, self._modes, self._tonics_order_of_fifths)
         self._local_templates = builder.build_templates()
-        self._matcher = SimilarityMatcher(logger, self._local_templates)
-
-        # Build transition penalty matrix for local decoding
-        mode_names     = list(self._modes.keys())
-        matcher = SimilarityMatcher(
-            logger=logger,
-            templates=self._modes,
-            similarity_fn=None,
-            preprocessor=None,
-            label_order=mode_names
+        self._local_matcher = SimilarityMatcher(logger, self._local_templates)
+        self._global_matcher = SimilarityMatcher(
+            logger=self._logger,
+            templates=self._local_templates,
+            label_order=list(self._local_templates.keys()),
+            verbose=False
         )
-        result = matcher.match([self._modes[n] for n in mode_names])
-        mode_penalties = {
-            m1: {m2: float(1.0 - result.matrix[i,j])
-                 for j, m2 in enumerate(mode_names)}
-            for i, m1 in enumerate(mode_names)
+
+        mode_penalties: Dict[str, Dict[str, float]] = {
+            "Ionian (Major)": {
+                "Ionian (Major)": 0.0,
+                "Aeolian (Minor)": 3.0
+            },
+            "Aeolian (Minor)": {
+                "Aeolian (Minor)": 0.0,
+                "Ionian (Major)": 3.0
+            }
         }
-        penalty_scaled = modulation_penalty * 2.0 / self._modes['Ionian (Major)'].sum()
+
+        if mode_modulation_penalty is None:
+            mode_modulation_penalty_scale = 2.5 / 6
+            mode_modulation_penalty = mode_modulation_penalty_scale * tone_modulation_penalty
+
+        tone_penalty_scaled = tone_modulation_penalty * 2.0 / self._modes['Ionian (Major)'].sum()
+        mode_penalty_scaled = mode_modulation_penalty * 2.0 / self._modes['Ionian (Major)'].sum()
         penalty_matrix = PenaltyMatrixBuilder(
             logger,
             list(self._local_templates.keys()),
-            self._tonics,
-            penalty_scaled,
-            mode_list=mode_names,
-            mode_penalty_matrix=mode_penalties
+            self._tonics_order_of_fifths,
+            base_tonic_penalty=tone_penalty_scaled,
+            base_mode_penalty=mode_penalty_scaled,
+            mode_penalty_matrix=mode_penalties,
         ).build()
 
         self._penalty_matrix = penalty_matrix
@@ -105,33 +120,36 @@ class KeyProgressionAnalyzer:
 
         # --- Local key pass ---
         notes, profiled = self._note_extractor.extract(
-            file_path, time_signature, segment_beat_level, visualize=False
+            file_path, time_signature, segment_beat_level, visualize=self._visualize
         )
         segments = self._segment_profiler.profile_segments(profiled, notes)
 
         extractor = FeatureVectorExtractor(self._logger, LOFFeatureTransformer())
         vectors, intervals = extractor.extract(segments)
 
-        local_match = self._matcher.match(vectors)
+        local_match = self._local_matcher.match(vectors)
         local_path = self._decoder.decode(local_match.matrix)
         local_runs = self._merger.merge(intervals, local_path.tolist(), local_match.labels)
         self._logger.info("Local key analysis complete.", separator=self._separator)
 
         # --- Global key second pass ---
-        n = len(local_path)
-        m = len(self._global_states)
-        # Build one-hot score matrix from local labels
-        one_hot = np.zeros((n, m), dtype=float)
-        for t, label in enumerate(local_match.labels[i] for i in local_path):
-            j = self._global_states.index(label)
-            one_hot[t, j] = 1.0
+        # 1. Weight each segment‐vector by its duration to form one global chroma:
+        durations = [end - start for (start, end) in intervals]
 
-        global_decoder = StateSequenceDecoder(self._logger, penalty_matrix=self._penalty_matrix)
-        global_path = global_decoder.decode(one_hot)
-        global_key = None
-        if len(global_path) > 0:
-            idx = int(global_path[0])
-            global_key = self._global_states[idx]
+        global_chroma = np.zeros(12, dtype=float)
+        for i, vec in enumerate(vectors):
+            global_chroma += durations[i] * vec
+
+        # Normalize so it has unit L1 norm (or L2 if your templates expect that)
+        global_chroma /= np.linalg.norm(global_chroma, ord=1)
+        score_result = self._global_matcher.match([global_chroma])
+
+        scores = score_result.matrix[0]
+        labels = score_result.labels
+
+        # 3. Pick the label with the highest score:
+        best_idx = int(np.argmax(scores))
+        global_key = labels[best_idx]
 
         self._logger.info("Analysis complete.", separator=self._separator)
         return local_runs, global_key

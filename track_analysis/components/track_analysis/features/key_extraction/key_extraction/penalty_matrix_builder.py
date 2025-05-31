@@ -18,7 +18,7 @@ class PenaltyMatrixBuilder:
             state_labels: List[str],
             circle_of_fifths: List[str],
             base_tonic_penalty: float,
-            mode_list: List[str],
+            base_mode_penalty: float,
             mode_penalty_matrix: Dict[str, Dict[str, float]]
     ):
         """
@@ -26,7 +26,6 @@ class PenaltyMatrixBuilder:
         :param state_labels: e.g. "C Ionian (Major)"
         :param circle_of_fifths: list of tonics in circle order
         :param base_tonic_penalty: multiplier per step on circle
-        :param mode_list: list of mode names in labels
         :param mode_penalty_matrix: nested dict mapping mode_i->mode_j->penalty
         """
         self._logger = logger
@@ -34,17 +33,15 @@ class PenaltyMatrixBuilder:
         self._state_labels = state_labels
         self._circle = circle_of_fifths
         self._base_tonic_penalty = base_tonic_penalty
-        self._mode_list = mode_list
+        self._base_mode_penalty = base_mode_penalty
         self._mode_penalty = mode_penalty_matrix
 
         # index maps
         self._tonic_index: Dict[str,int] = {t: i for i, t in enumerate(circle_of_fifths)}
-        self._mode_index: Dict[str,int] = {m: i for i, m in enumerate(mode_list)}
         self._n = len(state_labels)
 
         self._logger.debug(
-            f"Initialized with {self._n} states, tonic_penalty={base_tonic_penalty},"
-            f" modes={mode_list}",
+            f"Initialized with {self._n} states, tonic_penalty={base_tonic_penalty},",
             separator=self._separator
         )
 
@@ -81,6 +78,8 @@ class PenaltyMatrixBuilder:
                         f"No mode penalty for {mode_i}->{mode_j}; default 0", separator=self._separator
                     )
                     mode_pen = 0.0
+
+                mode_pen = mode_pen * self._base_mode_penalty
 
                 total_pen = tonic_pen + mode_pen
                 matrix[i, j] = total_pen

@@ -255,9 +255,10 @@ class App:
                     )
 
     def _test_keys(self, profiling: bool = False) -> None:
-        track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\11 Nas & Damian Marley - Patience.flac")
+        # track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\11 Nas & Damian Marley - Patience.flac")
         # track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Classical\Claude Debussy\Classical Best\31 Danse sacrée et progane - Sacred Dance.flac")
-        tester: KeyProgressionTest = KeyProgressionTest(self._logger, modulation_penalty=12.0)
+        track_path: Path = Path(r"W:\media\music\[02] organized\[02] lq\CCM\Champion\06 - Beckah Shae - Jericho.flac")
+        tester: KeyProgressionTest = KeyProgressionTest(self._logger, tone_modulation_penalty=12.0, mode_modulation_penalty=None, visualize=False)
 
         def __test():
             tester.test(file_path=track_path, time_signature=(4, 4), segment_beat_level=4)
