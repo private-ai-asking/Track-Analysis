@@ -29,9 +29,9 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
     BuildLibraryDataCSVPipeline
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
-from track_analysis.components.track_analysis.features.key_extraction.key_extraction.configuration.definition_templates import \
+from track_analysis.components.track_analysis.features.key_extraction.core.definitions.definition_templates import \
     TemplateMode
-from track_analysis.components.track_analysis.features.key_extraction.profile_creation.profile_creator import \
+from track_analysis.components.track_analysis.features.key_extraction.profile_generation.profile_creator import \
     ProfileCreator
 from track_analysis.components.track_analysis.features.scrobbling.embedding.default_candidate_retriever import \
     DefaultCandidateRetriever

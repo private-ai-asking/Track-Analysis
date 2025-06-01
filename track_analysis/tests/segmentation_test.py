@@ -6,7 +6,7 @@ import numpy as np
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
-from track_analysis.components.track_analysis.features.key_extraction.segmentation.audio_segmenter import AudioSegmenter
+from track_analysis.components.track_analysis.features.key_extraction.preprocessing.segmentation.audio_segmenter import AudioSegmenter
 
 
 class SegmentationTest:
