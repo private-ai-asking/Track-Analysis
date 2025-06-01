@@ -3,7 +3,7 @@ from typing import List, Tuple
 import numpy as np
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.key_extraction.key_extraction.lof_feature_transformer import \
+from track_analysis.components.track_analysis.features.key_extraction.key_extraction.transforming.lof_feature_transformer import \
     LOFFeatureTransformer
 from track_analysis.components.track_analysis.features.key_extraction.note_extraction.segment_profiler import Segment
 

@@ -2,7 +2,7 @@ from typing import List
 
 import numpy as np
 
-from track_analysis.components.track_analysis.features.key_extraction.key_extraction.feature_transformer import \
+from track_analysis.components.track_analysis.features.key_extraction.key_extraction.transforming.feature_transformer import \
     FeatureTransformer
 
 

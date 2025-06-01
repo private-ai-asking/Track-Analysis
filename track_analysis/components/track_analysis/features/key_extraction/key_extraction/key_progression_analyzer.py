@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import List, Tuple, Optional
 
 import numpy as np
 
@@ -8,14 +8,16 @@ from track_analysis.components.md_common_python.py_common.algorithms.sequence im
 from track_analysis.components.md_common_python.py_common.algorithms.sequence.run_length_merger import StateRun
 from track_analysis.components.md_common_python.py_common.algorithms.similarity import SimilarityMatcher
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.key_extraction.key_extraction.feature_vector_extractor import \
-    FeatureVectorExtractor
-from track_analysis.components.track_analysis.features.key_extraction.key_extraction.key_template_builder import \
-    KeyTemplateBuilder
-from track_analysis.components.track_analysis.features.key_extraction.key_extraction.lof_feature_transformer import \
-    LOFFeatureTransformer
-from track_analysis.components.track_analysis.features.key_extraction.key_extraction.penalty_matrix_builder import \
+from track_analysis.components.track_analysis.features.key_extraction.key_extraction.configuration.definition_templates import \
+    TemplateMode
+from track_analysis.components.track_analysis.features.key_extraction.key_extraction.configuration.penalty_calculation.penalty_matrix_builder import \
     PenaltyMatrixBuilder
+from track_analysis.components.track_analysis.features.key_extraction.key_extraction.configuration.templates.key_template_builder import \
+    KeyTemplateBuilder
+from track_analysis.components.track_analysis.features.key_extraction.key_extraction.extraction.feature_vector_extractor import \
+    FeatureVectorExtractor
+from track_analysis.components.track_analysis.features.key_extraction.key_extraction.transforming.lof_feature_transformer import \
+    LOFFeatureTransformer
 from track_analysis.components.track_analysis.features.key_extraction.note_extraction.note_extractor import \
     NoteExtractor
 from track_analysis.components.track_analysis.features.key_extraction.note_extraction.segment_profiler import \
@@ -32,33 +34,16 @@ class KeyProgressionAnalyzer:
             logger: HoornLogger,
             tone_modulation_penalty: float = 6.0,
             mode_modulation_penalty: Optional[float] = None,
-            modes: Dict[str, np.ndarray] = None,
-            tonics: List[str] = None,
             visualize: bool = False,
+            template_mode: TemplateMode = TemplateMode.KS_T_REVISED
     ):
         self._visualize = visualize
 
         self._logger = logger
         self._separator = self.__class__.__name__
-        # default music modes and tonics
-        self._modes = modes or {
-            # K&S - Temperley Revised
-            # 'Ionian (Major)': np.array([5.0,2.0,3.5,2.0,4.5,4.0,2.0,4.5,2.0,3.5,1.5,4.0]),
-            # 'Aeolian (Minor)': np.array([5.0,2.0,3.5,4.5,2.0,4.0,2.0,4.5,3.5,2.0,1.5,4.0]),
-
-            # Bellman-Budge
-            'Ionian (Major)': np.array([16.80, 0.86, 12.95, 1.41, 13.49, 11.93, 1.25, 20.28, 1.80, 8.04, 0.62, 10.57]),
-            'Aeolian (Minor)': np.array([18.16, 0.69, 12.99, 13.34, 1.07, 11.15, 1.38, 21.07, 7.49, 1.53, 0.92, 10.21])
-        }
-        self._tonics_order_of_fifths = tonics or ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#', 'F']
-
-        # C, C♯, D, D♯, E, F, F♯, G, G♯, A, A♯, B
-        # 0, 1,  2, 3,  4, 5, 6,  7, 8,  9, 10, 11
-
-        # C, D#, F, G, A#
 
         # Build pitch-class templates for local key decoding
-        builder = KeyTemplateBuilder(logger, self._modes, self._tonics_order_of_fifths)
+        builder = KeyTemplateBuilder(logger, template_mode=template_mode)
         self._local_templates = builder.build_templates()
         self._local_matcher = SimilarityMatcher(logger, self._local_templates)
         self._global_matcher = SimilarityMatcher(
@@ -68,37 +53,15 @@ class KeyProgressionAnalyzer:
             verbose=False
         )
 
-        mode_penalties: Dict[str, Dict[str, float]] = {
-            "Ionian (Major)": {
-                "Ionian (Major)": 0.0,
-                "Aeolian (Minor)": 3.0,
-                # "Dorian (Minor)": 2.0,
-            },
-            "Aeolian (Minor)": {
-                "Aeolian (Minor)": 0.0,
-                "Ionian (Major)": 3.0,
-                # "Dorian (Minor)": 1.0,
-            },
-            # "Dorian (Minor)": {
-            #     "Dorian (Minor)": 0.0,
-            #     "Ionian (Major)": 2.0,
-            #     "Aeolian (Minor)": 1.0,
-            # }
-        }
-
         if mode_modulation_penalty is None:
             mode_modulation_penalty_scale = 2.5 / 6
             mode_modulation_penalty = mode_modulation_penalty_scale * tone_modulation_penalty
 
-        tone_penalty_scaled = tone_modulation_penalty * 2.0 / self._modes['Ionian (Major)'].sum()
-        mode_penalty_scaled = mode_modulation_penalty * 2.0 / self._modes['Ionian (Major)'].sum()
         penalty_matrix = PenaltyMatrixBuilder(
             logger,
             list(self._local_templates.keys()),
-            self._tonics_order_of_fifths,
-            base_tonic_penalty=tone_penalty_scaled,
-            base_mode_penalty=mode_penalty_scaled,
-            mode_penalty_matrix=mode_penalties,
+            base_tonic_penalty=tone_modulation_penalty,
+            base_mode_penalty=mode_modulation_penalty
         ).build()
 
         self._penalty_matrix = penalty_matrix

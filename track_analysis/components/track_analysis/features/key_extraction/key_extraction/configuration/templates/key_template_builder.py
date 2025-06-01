@@ -3,25 +3,33 @@ from typing import Dict, List
 import numpy as np
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.key_extraction.key_extraction.lof_feature_transformer import \
+from track_analysis.components.track_analysis.features.key_extraction.key_extraction.configuration.templates.template_getter import \
+    TemplateGetter
+
+from track_analysis.components.track_analysis.features.key_extraction.key_extraction.configuration.definition_order_of_fifths import \
+    ORDER_OF_FIFTHS
+from track_analysis.components.track_analysis.features.key_extraction.key_extraction.configuration.definition_templates import \
+    TemplateMode
+from track_analysis.components.track_analysis.features.key_extraction.key_extraction.transforming.lof_feature_transformer import \
     LOFFeatureTransformer
 
 
 class KeyTemplateBuilder:
     """
-    Builds normalized key templates (chromatic profiles) for musical modes and tonics.
+    Builds key templates (chromatic profiles) for musical modes and tonics.
     """
     def __init__(
             self,
             logger: HoornLogger,
-            modes: Dict[str, np.ndarray],
-            tonics: List[str]
+            template_mode: TemplateMode
     ):
+        self._template_getter: TemplateGetter = TemplateGetter(logger, template_mode)
+        self._modes = self._template_getter.get_templates()
+
         self._logger = logger
         self._separator = self.__class__.__name__
-        self._modes = modes
-        self._tonics = tonics
-        self._logger.debug(f"Initialized with modes: {list(modes.keys())} and tonics: {tonics}", separator=self._separator)
+        self._tonics: List[str] = ORDER_OF_FIFTHS
+        self._logger.debug(f"Initialized with modes: {list(self._modes.keys())} and tonics: [{', '.join(ORDER_OF_FIFTHS)}]", separator=self._separator)
 
     def build_templates(self) -> Dict[str, np.ndarray]:
         """

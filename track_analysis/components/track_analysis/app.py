@@ -29,6 +29,8 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
     BuildLibraryDataCSVPipeline
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
+from track_analysis.components.track_analysis.features.key_extraction.key_extraction.configuration.definition_templates import \
+    TemplateMode
 from track_analysis.components.track_analysis.features.key_extraction.profile_creation.profile_creator import \
     ProfileCreator
 from track_analysis.components.track_analysis.features.scrobbling.embedding.default_candidate_retriever import \
@@ -270,7 +272,7 @@ class App:
         track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\11 Nas & Damian Marley - Patience.flac")
         # track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Classical\Claude Debussy\Classical Best\31 Danse sacrée et progane - Sacred Dance.flac")
         # track_path: Path = Path(r"W:\media\music\[02] organized\[02] lq\CCM\Champion\08 - Beckah Shae - Me and My God.flac")
-        tester: KeyProgressionTest = KeyProgressionTest(self._logger, tone_modulation_penalty=18.0, mode_modulation_penalty=None, visualize=False)
+        tester: KeyProgressionTest = KeyProgressionTest(self._logger, tone_modulation_penalty=12.0, mode_modulation_penalty=None, visualize=False, template_mode=TemplateMode.KS_T_REVISED)
 
         def __test():
             tester.test(file_path=track_path, segment_beat_level=4)
