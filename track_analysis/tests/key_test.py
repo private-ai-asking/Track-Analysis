@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Optional
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.testing import TestInterface
@@ -13,8 +13,8 @@ class KeyProgressionTest(TestInterface):
         self._separator = 'KeyProgressionTest'
         self._analyzer = KeyProgressionAnalyzer(logger, tone_modulation_penalty, mode_modulation_penalty, visualize=visualize)
 
-    def test(self, file_path: Path, time_signature: Tuple[int,int] = (4,4), segment_beat_level: int = 3) -> None:
-        runs, global_key = self._analyzer.analyze(file_path, time_signature, segment_beat_level)
+    def test(self, file_path: Path, segment_beat_level: int = 3) -> None:
+        runs, global_key = self._analyzer.analyze(file_path, segment_beat_level)
         for run in runs:
             duration = run.end_time - run.start_time
             self._logger.info(

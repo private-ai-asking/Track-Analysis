@@ -35,8 +35,7 @@ class KeyTemplateBuilder:
             for shift, tonic in enumerate(self._tonics):
                 key_name = f"{tonic} {mode_name}"
                 rolled = np.roll(base, shift)
-                norm = rolled / rolled.sum()
-                templates[key_name] = norm
+                templates[key_name] = rolled
                 self._logger.trace(f"Built template: {key_name}", separator=self._separator)
         self._logger.info(f"Built {len(templates)} key templates.", separator=self._separator)
         return templates

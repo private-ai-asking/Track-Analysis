@@ -32,7 +32,7 @@ class FeatureVectorExtractor:
         for i, seg in enumerate(segments):
             hist = np.zeros(12, dtype=float)
             for event in seg.segment_notes:
-                weight = event.note_duration_seconds_in_segment * event.mean_energy_in_segment
+                weight = event.note_duration_seconds_in_segment # * event.mean_energy_in_segment
                 hist[event.pitch_class] += weight
 
             # Continue exactly as before—apply your LOF transformer, then normalize

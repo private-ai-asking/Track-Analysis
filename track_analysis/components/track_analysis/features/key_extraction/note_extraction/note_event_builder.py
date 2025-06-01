@@ -18,6 +18,7 @@ class NoteEvent:
     duration_seconds: float
     mean_energy: float
     max_energy: float
+    total_energy: float
     raw_energy: np.ndarray
 
 
@@ -41,6 +42,7 @@ class NoteEventBuilder:
         events: List[NoteEvent] = []
         n_pc, T = cleaned_mask.shape
         midi_to_pc = np.arange(128) % 12
+        frame_duration = hop_length / sr
 
         for pc in range(n_pc):
             mask = cleaned_mask[pc, :]
@@ -50,8 +52,8 @@ class NoteEventBuilder:
             off_frames = np.where(changes == -1)[0]
 
             for onset_f, offset_f in zip(on_frames, off_frames):
-                onset_sec  = onset_f  * hop_length / sr
-                offset_sec = offset_f * hop_length / sr
+                onset_sec  = onset_f  * frame_duration
+                offset_sec = offset_f * frame_duration
                 duration   = offset_sec - onset_sec
                 frames = np.arange(onset_f, offset_f)
                 if frames.size == 0:
@@ -62,6 +64,7 @@ class NoteEventBuilder:
                 snippet_pc = snippet * pc_mask
                 best_midi_per_frame = snippet_pc.argmax(axis=0)
                 raw_energy = snippet_pc[best_midi_per_frame, np.arange(best_midi_per_frame.shape[0])]
+                total_e = float(raw_energy.sum() * frame_duration)
 
                 mean_e = float(raw_energy.mean())
                 max_e  = float(raw_energy.max())
@@ -80,7 +83,8 @@ class NoteEventBuilder:
                     duration_seconds=duration,
                     mean_energy=mean_e,
                     max_energy=max_e,
-                    raw_energy=raw_energy
+                    raw_energy=raw_energy,
+                    total_energy=total_e,
                 ))
 
         if VERBOSE:

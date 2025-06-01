@@ -63,9 +63,9 @@ class NoteExtractor:
 
         self._visualizer: ChromaVisualizer = ChromaVisualizer(self._hop_length_samples, logger)
 
-    def extract(self, path: Path, time_signature: Tuple[int, int], min_segment_level: int, visualize: bool = False) -> Tuple[List[NoteEvent], SegmentationResult]:
+    def extract(self, path: Path, min_segment_level: int, visualize: bool = False) -> Tuple[List[NoteEvent], SegmentationResult]:
         audio_samples_raw, sample_rate = self._audio_loader.load(path)
-        segmentation_results, tempo = self._audio_segmenter.get_segments(audio_samples_raw, sample_rate, time_signature, min_segment_level)
+        segmentation_results, tempo = self._audio_segmenter.get_segments(audio_samples_raw, sample_rate, min_segment_level)
         harmonic, percussive = self._harmonic_extractor.extract_harmonic(audio_samples_raw, sample_rate, tempo)
         harmonic_spec = self._magnitude_spec_extractor.extract_magnitude_spectogram(harmonic)
         frequencies, magnitudes = self._spectral_peak_extractor.extract_spectral_peaks(harmonic_spec, sample_rate)

@@ -22,9 +22,11 @@ class AudioSegmenter:
             cache_dir: Path,
             hop_length_samples: int = 512,
             subdivisions_per_beat: int = 2,
+            beats_per_segment: int = 8
     ):
         self._logger = logger
         self._separator = "AudioSegmenter"
+        self._beats_per_segment: int = beats_per_segment
         self._detector = BeatDetector(logger, self._separator, cache_dir / "beat detection")
         self._hierarchy = MetricalHierarchyConstructor(subdivisions_per_beat, logger, self._separator, cache_dir / "hierarchy construction")
         self._slicer = SegmentSlicer(logger, self._separator, cache_dir / "slicing")
@@ -44,26 +46,24 @@ class AudioSegmenter:
             self,
             audio_samples: np.ndarray,
             sample_rate: int,
-            time_signature: Tuple[int, int] = (4, 4),
             min_segment_level: int = 3,
     ) -> Optional[Tuple[SegmentationResult, float]]:
-        beats_per_bar, _ = time_signature
         self._logger.debug(
             f"Segmenting audio ({len(audio_samples)} samples at {sample_rate}Hz) "
-            f"with time signature {beats_per_bar}/{time_signature[1]}",
+            f"with {self._beats_per_segment} beats per segment",
             separator=self._separator,
         )
 
         tempo, frames, times = self._detector.detect(audio_samples, sample_rate)
-        if len(frames) < beats_per_bar:
+        if len(frames) < self._beats_per_segment:
             self._logger.warning(
-                "Too few beats for a full bar; cannot segment.",
+                "Too few beats for a full segment; cannot segment.",
                 separator=self._separator,
             )
             return None
 
         level_array, event_times = self._hierarchy.construct_hierarchy(
-            times, frames, beats_per_bar
+            times, frames, self._beats_per_segment
         )
         strong_times = [t for t, lvl in zip(event_times, level_array) if lvl >= min_segment_level]
 

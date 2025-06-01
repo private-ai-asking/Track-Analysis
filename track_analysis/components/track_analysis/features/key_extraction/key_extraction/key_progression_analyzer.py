@@ -42,8 +42,13 @@ class KeyProgressionAnalyzer:
         self._separator = self.__class__.__name__
         # default music modes and tonics
         self._modes = modes or {
-            'Ionian (Major)': np.array([5.0,2.0,3.5,2.0,4.5,4.0,2.0,4.5,2.0,3.5,1.5,4.0]),
-            'Aeolian (Minor)': np.array([5.0,2.0,3.5,4.5,2.0,4.0,2.0,4.5,3.5,2.0,1.5,4.0]),
+            # K&S - Temperley Revised
+            # 'Ionian (Major)': np.array([5.0,2.0,3.5,2.0,4.5,4.0,2.0,4.5,2.0,3.5,1.5,4.0]),
+            # 'Aeolian (Minor)': np.array([5.0,2.0,3.5,4.5,2.0,4.0,2.0,4.5,3.5,2.0,1.5,4.0]),
+
+            # Bellman-Budge
+            'Ionian (Major)': np.array([16.80, 0.86, 12.95, 1.41, 13.49, 11.93, 1.25, 20.28, 1.80, 8.04, 0.62, 10.57]),
+            'Aeolian (Minor)': np.array([18.16, 0.69, 12.99, 13.34, 1.07, 11.15, 1.38, 21.07, 7.49, 1.53, 0.92, 10.21])
         }
         self._tonics_order_of_fifths = tonics or ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#', 'F']
 
@@ -66,12 +71,19 @@ class KeyProgressionAnalyzer:
         mode_penalties: Dict[str, Dict[str, float]] = {
             "Ionian (Major)": {
                 "Ionian (Major)": 0.0,
-                "Aeolian (Minor)": 3.0
+                "Aeolian (Minor)": 3.0,
+                # "Dorian (Minor)": 2.0,
             },
             "Aeolian (Minor)": {
                 "Aeolian (Minor)": 0.0,
-                "Ionian (Major)": 3.0
-            }
+                "Ionian (Major)": 3.0,
+                # "Dorian (Minor)": 1.0,
+            },
+            # "Dorian (Minor)": {
+            #     "Dorian (Minor)": 0.0,
+            #     "Ionian (Major)": 2.0,
+            #     "Aeolian (Minor)": 1.0,
+            # }
         }
 
         if mode_modulation_penalty is None:
@@ -93,10 +105,6 @@ class KeyProgressionAnalyzer:
         self._decoder = StateSequenceDecoder(logger, penalty_matrix=penalty_matrix)
         self._merger = RunLengthMerger(logger)
 
-        # Prepare global-key templates (same as local but labeled)
-        self._global_templates = self._local_templates.copy()
-        self._global_states = list(self._global_templates.keys())
-
         self._note_extractor = NoteExtractor(logger, subdivisions_per_beat=2, hop_length_samples=512)
         self._segment_profiler = SegmentProfiler(logger)
 
@@ -105,7 +113,6 @@ class KeyProgressionAnalyzer:
     def analyze(
             self,
             file_path: Path,
-            time_signature: Tuple[int,int] = (4,4),
             segment_beat_level: int = 3
     ) -> Tuple[List[StateRun], Optional[str]]:
         """
@@ -120,7 +127,7 @@ class KeyProgressionAnalyzer:
 
         # --- Local key pass ---
         notes, profiled = self._note_extractor.extract(
-            file_path, time_signature, segment_beat_level, visualize=self._visualize
+            file_path, segment_beat_level, visualize=self._visualize
         )
         segments = self._segment_profiler.profile_segments(profiled, notes)
 

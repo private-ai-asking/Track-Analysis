@@ -55,14 +55,14 @@ class MetricalHierarchyConstructor:
             self,
             beat_times: np.ndarray,
             beat_frames: np.ndarray,
-            beats_per_bar: int,
+            beats_per_segment: int,
     ) -> Tuple[np.ndarray, List[float]]:
         """
         Generate a level array and corresponding event times for sub-beat events.
         """
-        self._validate_inputs(beat_times, beat_frames, beats_per_bar)
+        self._validate_inputs(beat_times, beat_frames, beats_per_segment)
 
-        events_per_bar = self._calculate_events_per_bar(beats_per_bar)
+        events_per_bar = self._calculate_events_per_segment(beats_per_segment)
         top_divisors = self._get_top_divisors(events_per_bar)
 
         events = self._generate_subbeat_events(beat_times, beat_frames)
@@ -77,22 +77,22 @@ class MetricalHierarchyConstructor:
             self,
             beat_times: np.ndarray,
             beat_frames: np.ndarray,
-            beats_per_bar: int,
+            beats_per_segment: int,
     ) -> None:
         if self._subdivisions < 1:
             raise ValueError("subdivisions_per_beat must be positive")
-        if beats_per_bar < 1:
-            raise ValueError("beats_per_bar must be positive")
+        if beats_per_segment < 1:
+            raise ValueError("beats_per_segment must be positive")
         if beat_times.ndim != 1 or beat_frames.ndim != 1:
             raise ValueError("beat_times and beat_frames must be 1D arrays")
         if beat_times.size != beat_frames.size:
             raise ValueError("beat_times and beat_frames must have the same length")
 
-    def _calculate_events_per_bar(self, beats_per_bar: int) -> int:
-        return beats_per_bar * self._subdivisions
+    def _calculate_events_per_segment(self, beats_per_segment: int) -> int:
+        return beats_per_segment * self._subdivisions
 
-    def _get_top_divisors(self, events_per_bar: int) -> List[int]:
-        divisors = self._get_divisors(events_per_bar)
+    def _get_top_divisors(self, events_per_segment: int) -> List[int]:
+        divisors = self._get_divisors(events_per_segment)
         if len(divisors) < self.LEVEL_COUNT:
             raise ValueError(
                 f"Insufficient divisors ({len(divisors)}) for {self.LEVEL_COUNT} levels; "
@@ -119,7 +119,7 @@ class MetricalHierarchyConstructor:
     def _assign_event_levels(
             self,
             events: List[Tuple[float, int]],
-            events_per_bar: int,
+            events_per_segment: int,
             divisors: List[int],
     ) -> Tuple[np.ndarray, List[float]]:
         """
@@ -130,7 +130,7 @@ class MetricalHierarchyConstructor:
         times: List[float] = []
 
         for idx, (time_point, _) in enumerate(events):
-            position = idx % events_per_bar
+            position = idx % events_per_segment
             level = self._determine_level(position, divisors)
             levels.append(level)
             times.append(time_point)
