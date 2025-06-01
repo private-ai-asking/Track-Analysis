@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Tuple, List
+from typing import List
 
 import numpy as np
 from matplotlib.colors import ListedColormap
@@ -32,17 +32,12 @@ from track_analysis.components.track_analysis.features.key_extraction.preprocess
     NormalizedPitchClassesCleaner
 from track_analysis.components.track_analysis.features.key_extraction.preprocessing.note_extraction.pitch_processing.pitch_classes_normalizer import \
     PitchClassesNormalizer
-from track_analysis.components.track_analysis.features.key_extraction.preprocessing.segmentation.audio_segmenter import \
-    AudioSegmenter
-from track_analysis.components.track_analysis.features.key_extraction.preprocessing.segmentation.model.segmentation_result import \
-    SegmentationResult
-from track_analysis.components.track_analysis.features.key_extraction.utils.audio_loader import AudioLoader
 
 
 class NoteExtractor:
     """Pipeline orchestrator for extracting note features from a track file."""
 
-    def __init__(self, logger: HoornLogger, subdivisions_per_beat: int = 2, hop_length_samples: int = 512, n_fft: int = 2048):
+    def __init__(self, logger: HoornLogger, hop_length_samples: int = 512, n_fft: int = 2048):
         self._logger = logger
         self._separator = self.__class__.__name__
         self._logger.trace("Successfully initialized.", separator=self._separator)
@@ -50,9 +45,7 @@ class NoteExtractor:
         cache_dir: Path = CACHE_DIRECTORY
         self._hop_length_samples: int = hop_length_samples
         self._n_fft: int = n_fft
-        self._audio_segmenter = AudioSegmenter(logger, cache_dir, self._hop_length_samples, subdivisions_per_beat=subdivisions_per_beat)
 
-        self._audio_loader: AudioLoader = AudioLoader(logger, cache_dir / "audio loading")
         self._harmonic_extractor: HarmonicExtractor = HarmonicExtractor(logger, cache_dir / "harmonic extraction", hop_length_samples=self._hop_length_samples, n_fft=n_fft)
         self._magnitude_spec_extractor: MagnitudeSpectogramExtractor = MagnitudeSpectogramExtractor(logger, cache_dir / "magnitude spectrogram extraction", n_fft=self._n_fft, hop_length=self._hop_length_samples)
         self._spectral_peak_extractor: SpectralPeakExtractor = SpectralPeakExtractor(logger, cache_dir / "spectral peak extraction", min_frequency_hz=50, max_frequency_hz=2000, hop_length_samples=hop_length_samples, n_fft=self._n_fft)
@@ -64,10 +57,8 @@ class NoteExtractor:
 
         self._visualizer: ChromaVisualizer = ChromaVisualizer(self._hop_length_samples, logger)
 
-    def extract(self, path: Path, min_segment_level: int, visualize: bool = False) -> Tuple[List[NoteEvent], SegmentationResult]:
-        audio_samples_raw, sample_rate = self._audio_loader.load(path)
-        segmentation_results, tempo = self._audio_segmenter.get_segments(audio_samples_raw, sample_rate, min_segment_level)
-        harmonic, percussive = self._harmonic_extractor.extract_harmonic(audio_samples_raw, sample_rate, tempo)
+    def extract(self, audio_samples_raw: np.ndarray, sample_rate: int, track_tempo: float, visualize: bool = False) -> List[NoteEvent]:
+        harmonic, percussive = self._harmonic_extractor.extract_harmonic(audio_samples_raw, sample_rate, track_tempo)
         harmonic_spec = self._magnitude_spec_extractor.extract_magnitude_spectogram(harmonic)
         frequencies, magnitudes = self._spectral_peak_extractor.extract_spectral_peaks(harmonic_spec, sample_rate)
         midi = self._frequency_to_midi_converter.convert(frequencies, magnitudes)
@@ -79,7 +70,7 @@ class NoteExtractor:
         if visualize:
             self._visualize([audio_samples_raw, harmonic, percussive, harmonic_spec, frequencies, magnitudes, midi, pitch_classes, normalized, cleaned_binary, cleaned_chroma], sample_rate)
 
-        return note_events, segmentation_results
+        return note_events
 
     def _visualize(self, visualizations: List[np.ndarray], sample_rate: int):
         visualization_cache = CACHE_DIRECTORY / "visualization"

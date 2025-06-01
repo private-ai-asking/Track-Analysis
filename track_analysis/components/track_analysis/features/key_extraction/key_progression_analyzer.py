@@ -1,125 +1,71 @@
 from pathlib import Path
 from typing import List, Tuple, Optional
 
-import numpy as np
-
-from track_analysis.components.md_common_python.py_common.algorithms.dynamic_programming import StateSequenceDecoder
-from track_analysis.components.md_common_python.py_common.algorithms.sequence import RunLengthMerger
 from track_analysis.components.md_common_python.py_common.algorithms.sequence.run_length_merger import StateRun
-from track_analysis.components.md_common_python.py_common.algorithms.similarity import SimilarityMatcher
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.key_extraction.core.definitions.definition_templates import \
-    TemplateMode
-from track_analysis.components.track_analysis.features.key_extraction.core.penalty.penalty_matrix_builder import \
-    PenaltyMatrixBuilder
-from track_analysis.components.track_analysis.features.key_extraction.core.templates.key_template_builder import \
-    KeyTemplateBuilder
-from track_analysis.components.track_analysis.features.key_extraction.feature.vector.feature_vector_extractor import \
-    FeatureVectorExtractor
-from track_analysis.components.track_analysis.features.key_extraction.feature.transforming.lof_feature_transformer import \
-    LOFFeatureTransformer
-from track_analysis.components.track_analysis.features.key_extraction.preprocessing.note_extraction.note_extractor import \
-    NoteExtractor
-from track_analysis.components.track_analysis.features.key_extraction.preprocessing.profiling.segment_profiler import \
-    SegmentProfiler
+from track_analysis.components.track_analysis.features.key_extraction.core.config.key_progression_config import \
+    KeyProgressionConfig
+from track_analysis.components.track_analysis.features.key_extraction.core.extraction.global_key_extractor import \
+    GlobalKeyEstimator
+from track_analysis.components.track_analysis.features.key_extraction.core.extraction.local_key_extractor import \
+    LocalKeyEstimator
+from track_analysis.components.track_analysis.features.key_extraction.utils.audio_loader import AudioLoader
+from track_analysis.components.track_analysis.features.key_extraction.utils.beat_detector import BeatDetector
 
 
 class KeyProgressionAnalyzer:
     """
-    Orchestrates key progression analysis: extraction, matching, decoding, merging,
-    and infers a global key for the entire piece.
+    Thin orchestrator. Its only job is:
+      1) Load audio,
+      2) Detect beats,
+      3) Hand off to LocalKeyEstimator,
+      4) Hand off to GlobalKeyEstimator,
+      5) Return (local_runs, global_key).
     """
-    def __init__(
-            self,
-            logger: HoornLogger,
-            tone_modulation_penalty: float = 6.0,
-            mode_modulation_penalty: Optional[float] = None,
-            visualize: bool = False,
-            template_mode: TemplateMode = TemplateMode.KS_T_REVISED
-    ):
-        self._visualize = visualize
-
+    def __init__(self, logger: HoornLogger, config: KeyProgressionConfig) -> None:
         self._logger = logger
         self._separator = self.__class__.__name__
+        self._config = config
 
-        # Build pitch-class templates for local key decoding
-        builder = KeyTemplateBuilder(logger, template_mode=template_mode)
-        self._local_templates = builder.build_templates()
-        self._local_matcher = SimilarityMatcher(logger, self._local_templates)
-        self._global_matcher = SimilarityMatcher(
-            logger=self._logger,
-            templates=self._local_templates,
-            label_order=list(self._local_templates.keys()),
-            verbose=False
-        )
+        # 1. Subcomponents that KeyProgressionAnalyzer itself must own:
+        self._audio_loader = AudioLoader(logger, config.cache_dir / "audio_loading")
+        self._beat_detector = BeatDetector(logger)
 
-        if mode_modulation_penalty is None:
-            mode_modulation_penalty_scale = 2.5 / 6
-            mode_modulation_penalty = mode_modulation_penalty_scale * tone_modulation_penalty
+        # 2. Local‐ vs. Global‐key estimators:
+        self._local_estimator = LocalKeyEstimator(logger, config)
+        local_templates = self._local_estimator.get_local_templates()
 
-        penalty_matrix = PenaltyMatrixBuilder(
-            logger,
-            list(self._local_templates.keys()),
-            base_tonic_penalty=tone_modulation_penalty,
-            base_mode_penalty=mode_modulation_penalty
-        ).build()
-
-        self._penalty_matrix = penalty_matrix
-        self._decoder = StateSequenceDecoder(logger, penalty_matrix=penalty_matrix)
-        self._merger = RunLengthMerger(logger)
-
-        self._note_extractor = NoteExtractor(logger, subdivisions_per_beat=2, hop_length_samples=512)
-        self._segment_profiler = SegmentProfiler(logger)
+        self._global_estimator = GlobalKeyEstimator(logger, local_templates)
 
         self._logger.info("Initialized KeyProgressionAnalyzer.", separator=self._separator)
 
-    def analyze(
-            self,
-            file_path: Path,
-            segment_beat_level: int = 3
-    ) -> Tuple[List[StateRun], Optional[str]]:
+    def analyze(self, file_path: Path) -> Tuple[List[StateRun], Optional[str]]:
         """
-        Returns a tuple:
-          - List of StateRun for local key progressions
-          - global key label (str) or None if analysis failed
+        Main entry point. Returns:
+          - List of StateRun (local key progression)
+          - global key (str), or None if file is missing/not readable
         """
         if not file_path.is_file():
             self._logger.error(f"File not found: {file_path}", separator=self._separator)
             return [], None
+
         self._logger.info(f"Starting analysis on file: {file_path}", separator=self._separator)
 
-        # --- Local key pass ---
-        notes, profiled = self._note_extractor.extract(
-            file_path, segment_beat_level, visualize=self._visualize
+        # 1) Load audio from disk:
+        audio_samples, sample_rate = self._audio_loader.load(file_path)
+
+        # 2) Detect beats (tempo + frame indices + times):
+        tempo, beat_frames, beat_times = self._beat_detector.detect(audio_samples, sample_rate)
+
+        # 3) Ask LocalKeyEstimator to do everything up through local runs:
+        local_runs, intervals, feature_matrix = self._local_estimator.analyze(
+            audio_samples, sample_rate, tempo, beat_frames, beat_times
         )
-        segments = self._segment_profiler.profile_segments(profiled, notes)
 
-        extractor = FeatureVectorExtractor(self._logger, LOFFeatureTransformer())
-        vectors, intervals = extractor.extract(segments)
+        # 4) Ask GlobalKeyEstimator to pick one global key:
+        global_key = self._global_estimator.estimate_global_key(
+            feature_matrix, intervals
+        )
 
-        local_match = self._local_matcher.match(vectors)
-        local_path = self._decoder.decode(local_match.matrix)
-        local_runs = self._merger.merge(intervals, local_path.tolist(), local_match.labels)
-        self._logger.info("Local key analysis complete.", separator=self._separator)
-
-        # --- Global key second pass ---
-        # 1. Weight each segment‐vector by its duration to form one global chroma:
-        durations = [end - start for (start, end) in intervals]
-
-        global_chroma = np.zeros(12, dtype=float)
-        for i, vec in enumerate(vectors):
-            global_chroma += durations[i] * vec
-
-        # Normalize so it has unit L1 norm (or L2 if your templates expect that)
-        global_chroma /= np.linalg.norm(global_chroma, ord=1)
-        score_result = self._global_matcher.match([global_chroma])
-
-        scores = score_result.matrix[0]
-        labels = score_result.labels
-
-        # 3. Pick the label with the highest score:
-        best_idx = int(np.argmax(scores))
-        global_key = labels[best_idx]
-
-        self._logger.info("Analysis complete.", separator=self._separator)
+        self._logger.info("Key progression analysis complete.", separator=self._separator)
         return local_runs, global_key

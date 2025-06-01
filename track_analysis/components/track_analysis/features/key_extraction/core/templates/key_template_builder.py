@@ -10,7 +10,7 @@ from track_analysis.components.track_analysis.features.key_extraction.core.defin
     ORDER_OF_FIFTHS
 from track_analysis.components.track_analysis.features.key_extraction.core.definitions.definition_templates import \
     TemplateMode
-from track_analysis.components.track_analysis.features.key_extraction.feature.transforming.lof_feature_transformer import \
+from track_analysis.components.track_analysis.features.key_extraction.feature.lof.lof_feature_transformer import \
     LOFFeatureTransformer
 
 

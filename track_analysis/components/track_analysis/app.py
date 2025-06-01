@@ -31,8 +31,6 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
     LibraryDataGenerationPipelineContext
 from track_analysis.components.track_analysis.features.key_extraction.core.definitions.definition_templates import \
     TemplateMode
-from track_analysis.components.track_analysis.features.key_extraction.profile_generation.profile_creator import \
-    ProfileCreator
 from track_analysis.components.track_analysis.features.scrobbling.embedding.default_candidate_retriever import \
     DefaultCandidateRetriever
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
@@ -118,7 +116,6 @@ class App:
         self._genre_algorithm: GenreAlgorithm = GenreAlgorithm(logger)
         self._metadata_api: MetadataAPI = MetadataAPI(logger, self._genre_algorithm)
         self._command_helper: CommandHelper = CommandHelper(logger, "CommandHelper")
-        self._profile_creator: ProfileCreator = ProfileCreator(logger)
 
 
         self._download_pipeline: DownloadPipeline = DownloadPipeline(
@@ -210,7 +207,7 @@ class App:
         cmd.add_command(["test_params", "tp"], "Tests various parameter combinations for the algorithm.", self._scrobble_linker.test_parameters)
         cmd.add_command(["test_keys_extraction", "tke"], "Tests the key extraction algorithm.", self._test_keys, arguments=[False])
         cmd.add_command(["test_keys_extraction-p", "tke-p"], "Tests the key extraction algorithm and profiles.", self._test_keys, arguments=[True])
-        cmd.add_command(["compute_profiles", "cp"], "Computes profiles based on a corpus.", self._profile_creation_test)
+        # cmd.add_command(["compute_profiles", "cp"], "Computes profiles based on a corpus.", self._profile_creation_test)
         cmd.add_command(["process_uncertain", "pu"], "Processes the uncertain keys interactively.", self._uncertain_keys_processor.process)
         cmd.add_command(["print_unmatched", "pru"], "Prints the library entries whose UUIDs don't have an associated cached scrobble.", self._unmatch_util.print_unmatched_tracks)
         cmd.add_command(["build_cache", "bc"], "Builds the cache for the library for n samples.", self._build_cache, arguments=[False])
@@ -230,13 +227,13 @@ class App:
             )
             self.run()
 
-    def _profile_creation_test(self):
-        corpus_path = Path(r"X:\Track Analysis\corpus.csv")
-
-        def __run():
-            self._profile_creator.compute_profile(corpus_path)
-
-        __run()
+    # def _profile_creation_test(self):
+    #     corpus_path = Path(r"X:\Track Analysis\corpus.csv")
+    #
+    #     def __run():
+    #         self._profile_creator.compute_profile(corpus_path)
+    #
+    #     __run()
 
     def _download_and_assign_metadata(self):
         # Run the download pipeline
@@ -272,10 +269,10 @@ class App:
         track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\11 Nas & Damian Marley - Patience.flac")
         # track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Classical\Claude Debussy\Classical Best\31 Danse sacrée et progane - Sacred Dance.flac")
         # track_path: Path = Path(r"W:\media\music\[02] organized\[02] lq\CCM\Champion\08 - Beckah Shae - Me and My God.flac")
-        tester: KeyProgressionTest = KeyProgressionTest(self._logger, tone_modulation_penalty=12.0, mode_modulation_penalty=None, visualize=False, template_mode=TemplateMode.KS_T_REVISED)
+        tester: KeyProgressionTest = KeyProgressionTest(self._logger, tone_modulation_penalty=12.0, mode_modulation_penalty=None, visualize=False, template_mode=TemplateMode.KS_T_REVISED, segment_beat_level=4)
 
         def __test():
-            tester.test(file_path=track_path, segment_beat_level=4)
+            tester.test(file_path=track_path)
 
         if profiling: _run_with_profiling(__test, category="Key Extraction")
         else: __test()

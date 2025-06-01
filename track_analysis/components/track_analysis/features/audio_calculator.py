@@ -144,7 +144,7 @@ class AudioCalculator:
         if stream_info.sample_rate_Hz == 0 or stream_info.bit_depth == 0 or stream_info.channels == 0:
             return 0.0
 
-        cache_key: Tuple[float, int, int] = (stream_info.sample_rate_Hz, stream_info.bit_depth, stream_info.channels)
+        cache_key: Tuple[float, int, int] = (stream_info.sample_rate_Hz, stream_info.bit_depth, stream_info.channels) # type: ignore
 
         cached_value = self._max_data_rate_cache_lookup.get(
             cache_key,

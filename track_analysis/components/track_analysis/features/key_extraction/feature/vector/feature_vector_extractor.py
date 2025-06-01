@@ -3,8 +3,9 @@ from typing import List, Tuple
 import numpy as np
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.key_extraction.feature.transforming.lof_feature_transformer import \
+from track_analysis.components.track_analysis.features.key_extraction.feature.lof.lof_feature_transformer import \
     LOFFeatureTransformer
+
 from track_analysis.components.track_analysis.features.key_extraction.preprocessing.profiling.segment_profiler import Segment
 
 

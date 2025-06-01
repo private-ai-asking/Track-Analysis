@@ -7,6 +7,8 @@ import numpy as np
 from joblib import Memory
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
+
 
 def _perform_beat_track(audio: np.ndarray, sample_rate: int):
     tempo, frames = librosa.beat.beat_track(
@@ -19,9 +21,11 @@ class BeatDetector:
     """
     Detects beats and estimates tempo from audio.
     """
-    def __init__(self, logger: HoornLogger, separator: str, cache_dir: Path):
+    def __init__(self, logger: HoornLogger):
         self._logger = logger
-        self._separator = separator
+        self._separator = self.__class__.__name__
+
+        cache_dir = CACHE_DIRECTORY / "beat detection"
         os.makedirs(cache_dir, exist_ok=True)
 
         self._compute = Memory(cache_dir, verbose=0).cache(_perform_beat_track)
