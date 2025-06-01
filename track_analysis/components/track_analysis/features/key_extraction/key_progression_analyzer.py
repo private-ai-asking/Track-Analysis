@@ -28,7 +28,7 @@ class KeyProgressionAnalyzer:
         self._config = config
 
         # 1. Subcomponents that KeyProgressionAnalyzer itself must own:
-        self._audio_loader = AudioLoader(logger, config.cache_dir / "audio_loading")
+        self._audio_loader = AudioLoader(logger)
         self._beat_detector = BeatDetector(logger)
 
         # 2. Local‐ vs. Global‐key estimators:

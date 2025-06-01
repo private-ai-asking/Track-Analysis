@@ -89,11 +89,6 @@ class LocalKeyEstimator:
         4) Extract feature vectors,
         5) Match each vector against local templates (SimilarityMatcher),
         6) Decode via Viterbi (StateSequenceDecoder) + merge runs (RunLengthMerger).
-
-        Returns:
-          - local_runs: List[StateRun]
-          - intervals: List of (start_frame, end_frame) for each segment
-          - feature_matrix: np.ndarray of shape (n_segments, 12)
         """
         self._logger.info("Starting local key analysis.", separator=self._separator)
 
@@ -112,7 +107,7 @@ class LocalKeyEstimator:
         profiled_segments = self._segment_profiler.profile_segments(segments, notes)
 
         # --- 4. Extract feature vectors + keep intervals for merging ---
-        feature_matrix, intervals = self._feature_extractor.extract(profiled_segments)
+        feature_matrix, intervals = self._feature_extractor.extract_segments(profiled_segments)
 
         # --- 5. Local similarity matching & decoding ---
         local_match_result = self._local_matcher.match(feature_matrix)

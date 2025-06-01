@@ -20,6 +20,7 @@ class SegmentNote:
     mean_energy_in_segment: float
     median_energy_in_segment: float
     max_energy_in_segment: float
+    total_energy_in_segment: float
 
 
 @dataclass(frozen=True)
@@ -88,6 +89,7 @@ class SegmentProfiler:
                 mean_e = float(raw_seg.mean())
                 med_e  = float(np.median(raw_seg))
                 max_e  = float(raw_seg.max())
+                total_e = float(raw_seg.sum())
 
                 notes.append(
                     SegmentNote(
@@ -98,7 +100,8 @@ class SegmentProfiler:
                         raw_energy_in_segment=raw_seg,
                         mean_energy_in_segment=mean_e,
                         median_energy_in_segment=med_e,
-                        max_energy_in_segment=max_e
+                        max_energy_in_segment=max_e,
+                        total_energy_in_segment=total_e
                     )
                 )
 

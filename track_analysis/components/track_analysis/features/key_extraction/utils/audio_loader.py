@@ -7,15 +7,18 @@ import numpy as np
 from joblib import Memory
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
+
 
 def _load_audio(path: Path) -> Tuple[np.ndarray, int]:
     return librosa.load(path, sr=None)
 
 class AudioLoader:
-    def __init__(self, logger: HoornLogger, cache_dir: Path):
+    def __init__(self, logger: HoornLogger):
         self._logger = logger
         self._separator: str = "AudioLoader"
 
+        cache_dir = CACHE_DIRECTORY / "audio loading"
         os.makedirs(cache_dir, exist_ok=True)
         self._compute = Memory(cache_dir, verbose=0).cache(_load_audio)
 
