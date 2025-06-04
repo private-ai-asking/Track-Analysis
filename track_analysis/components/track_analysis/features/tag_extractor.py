@@ -84,7 +84,6 @@ class TagExtractor:
         # Sonic Metadata
         track[Header.BPM.value] = audio_info.tempo
         track[Header.Energy_Level.value] = file.get('energylevel', ["Unknown"])[0]
-        track[Header.Key.value] = file.get('initialkey', ["Unknown"])[0]
 
         file['bpm'] = str(round(audio_info.tempo, 4))
         file.save()

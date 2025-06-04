@@ -22,7 +22,10 @@ class Header(Enum):
 
     BPM = "BPM"
     Energy_Level = "Energy Level"
-    Key = "Key"
+
+    Key = "Principal Key"
+    Start_Key = "Start Key"
+    End_Key = "End Key"
 
     Duration = "Duration"
     Bitrate = "Bitrate"

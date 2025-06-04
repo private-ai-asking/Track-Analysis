@@ -334,8 +334,8 @@ class App:
             key_progression_output_file_path=key_progression_path,
             use_threads=True,
             max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN,
-            missing_headers_to_fill=[],
-            headers_to_refill=[Header.Key]
+            missing_headers_to_fill=[Header.Start_Key, Header.End_Key],
+            headers_to_refill=[]
         )
 
         # output_path.unlink(missing_ok=True)
