@@ -112,7 +112,7 @@ class App:
         self._tag_extractor: TagExtractor = TagExtractor(logger)
         self._file_handler: FileHandler = FileHandler()
         self._audio_file_handler: AudioFileHandler = AudioFileHandler(logger, num_workers=NUM_WORKERS_CPU_HEAVY)
-        self._audio_calculator: AudioCalculator = AudioCalculator(logger)
+        self._audio_calculator: AudioCalculator = AudioCalculator(logger, key_progression_path=OUTPUT_DIRECTORY.joinpath("key_progression.csv"), num_workers=NUM_WORKERS_CPU_HEAVY-14)
         self._time_utils: TimeUtils = TimeUtils()
         self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)
         self._downloader: MusicDownloadInterface = YTDLPMusicDownloader(logger, music_track_download_dir)
@@ -334,7 +334,7 @@ class App:
             key_progression_output_file_path=key_progression_path,
             use_threads=True,
             max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN,
-            missing_headers_to_fill=[Header.Start_Key, Header.End_Key],
+            missing_headers_to_fill=[],
             headers_to_refill=[]
         )
 
