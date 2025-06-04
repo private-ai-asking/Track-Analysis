@@ -36,6 +36,9 @@ class SingleTrackProfiler:
         notes: List[NoteEvent] = self._note_extractor.extract(
             audio_samples, sr, tempo, visualize=False
         )
+
+        del audio_samples
+
         vec = self._feature_extractor.extract_features_from_note_events(notes)
 
         # 3) wrap that 12‐dim vector into a KeyProfile

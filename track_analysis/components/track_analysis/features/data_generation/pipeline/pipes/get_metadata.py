@@ -4,6 +4,7 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
+from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
@@ -26,9 +27,9 @@ class GetAndBuildAudioMetadata(IPipe):
         self._logger.info(f"Paths to extract metadata: {total}", separator=self._separator)
 
         # 1. Helper that returns a dict of metadata for one file
-        def extract_one(path: str) -> dict:
+        def extract_one(path: str, extracted_stream_info: AudioStreamsInfoModel) -> dict:
             s = pd.Series({ Header.Audio_Path.value: path })
-            self._tag_extractor.add_extracted_metadata_to_track(s)
+            self._tag_extractor.add_extracted_metadata_to_track(s, extracted_stream_info)
             return s.to_dict()
 
         # 2. Parallelize the I/O-bound tag extraction

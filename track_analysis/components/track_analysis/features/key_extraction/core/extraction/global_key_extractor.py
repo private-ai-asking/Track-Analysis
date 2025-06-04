@@ -28,7 +28,6 @@ class GlobalKeyEstimator:
     def estimate_global_key(
             self,
             feature_matrix: List[np.ndarray],
-            intervals: List[Tuple[float, float]],
     ) -> str:
         """
         1) Compute each segment's duration (end_frame - start_frame),
@@ -38,13 +37,10 @@ class GlobalKeyEstimator:
         """
         self._logger.info("Starting global key estimation.", separator=self._separator)
 
-        # 1. Compute durations
-        durations = np.array([end - start for (start, end) in intervals], dtype=float)
-
         # 2. Weighted sum of all feature vectors
         global_chroma = np.zeros(12, dtype=float)
         for i, vec in enumerate(feature_matrix):
-            global_chroma += durations[i] * vec
+            global_chroma += vec  # No need to include duration since it's already part of the feature matrix.
 
         # 3. Normalize to L1‐norm
         norm = np.linalg.norm(global_chroma, ord=1)

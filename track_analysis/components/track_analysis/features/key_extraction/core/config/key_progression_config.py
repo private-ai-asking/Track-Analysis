@@ -27,4 +27,4 @@ class KeyProgressionConfig:
 
     def __post_init__(self):
         if self.mode_modulation_penalty is None:
-            object.__setattr__(self, "mode_modulation_penalty", (2.5 / 6) * self.tone_modulation_penalty)
+            object.__setattr__(self, "mode_modulation_penalty", (3.5 / 6) * self.tone_modulation_penalty)

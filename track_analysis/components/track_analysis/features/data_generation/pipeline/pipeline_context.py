@@ -12,13 +12,17 @@ from track_analysis.components.track_analysis.features.data_generation.model.hea
 class LibraryDataGenerationPipelineContext(pydantic.BaseModel):
     source_dir: Path
     main_data_output_file_path: Path
+    key_progression_output_file_path: Path
+
     use_threads: bool = True
     max_new_tracks_per_run: Optional[int] = 50
     missing_headers_to_fill: List[Header] = []
     headers_to_refill: List[Header] = []
 
     loaded_audio_info_cache: Optional[pd.DataFrame] = None
+
     missing_headers: Optional[Dict[Header, List[str]]] = None
+    refill_headers: Optional[Dict[Header, List[str]]] = None
 
     # Generated Along the Line
     album_costs: Optional[List[AlbumCostModel]] = []

@@ -9,7 +9,7 @@ import numpy as np
 from pyebur128.pyebur128 import R128State, MeasurementMode, get_loudness_range, get_loudness_global, get_true_peak
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
+from track_analysis.components.track_analysis.constants import EXPENSIVE_CACHE_DIRECTORY
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 
@@ -19,7 +19,7 @@ class AudioCalculator:
         self._separator = "AudioCalculator"
         self._logger = logger
 
-        self._max_data_rate_cache_path: Path = CACHE_DIRECTORY / "max_data_rate_cache.pkl"
+        self._max_data_rate_cache_path: Path = EXPENSIVE_CACHE_DIRECTORY / "max_data_rate_cache.pkl"
         self._max_data_rate_cache_lookup: Dict[Tuple[float, int, int], float] = self._load_max_data_rate_cache_lookup()
 
         self._processed: int = 0

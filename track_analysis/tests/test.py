@@ -1,6 +1,10 @@
-import numpy as np
+from pathlib import Path
 
-ls = [18.16, 0.69, 12.99, 13.34, 1.07, 11.15, 1.38, 21.07, 7.49, 1.53, 0.92, 10.21]
+import mutagen
 
-ttl = np.sum(ls)
-print(f"Sum: {ttl:.04f}")
+path = Path(r"W:\media\music\[02] organized\[02] lq\Ambient\Melancholie²\03 - ColdWorld - Winterreise.flac")
+
+file = mutagen.File(path)
+file['bpm'] = str(70.0)
+
+file.save()

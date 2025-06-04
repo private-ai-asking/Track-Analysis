@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 from typing import Tuple
 
 import librosa
@@ -7,7 +6,7 @@ import numpy as np
 from joblib import Memory
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
+from track_analysis.components.track_analysis.constants import EXPENSIVE_CACHE_DIRECTORY
 
 
 def _perform_beat_track(audio: np.ndarray, sample_rate: int):
@@ -25,7 +24,7 @@ class BeatDetector:
         self._logger = logger
         self._separator = self.__class__.__name__
 
-        cache_dir = CACHE_DIRECTORY / "beat detection"
+        cache_dir = EXPENSIVE_CACHE_DIRECTORY / "beat detection"
         os.makedirs(cache_dir, exist_ok=True)
 
         self._compute = Memory(cache_dir, verbose=0).cache(_perform_beat_track)
@@ -36,7 +35,10 @@ class BeatDetector:
             sample_rate: int
     ) -> Tuple[float, np.ndarray, np.ndarray]:
         tempo, frames = self._compute(audio, sample_rate)
-        tempo = tempo[0]
+
+        if not isinstance(tempo, float | int):
+            tempo = tempo[0]
+
         times = librosa.frames_to_time(frames, sr=sample_rate)
 
         self._logger.info(

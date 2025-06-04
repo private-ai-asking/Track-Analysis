@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 
 from track_analysis.components.md_common_python.py_common.algorithms.sequence.run_length_merger import StateRun
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
@@ -11,6 +11,92 @@ from track_analysis.components.track_analysis.features.key_extraction.core.extra
     LocalKeyEstimator
 from track_analysis.components.track_analysis.features.key_extraction.utils.audio_loader import AudioLoader
 from track_analysis.components.track_analysis.features.key_extraction.utils.beat_detector import BeatDetector
+
+_CAMELOT_MAPPING: Dict[str, str] = {
+    # 1A: Ab minor / G# minor
+    "Ab Aeolian (Minor)": "1A",
+    "G# Aeolian (Minor)": "1A",
+
+    # 1B: B major / Cb major
+    "B Ionian (Major)": "1B",
+    "Cb Ionian (Major)": "1B",
+
+    # 2A: Eb minor / D# minor
+    "Eb Aeolian (Minor)": "2A",
+    "D# Aeolian (Minor)": "2A",
+
+    # 2B: F# major / Gb major
+    "F# Ionian (Major)": "2B",
+    "Gb Ionian (Major)": "2B",
+
+    # 3A: Bb minor / A# minor
+    "Bb Aeolian (Minor)": "3A",
+    "A# Aeolian (Minor)": "3A",
+
+    # 3B: Db major / C# major
+    "Db Ionian (Major)": "3B",
+    "C# Ionian (Major)": "3B",
+
+    # 4A: F minor
+    "F Aeolian (Minor)": "4A",
+
+    # 4B: Ab major / G# major
+    "Ab Ionian (Major)": "4B",
+    "G# Ionian (Major)": "4B",
+
+    # 5A: C minor
+    "C Aeolian (Minor)": "5A",
+
+    # 5B: Eb major / D# major
+    "Eb Ionian (Major)": "5B",
+    "D# Ionian (Major)": "5B",
+
+    # 6A: G minor
+    "G Aeolian (Minor)": "6A",
+
+    # 6B: Bb major / A# major
+    "Bb Ionian (Major)": "6B",
+    "A# Ionian (Major)": "6B",
+
+    # 7A: D minor
+    "D Aeolian (Minor)": "7A",
+
+    # 7B: F major
+    "F Ionian (Major)": "7B",
+
+    # 8A: A minor
+    "A Aeolian (Minor)": "8A",
+
+    # 8B: C major
+    "C Ionian (Major)": "8B",
+
+    # 9A: E minor
+    "E Aeolian (Minor)": "9A",
+
+    # 9B: G major
+    "G Ionian (Major)": "9B",
+
+    # 10A: B minor
+    "B Aeolian (Minor)": "10A",
+
+    # 10B: D major
+    "D Ionian (Major)": "10B",
+
+    # 11A: F# minor / Gb minor
+    "F# Aeolian (Minor)": "11A",
+    "Gb Aeolian (Minor)": "11A",
+
+    # 11B: A major
+    "A Ionian (Major)": "11B",
+
+    # 12A: Db minor / C# minor
+    "Db Aeolian (Minor)": "12A",
+    "C# Aeolian (Minor)": "12A",
+
+    # 12B: E major / Fb major
+    "E Ionian (Major)": "12B",
+    "Fb Ionian (Major)": "12B",
+}
 
 
 class KeyProgressionAnalyzer:
@@ -39,7 +125,7 @@ class KeyProgressionAnalyzer:
 
         self._logger.info("Initialized KeyProgressionAnalyzer.", separator=self._separator)
 
-    def analyze(self, file_path: Path) -> Tuple[List[StateRun], Optional[str]]:
+    def analyze(self, file_path: Path) -> Tuple[Optional[List[StateRun]], Optional[str]]:
         """
         Main entry point. Returns:
           - List of StateRun (local key progression)
@@ -57,15 +143,35 @@ class KeyProgressionAnalyzer:
         # 2) Detect beats (tempo + frame indices + times):
         tempo, beat_frames, beat_times = self._beat_detector.detect(audio_samples, sample_rate)
 
+        if tempo == 0:
+            self._logger.warning(f"[Tempo = 0] Local key estimation failed for: \"{file_path}\"...", separator=self._separator)
+            return None, None
+
         # 3) Ask LocalKeyEstimator to do everything up through local runs:
-        local_runs, intervals, feature_matrix = self._local_estimator.analyze(
+        result = self._local_estimator.analyze(
             audio_samples, sample_rate, tempo, beat_frames, beat_times
         )
 
+        if result is None:
+            self._logger.warning(f"[Local analysis failed] Local key estimation failed for: \"{file_path}\"...", separator=self._separator)
+            return None, None
+
+        local_runs = result[0]
+        feature_matrix = result[2]
+
         # 4) Ask GlobalKeyEstimator to pick one global key:
         global_key = self._global_estimator.estimate_global_key(
-            feature_matrix, intervals
+            feature_matrix
         )
 
         self._logger.info("Key progression analysis complete.", separator=self._separator)
         return local_runs, global_key
+
+    def convert_label_to_camelot(self, label: str) -> str:
+        camelot: str = _CAMELOT_MAPPING.get(label, None)
+
+        if camelot is None:
+            self._logger.warning(f"No camelot mapping found for {label}, returning label.", separator=self._separator)
+            return label
+
+        return camelot

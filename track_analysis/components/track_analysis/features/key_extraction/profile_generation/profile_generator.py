@@ -86,7 +86,7 @@ class ProfileGenerator:
         """
         df = pd.read_csv(
             path,
-            usecols=["Path", "Principal Key"],   # find exactly those two original headers
+            usecols=["Path", "Principal Key"],
             header=0
         )
         df = df.rename(columns={"Path": "track_path", "Principal Key": "track_key"})
@@ -150,6 +150,7 @@ class ProfileGenerator:
         """
         collected: List[KeyProfile] = []
         for future in as_completed(future_to_meta):
+            self._processed += 1
             raw_path, track_key = future_to_meta[future]
             try:
                 kp: KeyProfile = future.result()
@@ -170,19 +171,25 @@ class ProfileGenerator:
     def _print_profiles(self, shifted_profiles: List[KeyProfile]) -> None:
         for profile in shifted_profiles:
             mode_vector = self._get_vector_for_mode(profile)
+            label = profile.get_label()
+
+            self._logger.debug(f"Generated vector for {label} based on {len(profile.vectors)} tracks.", separator=self._separator)
+
             self._logger.info(
-                f"Template Profile (normalized/precise) for {profile.get_label()}:\n"
+                f"Template Profile (normalized/precise) for {label}:\n"
                 f"{self._format_vector(mode_vector, decimals=18)}",
                 separator=self._separator,
             )
             self._logger.info(
-                f"Template Profile (normalized/rounded) for {profile.get_label()}:\n"
+                f"Template Profile (normalized/rounded) for {label}:\n"
                 f"{self._format_vector(mode_vector, decimals=2)}",
                 separator=self._separator,
             )
 
+            self._logger.info("-------------------------------------------------------------", separator=self._separator)
+
     def _get_vector_for_mode(self, profile: KeyProfile) -> np.ndarray:
-        median_profile: np.ndarray = profile.median_vector()
+        median_profile: np.ndarray = profile.geometric_median()
         self._logger.info(
             f"Template Profile (raw) for {profile.get_label()}:\n{pprint.pformat(median_profile)}",
             separator=self._separator,

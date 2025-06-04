@@ -28,7 +28,8 @@ class KeyProgressionTest(TestInterface):
             template_mode=template_mode,
             hop_length=512,
             subdivisions_per_beat=2,
-            segment_beat_level=segment_beat_level
+            segment_beat_level=segment_beat_level,
+            cache_dir=Path(r"G:/")
         )
         self._analyzer = KeyProgressionAnalyzer(logger, config)
 

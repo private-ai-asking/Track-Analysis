@@ -9,6 +9,7 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
     GetStreamInfo
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.handle_rows_with_missing_data import \
     HandleRowsWithMissingData
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.redo_headers import RedoHeaders
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.remove_invalid_cached_entries import \
     RemoveInvalidCachedEntries
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
@@ -32,7 +33,8 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
                  audio_file_handler: AudioFileHandler,
                  audio_calculator: AudioCalculator,
                  string_utils: StringUtils,
-                 num_workers: int):
+                 num_workers: int,
+                 num_workers_refill: int):
         self._logger = logger
         self._filehandler = filehandler
         self._tag_extractor = tag_extractor
@@ -40,6 +42,7 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._audio_calculator = audio_calculator
         self._string_utils = string_utils
         self._num_workers: int = num_workers
+        self._num_workers_refill: int = num_workers_refill
         super().__init__(logger)
 
     def build_pipeline(self):
@@ -48,6 +51,7 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
                     len(context.filtered_audio_file_paths) <= 0
                     and len(context.invalid_cached_paths) <= 0
                     and len(context.missing_headers.keys()) <= 0
+                    and len(context.refill_headers.keys()) <= 0
             )
 
         self._add_step(GetAlbumCosts())
@@ -62,5 +66,6 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._add_step(AddAdvancedMetadata(self._logger, self._audio_calculator, self._num_workers))
         self._add_step(RemoveInvalidCachedEntries(self._logger))
         self._add_step(HandleRowsWithMissingData(self._logger, self._audio_file_handler))
+        self._add_step(RedoHeaders(self._logger, self._audio_file_handler, self._num_workers_refill))
         self._add_step(PreprocessData(self._logger, self._string_utils))
         self._add_step(MakeCSV(self._logger))

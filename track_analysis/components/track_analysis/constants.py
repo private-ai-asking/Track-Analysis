@@ -17,6 +17,7 @@ OUTPUT_DIRECTORY: Path = Path("X:\Track Analysis\output")
 
 DATA_DIRECTORY: Path = Path("X:\Track Analysis\data")
 CACHE_DIRECTORY: Path = Path("X:\Track Analysis\cache")
+EXPENSIVE_CACHE_DIRECTORY: Path = Path(r"G:/")
 BENCHMARK_DIRECTORY: Path = Path(r"X:\Track Analysis\track_analysis\benchmarks")
 
 DEBUG: bool = True

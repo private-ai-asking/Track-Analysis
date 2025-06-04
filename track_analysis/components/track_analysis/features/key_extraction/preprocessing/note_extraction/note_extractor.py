@@ -1,3 +1,4 @@
+import gc
 from pathlib import Path
 from typing import List
 
@@ -5,7 +6,7 @@ import numpy as np
 from matplotlib.colors import ListedColormap
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
+from track_analysis.components.track_analysis.constants import EXPENSIVE_CACHE_DIRECTORY
 from track_analysis.components.track_analysis.features.key_extraction.feature.visualization.chroma_visualizer import \
     ChromaVisualizer
 from track_analysis.components.track_analysis.features.key_extraction.feature.visualization.model.config import \
@@ -42,7 +43,7 @@ class NoteExtractor:
         self._separator = self.__class__.__name__
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
-        cache_dir: Path = CACHE_DIRECTORY
+        cache_dir: Path = EXPENSIVE_CACHE_DIRECTORY
         self._hop_length_samples: int = hop_length_samples
         self._n_fft: int = n_fft
 
@@ -70,10 +71,23 @@ class NoteExtractor:
         if visualize:
             self._visualize([audio_samples_raw, harmonic, percussive, harmonic_spec, frequencies, magnitudes, midi, pitch_classes, normalized, cleaned_binary, cleaned_chroma], sample_rate)
 
+        del harmonic
+        del percussive
+        del harmonic_spec
+        del frequencies
+        del magnitudes
+        del midi
+        del pitch_classes
+        del normalized
+        del cleaned_binary
+        del cleaned_chroma
+
+        gc.collect()
+
         return note_events
 
     def _visualize(self, visualizations: List[np.ndarray], sample_rate: int):
-        visualization_cache = CACHE_DIRECTORY / "visualization"
+        visualization_cache = EXPENSIVE_CACHE_DIRECTORY / "visualization"
 
         audio_samples_raw = visualizations[0]
         harmonic = visualizations[1]

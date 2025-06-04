@@ -1,4 +1,4 @@
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Optional
 
 import numpy as np
 
@@ -81,7 +81,7 @@ class LocalKeyEstimator:
             track_tempo: float,
             beat_frames: np.ndarray,
             beat_times: np.ndarray,
-    ) -> Tuple[List[StateRun], List[Tuple[float, float]], List[np.ndarray]]:
+    ) -> Optional[Tuple[List[StateRun], List[Tuple[float, float]], List[np.ndarray]]]:
         """
         1) Extract notes from raw audio & tempo,
         2) Segment audio into chunks at beat‐level = config.segment_beat_level,
@@ -102,6 +102,12 @@ class LocalKeyEstimator:
             beat_frames, beat_times, audio_samples, sample_rate,
             min_segment_level=self._config.segment_beat_level
         )
+
+        if segments is None:
+            self._logger.warning(f"Segmentation failed for track!", separator=self._separator)
+            return None
+
+        del audio_samples
 
         # --- 3. Profile each segment (collect note/chroma info) ---
         profiled_segments = self._segment_profiler.profile_segments(segments, notes)

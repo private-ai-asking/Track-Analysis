@@ -32,7 +32,7 @@ class SpectralPeakExtractor:
         self._n_fft = n_fft
 
         os.makedirs(cache_dir, exist_ok=True)
-        self._extract = Memory(cache_dir, verbose=0).cache(_extract)
+        self._extract = Memory(cache_dir, verbose=0, compress=3).cache(_extract)
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
@@ -51,4 +51,3 @@ class SpectralPeakExtractor:
         self._logger.debug(f"Magnitudes:\n{pprint.pformat(magnitudes)}", separator=self._separator)
 
         return pitches, magnitudes
-
