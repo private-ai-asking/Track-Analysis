@@ -9,6 +9,7 @@ from typing import Tuple, Dict, List, Optional
 import mutagen
 import numpy as np
 import pandas as pd
+from numpy.lib.stride_tricks import sliding_window_view
 from pyebur128.pyebur128 import R128State, MeasurementMode, get_loudness_range, get_loudness_global, get_true_peak
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
@@ -16,6 +17,55 @@ from track_analysis.components.track_analysis.constants import EXPENSIVE_CACHE_D
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.util.key_extractor import KeyExtractor
+
+def compute_short_time_rms_dbfs(
+        samples: np.ndarray,
+        sr: int,
+        window_ms: float = 50.0,
+        hop_ms: float = 10.0
+) -> Tuple[float, float, float]:
+    """
+    Compute short-time RMS energy statistics in dBFS.
+
+    Returns:
+        mean_db  : Mean RMS level in dBFS
+        max_db   : Maximum RMS level in dBFS
+        p90_db   : 90th-percentile RMS level in dBFS
+    """
+    # 1) Ensure mono
+    if samples.ndim == 2:
+        mono = samples.mean(axis=1)
+    else:
+        mono = samples
+
+    # 2) Convert time-based window/hop sizes to samples
+    frame_length = int(sr * window_ms / 1000)
+    hop_length   = int(sr * hop_ms    / 1000)
+    if frame_length < 1:
+        raise ValueError(f"window_ms {window_ms}ms too small for sample rate {sr}")
+
+    # 3) Fallback for short signals
+    total_frames = mono.shape[0]
+    if total_frames < frame_length:
+        whole_rms = np.sqrt(np.mean(mono**2))
+        db = 20.0 * math.log10(max(whole_rms, np.finfo(float).eps))
+        return db, db, db
+
+    # 4) Frame the signal
+    n_frames = 1 + (total_frames - frame_length) // hop_length
+    trimmed = mono[: hop_length * n_frames + frame_length - hop_length]
+    windows = sliding_window_view(trimmed, frame_length)[::hop_length]
+
+    # 5) Compute RMS per window
+    rms_vals = np.sqrt(np.mean(windows**2, axis=1))
+    rms_vals = np.maximum(rms_vals, np.finfo(rms_vals.dtype).eps)
+
+    # 6) Convert to dBFS and compute stats
+    rms_dbfs = 20.0 * np.log10(rms_vals)
+    mean_db  = float(rms_dbfs.mean())
+    max_db   = float(rms_dbfs.max())
+    p90_db   = float(np.percentile(rms_dbfs, 90))
+    return mean_db, max_db, p90_db
 
 
 class AudioCalculator:
@@ -46,16 +96,19 @@ class AudioCalculator:
         for each sample in samples_list, in parallel.
         """
         self._processed = 0
-        total = len(samples_list)
 
         results = self._run_sample_metric_workers(samples_list, sample_rates, chunk_size, max_workers)
-        tps, lufs, lras, crest_db = zip(*results)
+        tps, lufs, lras, crest_db, rms_data = zip(*results)
+        mean_rms, max_rms, p90_rms = zip(*rms_data)
 
         return {
-            Header.True_Peak.value:               np.array(tps,   dtype=np.float32),
-            Header.Integrated_LUFS.value:         np.array(lufs, dtype=np.float32),
-            Header.Program_Dynamic_Range_LRA.value: np.array(lras, dtype=np.float32),
-            Header.Crest_Factor.value:            np.array(crest_db, dtype=np.float32),
+            Header.True_Peak.value:                  np.array(tps,       dtype=np.float32),
+            Header.Integrated_LUFS.value:            np.array(lufs,      dtype=np.float32),
+            Header.Program_Dynamic_Range_LRA.value:  np.array(lras,      dtype=np.float32),
+            Header.Crest_Factor.value:               np.array(crest_db,  dtype=np.float32),
+            Header.Mean_RMS.value:                   np.array(mean_rms,  dtype=np.float32),
+            Header.Max_RMS.value:                    np.array(max_rms,   dtype=np.float32),
+            Header.Percentile_90_RMS.value:          np.array(p90_rms,   dtype=np.float32),
         }
 
     def calculate_batch_rest(
@@ -106,69 +159,73 @@ class AudioCalculator:
             sample_rates: List[int],
             chunk_size: int,
             max_workers: Optional[int]
-    ) -> List[Tuple[float, float, float, float]]:
+    ) -> List[Tuple[float, float, float, float, Tuple[float, float, float]]]:
         """
         Spawn threads to compute metrics for each (samples, sr) pair.
         """
         total = len(samples_list)
         self._processed = 0
 
-        def _worker(samples: np.ndarray, sr: int) -> Tuple[float, float, float, float]:
-            true_peak, lufs, lra, crest_db = self._compute_loudness_metrics(samples, sr, chunk_size)
+        def _worker(samples: np.ndarray, sr: int) -> Tuple[float, float, float, float, Tuple[float, float, float]]:
+            true_peak, lufs, lra, crest_db, rms_data = self._compute_loudness_metrics(samples, sr, chunk_size)
             self._processed += 1
             self._logger.info(
                 f"Processed {self._processed}/{total} ({self._processed/total*100:.2f}%) tracks.",
                 separator=self._separator
             )
-            return true_peak, lufs, lra, crest_db
+            return true_peak, lufs, lra, crest_db, rms_data
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             return list(executor.map(_worker, samples_list, sample_rates))
 
+    # noinspection t
     @staticmethod
     def _compute_loudness_metrics(
             samples: np.ndarray,
             sr: int,
             chunk_size: int
-    ) -> Tuple[float, float, float, float]:
+    ) -> Tuple[float, float, float, float, Tuple[float, float, float]]:
         """
-        Compute True-Peak, Integrated LUFS, Loudness Range, and Crest Factor for one sample.
+        Compute True-Peak (dBTP), Integrated LUFS, Loudness Range (LU),
+        Crest Factor (dB), and short-time RMS stats (dBFS) for one sample.
         """
+        # --- existing loudness and crest computation ---
+        if samples.ndim == 1:
+            samples = samples[:, np.newaxis]
         frames, channels = samples.shape
 
-        # Initialize R128 states
-        st_i = R128State(channels, sr, MeasurementMode.MODE_I)
-        st_lra = R128State(channels, sr, MeasurementMode.MODE_LRA)
+        st_i  = R128State(channels, sr, MeasurementMode.MODE_I)
+        st_lra= R128State(channels, sr, MeasurementMode.MODE_LRA)
         st_tp = R128State(channels, sr, MeasurementMode.MODE_TRUE_PEAK)
 
         sum_sq = 0.0
         max_abs_sq = 0.0
-
         for offset in range(0, frames, chunk_size):
-            block = samples[offset : offset + chunk_size]
+            block = samples[offset: offset + chunk_size]
             interleaved = block.flatten()
-
             n = block.shape[0]
             st_i.add_frames(interleaved, n)
             st_lra.add_frames(interleaved, n)
             st_tp.add_frames(interleaved, n)
+            sq = block ** 2
+            sum_sq += sq.sum()
+            max_abs_sq = max(max_abs_sq, sq.max())
 
-            sq_block = block ** 2
-            sum_sq += np.sum(sq_block)
-            block_max_sq = sq_block.max()
-            if block_max_sq > max_abs_sq:
-                max_abs_sq = block_max_sq
+        lufs     = get_loudness_global(st_i)
+        lra      = get_loudness_range(st_lra)
+        tp_ch    = [20 * math.log10(get_true_peak(st_tp, ch)) for ch in range(channels)]
+        true_peak= max(tp_ch) if tp_ch else 0.0
 
-        lufs = get_loudness_global(st_i)
-        lra = get_loudness_range(st_lra)
-        tp_ch = [20 * math.log10(get_true_peak(st_tp, ch)) for ch in range(channels)]
-        true_peak = max(tp_ch) if tp_ch else 0.0
+        peak     = math.sqrt(max_abs_sq)
+        rms_all  = math.sqrt(sum_sq / (frames * channels)) if frames > 0 else 0.0
+        crest_db = 20.0 * math.log10(peak / rms_all) if rms_all > 0 else 0.0
 
-        peak = np.sqrt(max_abs_sq)
-        rms = np.sqrt(sum_sq / (frames * channels)) if frames > 0 else 0.0
-        crest_db = 20.0 * np.log10(peak / rms) if rms > 0 else 0.0
+        mean_db, max_db, p90_db = compute_short_time_rms_dbfs(
+            samples if channels == 1 else samples.mean(axis=1, keepdims=False),
+            sr
+        )
 
-        return true_peak, lufs, lra, crest_db
+        return true_peak, lufs, lra, crest_db, (mean_db, max_db, p90_db)
 
     # -------------------- Batch Rest Helpers --------------------
 

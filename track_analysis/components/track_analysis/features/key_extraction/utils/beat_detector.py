@@ -27,6 +27,7 @@ class BeatDetector:
         cache_dir = EXPENSIVE_CACHE_DIRECTORY / "beat detection"
         os.makedirs(cache_dir, exist_ok=True)
 
+        # _perform_beat_track remains unchanged, so its cache stays valid
         self._compute = Memory(cache_dir, verbose=0).cache(_perform_beat_track)
 
     def detect(
@@ -34,10 +35,15 @@ class BeatDetector:
             audio: np.ndarray,
             sample_rate: int
     ) -> Tuple[float, np.ndarray, np.ndarray]:
+        # Ensure a 1-D mono signal for librosa.beat.beat_track
+        if audio.ndim > 1:
+            # average all channels
+            audio = np.mean(audio, axis=1)
+
         tempo, frames = self._compute(audio, sample_rate)
 
-        if not isinstance(tempo, float | int):
-            tempo = tempo[0]
+        if not isinstance(tempo, (float, int)):
+            tempo = float(tempo[0])
 
         times = librosa.frames_to_time(frames, sr=sample_rate)
 

@@ -35,7 +35,7 @@ class FilterFiles(IPipe):
             cached_paths = [p for p in all_paths if str(p) in cache_set]
 
         # Assign back into the pipeline context
-        data.filtered_audio_file_paths = new_paths[:data.max_new_tracks_per_run]
+        data.filtered_audio_file_paths = new_paths[:52]
         data.cached_audio_paths = cached_paths
 
         # Log progress

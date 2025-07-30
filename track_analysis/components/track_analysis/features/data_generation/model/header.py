@@ -39,4 +39,7 @@ class Header(Enum):
     Format = "Audio Format"
     Integrated_LUFS = "Integrated LUFS"
     True_Peak = "True Peak (dBPT)"
+    Mean_RMS = "Mean RMS (dBFS)"
+    Max_RMS = "Max RMS (dBFS)"
+    Percentile_90_RMS = "90th Percentile RMS (dBFS)"
 

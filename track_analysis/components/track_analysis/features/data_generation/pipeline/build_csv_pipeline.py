@@ -4,25 +4,28 @@ from track_analysis.components.md_common_python.py_common.patterns import AbPipe
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
+    LibraryDataGenerationPipelineContext
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.batch_process_new_tracks import \
+    BatchProcessNewTracks
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.filter_cache import FilterCache
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_stream_info import \
-    GetStreamInfo
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.filter_files import FilterFiles
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_album_costs import \
+    GetAlbumCosts
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_audio_files import \
+    GetAudioFiles
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_invalid_cache import \
+    GetInvalidCache
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.handle_rows_with_missing_data import \
     HandleRowsWithMissingData
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.load_cache import LoadCache
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.make_csv import MakeCSV
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.preprocess_data import \
+    PreprocessData
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.redo_headers import RedoHeaders
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.remove_invalid_cached_entries import \
     RemoveInvalidCachedEntries
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import LibraryDataGenerationPipelineContext
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.add_advanced_metadata import AddAdvancedMetadata
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_invalid_cache import GetInvalidCache
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.filter_files import FilterFiles
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_album_costs import GetAlbumCosts
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_audio_files import GetAudioFiles
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_metadata import GetAndBuildAudioMetadata
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.load_cache import LoadCache
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.make_csv import MakeCSV
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.preprocess_data import PreprocessData
 
 
 class BuildLibraryDataCSVPipeline(AbPipeline):
@@ -61,9 +64,12 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._add_step(FilterFiles(self._logger))
         self._add_step(GetInvalidCache(self._logger))
         self._add_exit_check(__exit_if_no_files_to_process)
-        self._add_step(GetStreamInfo(self._logger, self._audio_file_handler))
-        self._add_step(GetAndBuildAudioMetadata(self._logger, self._tag_extractor))
-        self._add_step(AddAdvancedMetadata(self._logger, self._audio_calculator, self._num_workers))
+        self._add_step(BatchProcessNewTracks(
+            self._logger,
+            self._audio_file_handler,
+            self._tag_extractor,
+            self._audio_calculator
+        ))
         self._add_step(RemoveInvalidCachedEntries(self._logger))
         self._add_step(HandleRowsWithMissingData(self._logger, self._audio_file_handler))
         self._add_step(RedoHeaders(self._logger, self._audio_file_handler, self._num_workers_refill))

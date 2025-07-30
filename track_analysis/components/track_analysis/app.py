@@ -59,6 +59,7 @@ from track_analysis.components.track_analysis.features.track_downloading.utils.g
 from track_analysis.tests.embedding_test import EmbeddingTest
 from track_analysis.tests.key_test import KeyProgressionTest
 from track_analysis.tests.registration_test import RegistrationTest
+from track_analysis.tests.short_rms_test import ShortTimeRMSTest
 
 T = TypeVar("T")
 
@@ -181,6 +182,7 @@ class App:
 
         registration_test: RegistrationTest = RegistrationTest(logger, self._registration)
         embedding_test: EmbeddingTest = EmbeddingTest(logger, embedder=self._embedder, keys_path=keys_path, data_loader=self._scrobble_data_loader)
+        short_time_rms_test: ShortTimeRMSTest = ShortTimeRMSTest(logger, self._audio_file_handler)
 
         tests: List[TestConfiguration] = [
             TestConfiguration(
@@ -194,6 +196,12 @@ class App:
                 keyword_arguments=[10],
                 command_description="Tests the embedding similarity matcher.",
                 command_keys=["test_embeddings", "te"]
+            ),
+            TestConfiguration(
+                associated_test=short_time_rms_test,
+                keyword_arguments=[],
+                command_description="Tests the short time rms.",
+                command_keys=["test_short_time_rms", "tstr"]
             )
         ]
 
