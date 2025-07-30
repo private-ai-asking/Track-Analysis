@@ -42,4 +42,5 @@ class Header(Enum):
     Mean_RMS = "Mean RMS (dBFS)"
     Max_RMS = "Max RMS (dBFS)"
     Percentile_90_RMS = "90th Percentile RMS (dBFS)"
+    RMS_IQR = "RMS Dynamic Range (IQR dBFS)"
 

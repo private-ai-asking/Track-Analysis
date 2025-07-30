@@ -26,6 +26,7 @@ class HandleRowsWithMissingData(IPipe):
             Header.Mean_RMS: self._handle_missing_rms,
             Header.Max_RMS: self._handle_missing_rms,
             Header.Percentile_90_RMS: self._handle_missing_rms,
+            Header.RMS_IQR: self._handle_missing_rms,
         }
 
         self._logger = logger
@@ -165,13 +166,14 @@ class HandleRowsWithMissingData(IPipe):
             # Compute RMS stats per track
             stats = [compute_short_time_rms_dbfs(info.samples, info.sample_rate_Hz)
                      for info in stream_infos]
-            mean_vals, max_vals, p90_vals = zip(*stats)
+            mean_vals, max_vals, p90_vals, rms_iqr_vals = zip(*stats)
 
             # Write back into DataFrame for this chunk
             idxs = rows_chunk.index
             df.loc[idxs, Header.Mean_RMS.value] = np.array(mean_vals, dtype=np.float64)
             df.loc[idxs, Header.Max_RMS.value]  = np.array(max_vals,  dtype=np.float64)
             df.loc[idxs, Header.Percentile_90_RMS.value] = np.array(p90_vals, dtype=np.float64)
+            df.loc[idxs, Header.RMS_IQR.value] = np.array(rms_iqr_vals, dtype=np.float64)
 
             self._logger.info(
                 f"Filled RMS stats for tracks {start+1} to {min(end, total)}.",

@@ -23,7 +23,7 @@ def compute_short_time_rms_dbfs(
         sr: int,
         window_ms: float = 50.0,
         hop_ms: float = 10.0
-) -> Tuple[float, float, float]:
+) -> Tuple[float, float, float, float]:
     """
     Compute short-time RMS energy statistics in dBFS.
 
@@ -65,8 +65,12 @@ def compute_short_time_rms_dbfs(
     mean_db  = float(rms_dbfs.mean())
     max_db   = float(rms_dbfs.max())
     p90_db   = float(np.percentile(rms_dbfs, 90))
-    return mean_db, max_db, p90_db
 
+    p25_db = float(np.percentile(rms_dbfs, 25))
+    p75_db = float(np.percentile(rms_dbfs, 75))
+    iqr_db = p75_db - p25_db
+
+    return mean_db, max_db, p90_db, iqr_db
 
 class AudioCalculator:
     def __init__(self, logger: HoornLogger, key_progression_path: Path, num_workers: int):
@@ -99,7 +103,7 @@ class AudioCalculator:
 
         results = self._run_sample_metric_workers(samples_list, sample_rates, chunk_size, max_workers)
         tps, lufs, lras, crest_db, rms_data = zip(*results)
-        mean_rms, max_rms, p90_rms = zip(*rms_data)
+        mean_rms, max_rms, p90_rms, iqr_rms = zip(*rms_data)
 
         return {
             Header.True_Peak.value:                  np.array(tps,       dtype=np.float32),
@@ -109,6 +113,7 @@ class AudioCalculator:
             Header.Mean_RMS.value:                   np.array(mean_rms,  dtype=np.float32),
             Header.Max_RMS.value:                    np.array(max_rms,   dtype=np.float32),
             Header.Percentile_90_RMS.value:          np.array(p90_rms,   dtype=np.float32),
+            Header.RMS_IQR.value:         np.array(iqr_rms,  dtype=np.float32),
         }
 
     def calculate_batch_rest(
@@ -159,14 +164,14 @@ class AudioCalculator:
             sample_rates: List[int],
             chunk_size: int,
             max_workers: Optional[int]
-    ) -> List[Tuple[float, float, float, float, Tuple[float, float, float]]]:
+    ) -> List[Tuple[float, float, float, float, Tuple[float, float, float, float]]]:
         """
         Spawn threads to compute metrics for each (samples, sr) pair.
         """
         total = len(samples_list)
         self._processed = 0
 
-        def _worker(samples: np.ndarray, sr: int) -> Tuple[float, float, float, float, Tuple[float, float, float]]:
+        def _worker(samples: np.ndarray, sr: int) -> Tuple[float, float, float, float, Tuple[float, float, float, float]]:
             true_peak, lufs, lra, crest_db, rms_data = self._compute_loudness_metrics(samples, sr, chunk_size)
             self._processed += 1
             self._logger.info(
@@ -184,7 +189,15 @@ class AudioCalculator:
             samples: np.ndarray,
             sr: int,
             chunk_size: int
-    ) -> Tuple[float, float, float, float, Tuple[float, float, float]]:
+    ) -> Tuple[
+        float,    # true peak dBTP
+        float,    # integrated LUFS
+        float,    # LRA (EBU loudness range)
+        float,    # crest factor
+        Tuple[    # short-time RMS stats
+            float, float, float, float  # mean, max, 90th, IQR in dBFS
+        ]
+    ]:
         """
         Compute True-Peak (dBTP), Integrated LUFS, Loudness Range (LU),
         Crest Factor (dB), and short-time RMS stats (dBFS) for one sample.
@@ -220,12 +233,12 @@ class AudioCalculator:
         rms_all  = math.sqrt(sum_sq / (frames * channels)) if frames > 0 else 0.0
         crest_db = 20.0 * math.log10(peak / rms_all) if rms_all > 0 else 0.0
 
-        mean_db, max_db, p90_db = compute_short_time_rms_dbfs(
+        mean_db, max_db, p90_db, iqr_db = compute_short_time_rms_dbfs(
             samples if channels == 1 else samples.mean(axis=1, keepdims=False),
             sr
         )
 
-        return true_peak, lufs, lra, crest_db, (mean_db, max_db, p90_db)
+        return true_peak, lufs, lra, crest_db, (mean_db, max_db, p90_db, iqr_db)
 
     # -------------------- Batch Rest Helpers --------------------
 

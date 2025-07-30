@@ -342,7 +342,7 @@ class App:
             key_progression_output_file_path=key_progression_path,
             use_threads=True,
             max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN,
-            missing_headers_to_fill=[],
+            missing_headers_to_fill=[Header.RMS_IQR],
             headers_to_refill=[]
         )
 
