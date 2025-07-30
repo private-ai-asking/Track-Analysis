@@ -25,12 +25,15 @@ from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRAR
     MAX_NEW_TRACKS_PER_RUN
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
+from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import \
     BuildLibraryDataCSVPipeline
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
-from track_analysis.components.track_analysis.features.key_extraction.profile_creation.profile_creator import \
-    ProfileCreator
+from track_analysis.components.track_analysis.features.key_extraction.core.definitions.definition_templates import \
+    TemplateMode
+from track_analysis.components.track_analysis.features.key_extraction.profile_generation.profile_generator import \
+    ProfileGenerator
 from track_analysis.components.track_analysis.features.scrobbling.embedding.default_candidate_retriever import \
     DefaultCandidateRetriever
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
@@ -56,6 +59,7 @@ from track_analysis.components.track_analysis.features.track_downloading.utils.g
 from track_analysis.tests.embedding_test import EmbeddingTest
 from track_analysis.tests.key_test import KeyProgressionTest
 from track_analysis.tests.registration_test import RegistrationTest
+from track_analysis.tests.short_rms_test import ShortTimeRMSTest
 
 T = TypeVar("T")
 
@@ -109,15 +113,14 @@ class App:
         self._tag_extractor: TagExtractor = TagExtractor(logger)
         self._file_handler: FileHandler = FileHandler()
         self._audio_file_handler: AudioFileHandler = AudioFileHandler(logger, num_workers=NUM_WORKERS_CPU_HEAVY)
-        self._audio_calculator: AudioCalculator = AudioCalculator(logger)
+        self._audio_calculator: AudioCalculator = AudioCalculator(logger, key_progression_path=OUTPUT_DIRECTORY.joinpath("key_progression.csv"), num_workers=NUM_WORKERS_CPU_HEAVY-14)
         self._time_utils: TimeUtils = TimeUtils()
         self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)
         self._downloader: MusicDownloadInterface = YTDLPMusicDownloader(logger, music_track_download_dir)
         self._genre_algorithm: GenreAlgorithm = GenreAlgorithm(logger)
         self._metadata_api: MetadataAPI = MetadataAPI(logger, self._genre_algorithm)
         self._command_helper: CommandHelper = CommandHelper(logger, "CommandHelper")
-        self._profile_creator: ProfileCreator = ProfileCreator(logger)
-
+        self._profile_creator: ProfileGenerator = ProfileGenerator(logger, template_profile_normalized_to=100, num_workers=NUM_WORKERS_CPU_HEAVY-14)
 
         self._download_pipeline: DownloadPipeline = DownloadPipeline(
             logger,
@@ -179,6 +182,7 @@ class App:
 
         registration_test: RegistrationTest = RegistrationTest(logger, self._registration)
         embedding_test: EmbeddingTest = EmbeddingTest(logger, embedder=self._embedder, keys_path=keys_path, data_loader=self._scrobble_data_loader)
+        short_time_rms_test: ShortTimeRMSTest = ShortTimeRMSTest(logger, self._audio_file_handler)
 
         tests: List[TestConfiguration] = [
             TestConfiguration(
@@ -192,6 +196,12 @@ class App:
                 keyword_arguments=[10],
                 command_description="Tests the embedding similarity matcher.",
                 command_keys=["test_embeddings", "te"]
+            ),
+            TestConfiguration(
+                associated_test=short_time_rms_test,
+                keyword_arguments=[],
+                command_description="Tests the short time rms.",
+                command_keys=["test_short_time_rms", "tstr"]
             )
         ]
 
@@ -229,10 +239,10 @@ class App:
             self.run()
 
     def _profile_creation_test(self):
-        corpus_path = Path(r"X:\Track Analysis\corpus.csv")
+        corpus_path = Path(r"X:\Track Analysis\data\training\corpus.csv")
 
         def __run():
-            self._profile_creator.compute_profile(corpus_path)
+            self._profile_creator.generate_profile(corpus_path)
 
         __run()
 
@@ -267,13 +277,23 @@ class App:
                     )
 
     def _test_keys(self, profiling: bool = False) -> None:
-        track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\11 Nas & Damian Marley - Patience.flac")
-        # track_path: Path = Path(r"W:\media\music\[02] organized\[01] hq\Classical\Claude Debussy\Classical Best\31 Danse sacrée et progane - Sacred Dance.flac")
-        # track_path: Path = Path(r"W:\media\music\[02] organized\[02] lq\CCM\Champion\08 - Beckah Shae - Me and My God.flac")
-        tester: KeyProgressionTest = KeyProgressionTest(self._logger, tone_modulation_penalty=18.0, mode_modulation_penalty=None, visualize=False)
+        paths: List[str] = [
+            r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\11 Nas & Damian Marley - Patience.flac",
+            r"W:\media\music\[02] organized\[01] hq\Classical\Claude Debussy\Classical Best\31 Danse sacrée et progane - Sacred Dance.flac",
+            r"W:\media\music\[02] organized\[02] lq\CCM\Champion\08 - Beckah Shae - Me and My God.flac",
+            r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\10 Nas & Damian Marley - Nah Mean.flac",
+            r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\09 Nas & Damian Marley feat. Stephen Marley - In His Own Words.flac",
+            r"W:\media\music\[02] organized\[01] hq\Reggae\Damian Marley\Stony Hill (Explicit)\10 Damian “Jr. Gong” Marley - Autumn Leaves.flac",
+            r"W:\media\music\[02] organized\[01] hq\Classical\Reinbert de Leeuw\Satie_ Gymnop_dies; Gnossiennes\02 Satie_ Gymnopédie No. 1.flac",
+            r"W:\media\music\[02] organized\[01] hq\Religious\BYU Vocal Point\Lead Thou Me On - Hymns and Inspiration\11 Come, Thou Fount of Every Blessing.flac",
+            r"W:\media\music\[02] organized\[02] lq\CCM\Champion\09 - Beckah Shae - Pioneer.flac"
+        ]
+
+        track_path: Path = Path(paths[8])
+        tester: KeyProgressionTest = KeyProgressionTest(self._logger, tone_modulation_penalty=18.0, mode_modulation_penalty=None, visualize=False, template_mode=TemplateMode.HOORN, segment_beat_level=4)
 
         def __test():
-            tester.test(file_path=track_path, segment_beat_level=4)
+            tester.test(file_path=track_path)
 
         if profiling: _run_with_profiling(__test, category="Key Extraction")
         else: __test()
@@ -314,10 +334,12 @@ class App:
 
     def _make_csv(self, profile: bool = False) -> None:
         output_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
+        key_progression_path: Path = OUTPUT_DIRECTORY.joinpath("key_progression.csv")
 
         pipeline_context = LibraryDataGenerationPipelineContext(
             source_dir=ROOT_MUSIC_LIBRARY,
             main_data_output_file_path=output_path,
+            key_progression_output_file_path=key_progression_path,
             use_threads=True,
             max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN,
             missing_headers_to_fill=[],
@@ -326,7 +348,7 @@ class App:
 
         # output_path.unlink(missing_ok=True)
 
-        pipeline = BuildLibraryDataCSVPipeline(self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._audio_calculator, self._string_utils, num_workers=NUM_WORKERS_CPU_HEAVY)
+        pipeline = BuildLibraryDataCSVPipeline(self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._audio_calculator, self._string_utils, num_workers=NUM_WORKERS_CPU_HEAVY, num_workers_refill=NUM_WORKERS_CPU_HEAVY-14)
 
         def __run():
             pipeline.build_pipeline()

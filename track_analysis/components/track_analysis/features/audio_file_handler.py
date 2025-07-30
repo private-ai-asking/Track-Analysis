@@ -1,5 +1,7 @@
 from pathlib import Path
 from typing import Optional, List, Tuple
+
+import librosa
 import numpy as np
 import soundfile as sf
 import pydantic
@@ -9,6 +11,7 @@ from pymediainfo import MediaInfo
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.apis.ffprobe_client import FFprobeClient
+from track_analysis.components.track_analysis.features.key_extraction.utils.beat_detector import BeatDetector
 from track_analysis.components.track_analysis.util.audio_format_converter import AudioFormatConverter
 
 
@@ -16,9 +19,10 @@ class AudioStreamsInfoModel(pydantic.BaseModel):
     duration: float = 0
     bitrate: float = 0
     sample_rate_kHz: float = 0
-    sample_rate_Hz: float = 0
+    sample_rate_Hz: int = 0
     bit_depth: Optional[float] = 0
     channels: int = 0
+    tempo: float = 0
     format: str
     samples: Optional[ndarray] = None
 
@@ -42,6 +46,7 @@ class AudioFileHandler:
         self._audio_format_converter = AudioFormatConverter(logger)
         self._block_size = block_size
         self._num_workers = num_workers
+        self._beat_detector: BeatDetector = BeatDetector(logger)
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
@@ -82,21 +87,23 @@ class AudioFileHandler:
 
         duration_s   = float(audio_track.duration) / 1000.0
         bitrate_bps  = float(audio_track.bit_rate) if audio_track.bit_rate is not None else 0
-        sample_rate  = float(audio_track.sampling_rate)
+        sample_rate  = int(audio_track.sampling_rate)
         bit_depth    = float(audio_track.bit_depth) if audio_track.bit_depth else None
         channels     = int(audio_track.channel_s)
         audio_format = audio_track.format
 
         # 2) Block-wise sample reading
-        samples, sr = self._read_samples_blockwise(audio_file)
+        samples, sr = librosa.load(audio_file, sr=None)
 
         # 3) Sanity-check sample rate
         if sr != sample_rate:
             self._logger.warning(
                 f"Sample-rate mismatch for {audio_file}: "
-                f"media_info={sample_rate} Hz vs soundfile={sr} Hz",
+                f"media_info={sample_rate} Hz vs librosa={sr} Hz",
                 separator=self._separator
             )
+
+        tempo, _, _ = self._beat_detector.detect(samples, sample_rate)
 
         # 4) Package into model
         return AudioStreamsInfoModel(
@@ -108,6 +115,7 @@ class AudioFileHandler:
             channels        = channels,
             format          = audio_format,
             samples         = samples,
+            tempo           = tempo
         )
 
     def _read_samples_blockwise(

@@ -6,6 +6,7 @@ import mutagen
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 
 
@@ -40,7 +41,7 @@ class TagExtractor:
 
         return artists
 
-    def add_extracted_metadata_to_track(self, track: pd.Series) -> None:
+    def add_extracted_metadata_to_track(self, track: pd.Series, audio_info: AudioStreamsInfoModel) -> None:
         """
         Extracts mp3 tags from the given audio file.
 
@@ -81,9 +82,11 @@ class TagExtractor:
         track[Header.Extension.value] = track_path.suffix
 
         # Sonic Metadata
-        track[Header.BPM.value] = file.get('bpm', ["Unknown"])[0]
+        track[Header.BPM.value] = audio_info.tempo
         track[Header.Energy_Level.value] = file.get('energylevel', ["Unknown"])[0]
-        track[Header.Key.value] = file.get('initialkey', ["Unknown"])[0]
+
+        file['bpm'] = str(round(audio_info.tempo, 4))
+        file.save()
 
         self._logger.trace(f"Finished extracting tags from {track}", separator=self._module_separator)
         return None
