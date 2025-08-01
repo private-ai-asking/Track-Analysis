@@ -1,15 +1,15 @@
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Optional
 
 import numpy as np
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.key_extraction.utils.beat_detector import BeatDetector
 from track_analysis.components.track_analysis.features.key_extraction.preprocessing.segmentation.metrical_hierarchy_constructor import \
     MetricalHierarchyConstructor
 from track_analysis.components.track_analysis.features.key_extraction.preprocessing.segmentation.model.segmentation_result import \
     SegmentationResult
-from track_analysis.components.track_analysis.features.key_extraction.preprocessing.segmentation.segment_slicer import SegmentSlicer
+from track_analysis.components.track_analysis.features.key_extraction.preprocessing.segmentation.segment_slicer import \
+    SegmentSlicer
 
 
 class AudioSegmenter:
@@ -28,7 +28,7 @@ class AudioSegmenter:
         self._separator = "AudioSegmenter"
         self._beats_per_segment: int = beats_per_segment
         self._hierarchy = MetricalHierarchyConstructor(subdivisions_per_beat, logger, self._separator, cache_dir / "hierarchy construction")
-        self._slicer = SegmentSlicer(logger, self._separator, cache_dir / "slicing")
+        self._slicer = SegmentSlicer(logger, self._separator)
 
         self._hop_length_samples = hop_length_samples
 
@@ -43,9 +43,11 @@ class AudioSegmenter:
 
     def get_segments(
             self,
+            audio_path: Path,
             beat_frames: np.ndarray,
             beat_times: np.ndarray,
             audio_samples: np.ndarray,
+            percussive: np.ndarray,
             sample_rate: int,
             min_segment_level: int = 3,
     ) -> Optional[SegmentationResult]:
@@ -68,5 +70,5 @@ class AudioSegmenter:
         strong_times = [t for t, lvl in zip(event_times, level_array) if lvl >= min_segment_level]
 
         return self._slicer.slice_segments(
-            audio_samples, sample_rate, event_times, strong_times, self._hop_length_samples
+            audio_samples, audio_path, percussive, sample_rate, event_times, strong_times, self._hop_length_samples
         )

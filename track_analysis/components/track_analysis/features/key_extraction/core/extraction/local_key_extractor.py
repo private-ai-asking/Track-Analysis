@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Tuple, List, Dict, Optional
 
 import numpy as np
@@ -19,6 +20,8 @@ from track_analysis.components.track_analysis.features.key_extraction.feature.ve
     FeatureVectorExtractor
 from track_analysis.components.track_analysis.features.key_extraction.preprocessing.note_extraction.note_extractor import \
     NoteExtractor
+from track_analysis.components.track_analysis.features.key_extraction.preprocessing.note_extraction.notes.note_event_builder import \
+    NoteEvent
 from track_analysis.components.track_analysis.features.key_extraction.preprocessing.profiling.segment_profiler import \
     SegmentProfiler
 from track_analysis.components.track_analysis.features.key_extraction.preprocessing.segmentation.audio_segmenter import \
@@ -76,12 +79,13 @@ class LocalKeyEstimator:
 
     def analyze(
             self,
+            audio_path: Path,
             audio_samples: np.ndarray,
             sample_rate: int,
             track_tempo: float,
             beat_frames: np.ndarray,
             beat_times: np.ndarray,
-    ) -> Optional[Tuple[List[StateRun], List[Tuple[float, float]], List[np.ndarray]]]:
+    ) -> Optional[Tuple[List[StateRun], List[Tuple[float, float]], List[np.ndarray], List[NoteEvent]]]:
         """
         1) Extract notes from raw audio & tempo,
         2) Segment audio into chunks at beat‐level = config.segment_beat_level,
@@ -93,13 +97,13 @@ class LocalKeyEstimator:
         self._logger.info("Starting local key analysis.", separator=self._separator)
 
         # --- 1. Note extraction ---
-        notes = self._note_extractor.extract(
-            audio_samples, sample_rate, track_tempo, visualize=self._config.visualize
+        note_extraction_result = self._note_extractor.extract(
+            audio_path, audio_samples, sample_rate, track_tempo, visualize=self._config.visualize
         )
 
         # --- 2. Audio segmentation (at beat granularity) ---
         segments = self._audio_segmenter.get_segments(
-            beat_frames, beat_times, audio_samples, sample_rate,
+            audio_path, beat_frames, beat_times, audio_samples, note_extraction_result.percussive, sample_rate,
             min_segment_level=self._config.segment_beat_level
         )
 
@@ -110,7 +114,7 @@ class LocalKeyEstimator:
         del audio_samples
 
         # --- 3. Profile each segment (collect note/chroma info) ---
-        profiled_segments = self._segment_profiler.profile_segments(segments, notes)
+        profiled_segments = self._segment_profiler.profile_segments(segments, note_extraction_result.notes)
 
         # --- 4. Extract feature vectors + keep intervals for merging ---
         feature_matrix, intervals = self._feature_extractor.extract_segments(profiled_segments)
@@ -127,4 +131,4 @@ class LocalKeyEstimator:
         )
 
         self._logger.info("Finished local key analysis.", separator=self._separator)
-        return local_runs, intervals, feature_matrix
+        return local_runs, intervals, feature_matrix, note_extraction_result.notes

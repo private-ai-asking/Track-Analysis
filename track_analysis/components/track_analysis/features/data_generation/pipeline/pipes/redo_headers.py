@@ -25,7 +25,7 @@ class RedoHeaders(IPipe):
         self._file_handler = file_handler
         self._num_workers = num_workers
 
-        self._key_extractor: KeyExtractor = KeyExtractor(logger, num_workers)
+        self._key_extractor: KeyExtractor = KeyExtractor(logger, file_handler, num_workers)
 
         self._header_processor: Dict[Header, Callable[[List[str], LibraryDataGenerationPipelineContext], None]] = {
             Header.BPM: self._redo_bpm,

@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import List
 
+from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
+from track_analysis.components.track_analysis.features.core.cacheing.beat import BeatDetector
 from track_analysis.components.track_analysis.features.key_extraction.core.parsing.parse_label import parse_label
 from track_analysis.components.track_analysis.features.key_extraction.feature.vector.feature_vector_extractor import \
     FeatureVectorExtractor
@@ -10,14 +12,12 @@ from track_analysis.components.track_analysis.features.key_extraction.preprocess
     NoteEvent
 from track_analysis.components.track_analysis.features.key_extraction.profile_generation.model.key_profile import \
     KeyProfile
-from track_analysis.components.track_analysis.features.key_extraction.utils.audio_loader import AudioLoader
-from track_analysis.components.track_analysis.features.key_extraction.utils.beat_detector import BeatDetector
 
 
 class SingleTrackProfiler:
     def __init__(
             self,
-            audio_loader: AudioLoader,
+            audio_loader: AudioFileHandler,
             beat_detector: BeatDetector,
             note_extractor: NoteExtractor,
             feature_extractor: FeatureVectorExtractor,
@@ -31,11 +31,13 @@ class SingleTrackProfiler:
         tonic, mode = parse_label(track_key_label)
 
         # 2) load audio, detect tempo, extract notes, then feature‐vector
-        audio_samples, sr = self._audio_loader.load(track_path)
-        tempo, _, _ = self._beat_detector.detect(audio_samples, sr)
+        info = self._audio_loader.get_audio_streams_info_batch([track_path])[0]
+        audio_samples = info.samples
+        sample_rate = info.sample_rate_Hz
+        tempo, _, _ = self._beat_detector.detect(audio_path=track_path, audio=audio_samples, sample_rate=sample_rate)
         notes: List[NoteEvent] = self._note_extractor.extract(
-            audio_samples, sr, tempo, visualize=False
-        )
+            track_path, audio_samples, sample_rate, tempo, visualize=False
+        ).notes
 
         del audio_samples
 

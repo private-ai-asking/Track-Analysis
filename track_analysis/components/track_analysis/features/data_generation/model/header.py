@@ -43,4 +43,11 @@ class Header(Enum):
     Max_RMS = "Max RMS (dBFS)"
     Percentile_90_RMS = "90th Percentile RMS (dBFS)"
     RMS_IQR = "RMS Dynamic Range (IQR dBFS)"
+    Spectral_Centroid_Mean = "Spectral Centroid Mean (Hz)"
+    Spectral_Centroid_Max  = "Spectral Centroid Max (Hz)"
+    Spectral_Flux_Mean     = "Spectral Flux Mean"
+    Spectral_Flux_Max      = "Spectral Flux Max"
+    Onset_Env_Mean         = "Mean Onset Strength"
+    Onset_Rate             = "Onset Rate (events/sec)"
+    Onset_Rate_Notes = "Onset Rate (note events/sec)"
 

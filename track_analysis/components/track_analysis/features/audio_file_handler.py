@@ -1,17 +1,15 @@
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import Optional, List, Dict
 
 import librosa
-import numpy as np
-import soundfile as sf
 import pydantic
 from numpy import ndarray
-from concurrent.futures import ThreadPoolExecutor
 from pymediainfo import MediaInfo
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.apis.ffprobe_client import FFprobeClient
-from track_analysis.components.track_analysis.features.key_extraction.utils.beat_detector import BeatDetector
+from track_analysis.components.track_analysis.features.core.cacheing.beat import BeatDetector
 from track_analysis.components.track_analysis.util.audio_format_converter import AudioFormatConverter
 
 
@@ -24,6 +22,7 @@ class AudioStreamsInfoModel(pydantic.BaseModel):
     channels: int = 0
     tempo: float = 0
     format: str
+    path: Path
     samples: Optional[ndarray] = None
 
     model_config = {
@@ -37,14 +36,12 @@ class AudioFileHandler:
     def __init__(
             self,
             logger: HoornLogger,
-            block_size: int = 4096 * 128,
             num_workers: int = 4
     ):
         self._separator = "AudioFileHandler"
         self._logger = logger
         self._ffprobe_client = FFprobeClient(logger)
         self._audio_format_converter = AudioFormatConverter(logger)
-        self._block_size = block_size
         self._num_workers = num_workers
         self._beat_detector: BeatDetector = BeatDetector(logger)
 
@@ -52,7 +49,8 @@ class AudioFileHandler:
 
     def get_audio_streams_info_batch(
             self,
-            audio_files: List[Path]
+            audio_files: List[Path],
+            existing_tempos: Optional[Dict[Path, float]] = None
     ) -> List[AudioStreamsInfoModel]:
         """
         Process a batch of audio files in parallel, each read in block-wise chunks.
@@ -64,7 +62,10 @@ class AudioFileHandler:
         # Use ThreadPoolExecutor to parallelize I/O-bound block reads
         with ThreadPoolExecutor(max_workers=self._num_workers) as executor:
             for idx, model in enumerate(
-                    executor.map(self._extract_audio_info, audio_files),
+                    executor.map(
+                        lambda p: self._extract_audio_info(p, existing_tempos),
+                        audio_files
+                    ),
                     start=1
             ):
                 models.append(model)
@@ -78,7 +79,8 @@ class AudioFileHandler:
 
     def _extract_audio_info(
             self,
-            audio_file: Path
+            audio_file: Path,
+            existing_tempos: Optional[Dict[Path, float]]
     ) -> AudioStreamsInfoModel:
         """Extracts metadata via MediaInfo and reads samples block-wise."""
         # 1) Fast metadata via MediaInfo
@@ -103,7 +105,14 @@ class AudioFileHandler:
                 separator=self._separator
             )
 
-        tempo, _, _ = self._beat_detector.detect(samples, sample_rate)
+        if existing_tempos and audio_file in existing_tempos:
+            tempo = existing_tempos[audio_file]
+            self._logger.debug(
+                f"Using cached tempo {tempo:.2f} for {audio_file.name}",
+                separator=self._separator
+            )
+        else:
+            tempo, _, _ = self._beat_detector.detect(audio_path=audio_file,audio=samples, sample_rate=sr)
 
         # 4) Package into model
         return AudioStreamsInfoModel(
@@ -115,28 +124,6 @@ class AudioFileHandler:
             channels        = channels,
             format          = audio_format,
             samples         = samples,
-            tempo           = tempo
+            tempo           = tempo,
+            path = audio_file
         )
-
-    def _read_samples_blockwise(
-            self,
-            audio_file: Path
-    ) -> Tuple[ndarray, int]:
-        """Read a file into a pre-allocated buffer using block-size frames."""
-        with sf.SoundFile(str(audio_file), mode='r') as f:
-            total_frames = f.frames
-            channels = f.channels
-            samplerate = f.samplerate
-
-            buf = np.empty((total_frames, channels), dtype='float32')
-            idx = 0
-            for block in f.blocks(
-                    blocksize=self._block_size,
-                    always_2d=True,
-                    dtype='float32'
-            ):
-                n = block.shape[0]
-                buf[idx: idx + n] = block
-                idx += n
-
-        return buf, samplerate

@@ -1,16 +1,16 @@
-import os
 import pprint
-from pathlib import Path
 
 import numpy as np
-from joblib import Memory
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.features.core.cacheing.shared import MEMORY
 
-def _calculate_pitch_class(midi_number: int) -> int:
-    return midi_number % 12
 
-def _convert(midi: np.ndarray) -> np.ndarray:
+@MEMORY.cache()
+def _convert_to_chroma(midi: np.ndarray) -> np.ndarray:
+    """
+    Cached conversion from MIDI piano-roll to chroma features.
+    """
     n_notes, n_frames = midi.shape
     chroma = np.zeros((12, n_frames), dtype=float)
     note_indices = np.arange(n_notes)
@@ -22,20 +22,13 @@ def _convert(midi: np.ndarray) -> np.ndarray:
     return chroma
 
 class MidiToPitchClassesConverter:
-    def __init__(self, logger: HoornLogger, cache_dir: Path):
+    def __init__(self, logger: HoornLogger):
         self._logger = logger
         self._separator = self.__class__.__name__
-
-        os.makedirs(cache_dir, exist_ok=True)
-        self._convert = Memory(cache_dir, verbose=0).cache(_convert)
-
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
     def convert(self, midi: np.ndarray) -> np.ndarray:
-        converted = self._convert(midi)
-
-        self._logger.debug(f"Pitch Classes Shape: {converted.shape}", separator=self._separator)
-        self._logger.debug(f"Pitch Classes:\n{pprint.pformat(midi)}", separator=self._separator)
-
-        return converted
-
+        chroma = _convert_to_chroma(midi=midi)
+        self._logger.debug(f"Pitch Classes Shape: {chroma.shape}", separator=self._separator)
+        self._logger.debug(f"Pitch Classes:\n{pprint.pformat(chroma)}", separator=self._separator)
+        return chroma

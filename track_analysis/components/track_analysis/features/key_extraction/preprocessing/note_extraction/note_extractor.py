@@ -1,4 +1,5 @@
 import gc
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
@@ -7,6 +8,16 @@ from matplotlib.colors import ListedColormap
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import EXPENSIVE_CACHE_DIRECTORY
+from track_analysis.components.track_analysis.features.core.cacheing.frequency_to_midi import FrequencyToMidi
+from track_analysis.components.track_analysis.features.core.cacheing.harmonic import HarmonicExtractor
+from track_analysis.components.track_analysis.features.core.cacheing.magnitude_spectogram import \
+    MagnitudeSpectrogramExtractor
+from track_analysis.components.track_analysis.features.core.cacheing.midi_to_pitch import MidiToPitchClassesConverter
+from track_analysis.components.track_analysis.features.core.cacheing.pitch_class_cleaner import \
+    NormalizedPitchClassesCleaner
+from track_analysis.components.track_analysis.features.core.cacheing.pitch_class_normalizer import \
+    PitchClassesNormalizer
+from track_analysis.components.track_analysis.features.core.cacheing.spectral_peak import SpectralPeakExtractor
 from track_analysis.components.track_analysis.features.key_extraction.feature.visualization.chroma_visualizer import \
     ChromaVisualizer
 from track_analysis.components.track_analysis.features.key_extraction.feature.visualization.model.config import \
@@ -17,22 +28,14 @@ from track_analysis.components.track_analysis.features.key_extraction.feature.vi
     SpectrogramRenderer
 from track_analysis.components.track_analysis.features.key_extraction.feature.visualization.renderers.waveform_renderer import \
     WaveformRenderer
-from track_analysis.components.track_analysis.features.key_extraction.preprocessing.note_extraction.audio_features.extract_harmonic import \
-    HarmonicExtractor
-from track_analysis.components.track_analysis.features.key_extraction.preprocessing.note_extraction.audio_features.magnitude_spectogram_extractor import \
-    MagnitudeSpectogramExtractor
-from track_analysis.components.track_analysis.features.key_extraction.preprocessing.note_extraction.audio_features.spectral_peak_extractor import \
-    SpectralPeakExtractor
 from track_analysis.components.track_analysis.features.key_extraction.preprocessing.note_extraction.notes.note_event_builder import \
     NoteEventBuilder, NoteEvent
-from track_analysis.components.track_analysis.features.key_extraction.preprocessing.note_extraction.pitch_processing.frequency_to_midi import \
-    FrequencyToMidi
-from track_analysis.components.track_analysis.features.key_extraction.preprocessing.note_extraction.pitch_processing.midi_to_pitch_classes_converter import \
-    MidiToPitchClassesConverter
-from track_analysis.components.track_analysis.features.key_extraction.preprocessing.note_extraction.pitch_processing.normalized_pitch_classes_cleaner import \
-    NormalizedPitchClassesCleaner
-from track_analysis.components.track_analysis.features.key_extraction.preprocessing.note_extraction.pitch_processing.pitch_classes_normalizer import \
-    PitchClassesNormalizer
+
+@dataclass
+class NoteExtractionResult:
+    notes: List[NoteEvent]
+    harmonic: np.ndarray = None
+    percussive: np.ndarray = None
 
 
 class NoteExtractor:
@@ -43,26 +46,25 @@ class NoteExtractor:
         self._separator = self.__class__.__name__
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
-        cache_dir: Path = EXPENSIVE_CACHE_DIRECTORY
         self._hop_length_samples: int = hop_length_samples
         self._n_fft: int = n_fft
 
-        self._harmonic_extractor: HarmonicExtractor = HarmonicExtractor(logger, cache_dir / "harmonic extraction", hop_length_samples=self._hop_length_samples, n_fft=n_fft)
-        self._magnitude_spec_extractor: MagnitudeSpectogramExtractor = MagnitudeSpectogramExtractor(logger, cache_dir / "magnitude spectrogram extraction", n_fft=self._n_fft, hop_length=self._hop_length_samples)
-        self._spectral_peak_extractor: SpectralPeakExtractor = SpectralPeakExtractor(logger, cache_dir / "spectral peak extraction", min_frequency_hz=50, max_frequency_hz=2000, hop_length_samples=hop_length_samples, n_fft=self._n_fft)
-        self._frequency_to_midi_converter: FrequencyToMidi = FrequencyToMidi(logger, cache_dir / "frequency to midi conversion")
-        self._midi_to_pitch_classes_converter: MidiToPitchClassesConverter = MidiToPitchClassesConverter(logger, cache_dir / "midi to pitch classes conversion")
-        self._pitch_classes_normalizer: PitchClassesNormalizer = PitchClassesNormalizer(logger, cache_dir / "pitch classes normalization conversion")
-        self._normalized_pitch_classes_cleaner: NormalizedPitchClassesCleaner = NormalizedPitchClassesCleaner(logger, cache_dir / "normalized pitch-classes cleaning conversion")
+        self._harmonic_extractor: HarmonicExtractor = HarmonicExtractor(logger, hop_length=self._hop_length_samples, n_fft=n_fft)
+        self._magnitude_spec_extractor: MagnitudeSpectrogramExtractor = MagnitudeSpectrogramExtractor(logger, n_fft=self._n_fft, hop_length=self._hop_length_samples)
+        self._spectral_peak_extractor: SpectralPeakExtractor = SpectralPeakExtractor(logger, min_frequency_hz=50, max_frequency_hz=2000, hop_length_samples=hop_length_samples, n_fft=self._n_fft)
+        self._frequency_to_midi_converter: FrequencyToMidi = FrequencyToMidi(logger, n_fft=n_fft, hop_length=self._hop_length_samples)
+        self._midi_to_pitch_classes_converter: MidiToPitchClassesConverter = MidiToPitchClassesConverter(logger)
+        self._pitch_classes_normalizer: PitchClassesNormalizer = PitchClassesNormalizer(logger)
+        self._normalized_pitch_classes_cleaner: NormalizedPitchClassesCleaner = NormalizedPitchClassesCleaner(logger)
         self._note_event_builder: NoteEventBuilder = NoteEventBuilder(logger)
 
         self._visualizer: ChromaVisualizer = ChromaVisualizer(self._hop_length_samples, logger)
 
-    def extract(self, audio_samples_raw: np.ndarray, sample_rate: int, track_tempo: float, visualize: bool = False) -> List[NoteEvent]:
-        harmonic, percussive = self._harmonic_extractor.extract_harmonic(audio_samples_raw, sample_rate, track_tempo)
-        harmonic_spec = self._magnitude_spec_extractor.extract_magnitude_spectogram(harmonic)
-        frequencies, magnitudes = self._spectral_peak_extractor.extract_spectral_peaks(harmonic_spec, sample_rate)
-        midi = self._frequency_to_midi_converter.convert(frequencies, magnitudes)
+    def extract(self, file_path: Path, audio_samples_raw: np.ndarray, sample_rate: int, track_tempo: float, visualize: bool = False) -> NoteExtractionResult:
+        harmonic, percussive = self._harmonic_extractor.extract_harmonic(file_path=file_path, audio=audio_samples_raw, sample_rate=sample_rate, tempo_bpm=track_tempo)
+        harmonic_spec = self._magnitude_spec_extractor.extract(file_path=file_path, audio=harmonic, start_sample=0, end_sample=harmonic.shape[0])
+        frequencies, magnitudes = self._spectral_peak_extractor.extract_spectral_peaks(file_path=file_path, spectral_data=harmonic_spec, start_sample=0, end_sample=harmonic_spec.shape[0], sample_rate=sample_rate)
+        midi = self._frequency_to_midi_converter.convert(file_path=file_path, start_sample=0, end_sample=frequencies.shape[0], frequencies=frequencies, magnitudes=magnitudes, sample_rate=sample_rate)
         pitch_classes = self._midi_to_pitch_classes_converter.convert(midi)
         normalized = self._pitch_classes_normalizer.normalize_pitch_classes(pitch_classes)
         cleaned_binary, cleaned_chroma = self._normalized_pitch_classes_cleaner.clean(normalized, audio_samples_raw, self._n_fft, self._hop_length_samples, sample_rate)
@@ -71,8 +73,6 @@ class NoteExtractor:
         if visualize:
             self._visualize([audio_samples_raw, harmonic, percussive, harmonic_spec, frequencies, magnitudes, midi, pitch_classes, normalized, cleaned_binary, cleaned_chroma], sample_rate)
 
-        del harmonic
-        del percussive
         del harmonic_spec
         del frequencies
         del magnitudes
@@ -84,7 +84,7 @@ class NoteExtractor:
 
         gc.collect()
 
-        return note_events
+        return NoteExtractionResult(note_events, harmonic, percussive)
 
     def _visualize(self, visualizations: List[np.ndarray], sample_rate: int):
         visualization_cache = EXPENSIVE_CACHE_DIRECTORY / "visualization"

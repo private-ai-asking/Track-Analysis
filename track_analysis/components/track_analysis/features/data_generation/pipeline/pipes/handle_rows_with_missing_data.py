@@ -7,8 +7,13 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.features.audio_calculator import compute_short_time_rms_dbfs
+from track_analysis.components.track_analysis.features.audio_calculation.calculators.rms_calculator import \
+    compute_short_time_rms_dbfs
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler, AudioStreamsInfoModel
+from track_analysis.components.track_analysis.features.core.cacheing.harmonic import HarmonicExtractor
+from track_analysis.components.track_analysis.features.core.cacheing.magnitude_spectogram import \
+    MagnitudeSpectrogramExtractor
+from track_analysis.components.track_analysis.features.core.cacheing.onset_envelope import OnsetStrengthExtractor
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
@@ -19,6 +24,11 @@ class HandleRowsWithMissingData(IPipe):
         self._separator = "BuildCSV.HandleRowsWithMissingData"
         self._file_handler = file_handler
 
+        self._hop_length = 512
+        self._onset_extractor = OnsetStrengthExtractor(logger)
+        self._harmonic_extractor = HarmonicExtractor(logger)
+        self._magnitude_extractor = MagnitudeSpectrogramExtractor(logger)
+
         self._header_processor_func_mapping: Dict[Header, Callable[[List[str], LibraryDataGenerationPipelineContext], None]] = {
             Header.Bit_Depth: self._handle_missing_bit_depth,
             Header.Start_Key: self._handle_missing_segment_keys,
@@ -27,6 +37,7 @@ class HandleRowsWithMissingData(IPipe):
             Header.Max_RMS: self._handle_missing_rms,
             Header.Percentile_90_RMS: self._handle_missing_rms,
             Header.RMS_IQR: self._handle_missing_rms,
+            # Header.Onset_Rate_Notes: self._handle_missing_onset_rate_events  # TODO - Add
         }
 
         self._logger = logger
@@ -183,4 +194,3 @@ class HandleRowsWithMissingData(IPipe):
             # Cleanup to free memory
             del stream_infos, stats
             gc.collect()
-

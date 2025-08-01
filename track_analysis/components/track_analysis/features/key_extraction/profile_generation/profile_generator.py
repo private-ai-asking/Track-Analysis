@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
+from track_analysis.components.track_analysis.features.core.cacheing.beat import BeatDetector
 from track_analysis.components.track_analysis.features.key_extraction.feature.lof.lof_feature_transformer import (
     LOFFeatureTransformer,
 )
@@ -28,17 +30,15 @@ from track_analysis.components.track_analysis.features.key_extraction.profile_ge
 from track_analysis.components.track_analysis.features.key_extraction.profile_generation.single_track_profiler import (
     SingleTrackProfiler,
 )
-from track_analysis.components.track_analysis.features.key_extraction.utils.audio_loader import AudioLoader
-from track_analysis.components.track_analysis.features.key_extraction.utils.beat_detector import BeatDetector
 
 
 class ProfileGenerator:
-    def __init__(self, logger: HoornLogger, template_profile_normalized_to: int = 100, num_workers: int = 8):
+    def __init__(self, logger: HoornLogger, audio_loader: AudioFileHandler, template_profile_normalized_to: int = 100, num_workers: int = 8):
         self._logger = logger
         self._separator = self.__class__.__name__
 
         # build all the components exactly once
-        self._audio_loader: AudioLoader = AudioLoader(logger)
+        self._audio_loader: AudioFileHandler = audio_loader
         self._beat_detector: BeatDetector = BeatDetector(logger)
         self._note_extractor: NoteExtractor = NoteExtractor(logger)
         self._feature_extractor: FeatureVectorExtractor = FeatureVectorExtractor(

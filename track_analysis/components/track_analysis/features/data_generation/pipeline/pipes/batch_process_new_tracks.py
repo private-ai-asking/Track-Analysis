@@ -1,6 +1,6 @@
 import gc
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 
 import pandas as pd
 
@@ -80,8 +80,24 @@ class BatchProcessNewTracks(IPipe):
             separator=self._separator
         )
 
-        # 1) Extract stream info (loads samples)
-        stream_infos = self._file_handler.get_audio_streams_info_batch(batch_paths)
+        bpm_col  = Header.BPM.value
+        path_col = Header.Audio_Path.value
+
+        existing_tempo_map: Dict[Path, float] = {}
+        if hasattr(context, "loaded_audio_info_cache"):
+            df_cache = context.loaded_audio_info_cache
+            bpm_series = pd.to_numeric(df_cache[bpm_col], errors='coerce')
+            existing_tempo_map = {
+                Path(p): float(bpm)
+                for p, bpm in zip(df_cache[path_col], bpm_series)
+                if not pd.isna(bpm)
+            }
+
+        # now pass that map to your loader:
+        stream_infos = self._file_handler.get_audio_streams_info_batch(
+            batch_paths,
+            existing_tempos=existing_tempo_map
+        )
 
         # 2) Build basic metadata
         meta_df = self._build_metadata_df(batch_paths, stream_infos, context)
@@ -126,19 +142,14 @@ class BatchProcessNewTracks(IPipe):
             infos: List[AudioStreamsInfoModel],
             meta_df: pd.DataFrame
     ) -> pd.DataFrame:
-        """Computes and merges sample-based and stream-based audio metrics."""
-        samples_list = [info.samples for info in infos]
-        sample_rates = [info.sample_rate_Hz for info in infos]
+        audio_paths, samples_list, sample_rates, tempos = zip(*(
+            (info.path, info.samples, info.sample_rate_Hz, info.tempo)
+            for info in infos
+        ))
 
-        sample_metrics = self._audio_calculator.calculate_batch_sample_metrics(
-            samples_list, sample_rates
-        )
-        rest_metrics = self._audio_calculator.calculate_batch_rest(
-            infos, meta_df[Header.Audio_Path.value].tolist()
-        )
+        index = meta_df.index
+        metrics = self._audio_calculator.process(infos, audio_paths, samples_list, sample_rates, tempos)
+        metrics_df = pd.DataFrame(metrics, index=index)
 
-        idx = meta_df.index.values
-        sample_df = pd.DataFrame({"idx": idx, **sample_metrics}).set_index("idx")
-        rest_df = pd.DataFrame({"idx": idx, **rest_metrics}).set_index("idx")
+        return metrics_df
 
-        return sample_df.join(rest_df, how="left")
