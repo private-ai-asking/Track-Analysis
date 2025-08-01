@@ -47,7 +47,22 @@ class Header(Enum):
     Spectral_Centroid_Max  = "Spectral Centroid Max (Hz)"
     Spectral_Flux_Mean     = "Spectral Flux Mean"
     Spectral_Flux_Max      = "Spectral Flux Max"
-    Onset_Env_Mean         = "Mean Onset Strength"
-    Onset_Rate             = "Onset Rate (events/sec)"
+
+    # Onsets
+    Onset_Env_Mean         = "Mean Onset Strength [Global]"
+    Onset_Rate             = "Onset Rate (events/sec) [Global]"
+
+    Onset_Env_Mean_Kick = "Mean Onset Strength [Kick]"
+    Onset_Rate_Kick = "Onset Rate (events/sec) [Kick]"
+
+    Onset_Env_Mean_Snare = "Mean Onset Strength [Snare]"
+    Onset_Rate_Snare = "Onset Rate (events/sec) [Snare]"
+
+    Onset_Env_Mean_Low_Mid = "Mean Onset Strength [Low Mid]"
+    Onset_Rate_Low_Mid = "Onset Rate (events/sec) [Low Mid]"
+
+    Onset_Env_Mean_Hi_Hat = "Mean Onset Strength [Hi Hat]"
+    Onset_Rate_Hi_Hat = "Onset Rate (events/sec) [Hi Hat]"
+
     Onset_Rate_Notes = "Onset Rate (note events/sec)"
 

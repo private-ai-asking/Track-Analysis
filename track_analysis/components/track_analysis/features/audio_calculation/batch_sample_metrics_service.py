@@ -64,7 +64,21 @@ class BatchSampleMetricsService:
             Header.Spectral_Centroid_Max.value:      sample_metrics["spec_centroid_max_hz"],
             Header.Spectral_Flux_Mean.value:         sample_metrics["spec_flux_mean"],
             Header.Spectral_Flux_Max.value:          sample_metrics["spec_flux_max"],
+
+            # Onsets
             Header.Onset_Env_Mean.value:             sample_metrics["onset_env_mean"],
             Header.Onset_Rate.value:                 sample_metrics["onset_rate"],
+
+            Header.Onset_Env_Mean_Kick.value:             sample_metrics["onset_env_mean_kick"],
+            Header.Onset_Rate_Kick.value:                 sample_metrics["onset_rate_kick"],
+
+            Header.Onset_Env_Mean_Snare.value:             sample_metrics["onset_env_mean_snare"],
+            Header.Onset_Rate_Snare.value:                 sample_metrics["onset_rate_snare"],
+
+            Header.Onset_Env_Mean_Low_Mid.value:             sample_metrics["onset_env_mean_low_mid"],
+            Header.Onset_Rate_Low_Mid.value:                 sample_metrics["onset_rate_low_mid"],
+
+            Header.Onset_Env_Mean_Hi_Hat.value:             sample_metrics["onset_env_mean_hihat"],
+            Header.Onset_Rate_Hi_Hat.value:                 sample_metrics["onset_rate_hihat"],
         }
         return pd.DataFrame(data)
