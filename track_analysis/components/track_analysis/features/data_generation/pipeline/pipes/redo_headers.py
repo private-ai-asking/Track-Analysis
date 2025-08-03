@@ -1,6 +1,5 @@
 import ctypes
 import gc
-import time
 import traceback
 from pathlib import Path
 from typing import List, Dict, Callable, Tuple
@@ -14,10 +13,6 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler, AudioStreamsInfoModel
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.default_predictor import \
-    DefaultAudioEnergyPredictor
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.trainer import \
-    DefaultEnergyModelTrainer
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
@@ -240,11 +235,7 @@ class RedoHeaders(IPipe):
         mask = df[Header.UUID.value].isin(uuids)
         to_process = df[mask]
 
-        trainer = DefaultEnergyModelTrainer(self._logger)
-        model = trainer.train_or_load(data.loaded_audio_info_cache)
-        predictor = DefaultAudioEnergyPredictor(self._logger, model)
-
-        processed = predictor.calculate_ratings_for_df(to_process, Header.Energy_Level)
+        processed = data.energy_calculator.calculate_ratings_for_df(to_process, Header.Energy_Level)
 
         new_energies = processed.set_index(Header.UUID.value)[Header.Energy_Level.value]
         df = df.set_index(Header.UUID.value)

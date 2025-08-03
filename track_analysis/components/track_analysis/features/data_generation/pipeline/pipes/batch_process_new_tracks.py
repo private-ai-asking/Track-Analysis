@@ -8,10 +8,6 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler, AudioStreamsInfoModel
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.default_predictor import \
-    DefaultAudioEnergyPredictor
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.trainer import \
-    DefaultEnergyModelTrainer
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
@@ -43,10 +39,6 @@ class BatchProcessNewTracks(IPipe):
         batch_size = context.max_new_tracks_per_run
         total = len(paths)
 
-        trainer = DefaultEnergyModelTrainer(self._logger)
-        model = trainer.train_or_load(context.loaded_audio_info_cache)
-        predictor = DefaultAudioEnergyPredictor(self._logger, model)
-
         if not paths:
             self._logger.debug("No new tracks to process.", separator=self._separator)
             context.generated_audio_info = pd.DataFrame()
@@ -70,7 +62,7 @@ class BatchProcessNewTracks(IPipe):
             if batch_dfs else pd.DataFrame()
         )
 
-        context.generated_audio_info = predictor.calculate_ratings_for_df(context.generated_audio_info, Header.Energy_Level)
+        context.generated_audio_info = context.energy_calculator.calculate_ratings_for_df(context.generated_audio_info, Header.Energy_Level)
 
         self._logger.info("Completed batch processing of new tracks.", separator=self._separator)
         return context

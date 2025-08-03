@@ -5,6 +5,8 @@ import pandas as pd
 import pydantic
 
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
+from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_calculator import \
+    EnergyCalculator
 from track_analysis.components.track_analysis.features.data_generation.model.album_cost import AlbumCostModel
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 
@@ -31,6 +33,8 @@ class LibraryDataGenerationPipelineContext(pydantic.BaseModel):
     cached_audio_paths: Optional[List[Path]] = []
     filtered_audio_file_paths: Optional[List[Path]] = []
     invalid_cached_paths: Optional[List[Path]] = []
+
+    energy_calculator: EnergyCalculator = None
 
     extracted_stream_info: Optional[List[AudioStreamsInfoModel]] = []
     generated_audio_info: Optional[pd.DataFrame] = None

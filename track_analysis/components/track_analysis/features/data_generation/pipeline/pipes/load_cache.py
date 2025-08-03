@@ -2,6 +2,10 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
+from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.default_predictor import \
+    DefaultAudioEnergyPredictor
+from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.trainer import \
+    DefaultEnergyModelTrainer
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
 
@@ -23,11 +27,15 @@ class LoadCache(IPipe):
         self._logger.trace("Cache exists, proceeding to load...", separator=self._separator)
 
         cached_data: pd.DataFrame = pd.read_csv(data.main_data_output_file_path, header=0)
-
         num_lines = cached_data.shape[0]
+
+        trainer = DefaultEnergyModelTrainer(self._logger)
+        model = trainer.train_or_load(cached_data)
+        energy_calculator = DefaultAudioEnergyPredictor(self._logger, model)
 
         self._logger.info(f"Cache loaded. Number of records: {num_lines}", separator=self._separator)
 
         data.loaded_audio_info_cache = cached_data
+        data.energy_calculator = energy_calculator
 
         return data
