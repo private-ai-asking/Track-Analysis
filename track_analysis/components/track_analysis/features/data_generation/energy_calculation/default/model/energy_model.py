@@ -11,3 +11,4 @@ class EnergyModel(NamedTuple):
     spline: CubicSpline
     feature_names: List[str]
     spline_y_points: List[float]
+    data_hash: str

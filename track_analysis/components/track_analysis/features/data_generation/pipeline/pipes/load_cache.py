@@ -2,10 +2,10 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.default_predictor import \
-    DefaultAudioEnergyPredictor
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.trainer import \
-    DefaultEnergyModelTrainer
+from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.configurations.default import \
+    DEFAULT_ENERGY_MODEL_CONFIG
+from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_calculator_factory import \
+    EnergyCalculatorFactory, Calculator
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
 
@@ -13,9 +13,10 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
 class LoadCache(IPipe):
     def __init__(self, logger: HoornLogger):
         self._separator = "BuildCSV.LoadCachePipe"
-
         self._logger = logger
         self._logger.trace("Successfully initialized pipe.", separator=self._separator)
+
+        self._energy_calculator_factory: EnergyCalculatorFactory = EnergyCalculatorFactory(self._logger)
 
     def flow(self, data: LibraryDataGenerationPipelineContext) -> LibraryDataGenerationPipelineContext:
         self._logger.trace("Loading cache if existing...", separator=self._separator)
@@ -29,13 +30,10 @@ class LoadCache(IPipe):
         cached_data: pd.DataFrame = pd.read_csv(data.main_data_output_file_path, header=0)
         num_lines = cached_data.shape[0]
 
-        trainer = DefaultEnergyModelTrainer(self._logger)
-        model = trainer.train_or_load(cached_data)
-        energy_calculator = DefaultAudioEnergyPredictor(self._logger, model)
-
         self._logger.info(f"Cache loaded. Number of records: {num_lines}", separator=self._separator)
 
         data.loaded_audio_info_cache = cached_data
-        data.energy_calculator = energy_calculator
+        data.energy_calculator = self._energy_calculator_factory.get_calculator(Calculator.Default)
+        data.energy_calculator.train_and_persist(DEFAULT_ENERGY_MODEL_CONFIG, data.loaded_audio_info_cache)
 
         return data

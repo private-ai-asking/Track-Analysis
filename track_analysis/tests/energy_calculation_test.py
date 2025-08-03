@@ -5,12 +5,16 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.testing import TestInterface
+from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.configurations.default import \
+    DEFAULT_ENERGY_MODEL_CONFIG
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.default_predictor import \
     DefaultAudioEnergyPredictor
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.trainer import \
     DefaultEnergyModelTrainer
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_calculator import \
     EnergyCalculator
+from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_calculator_factory import \
+    EnergyCalculatorFactory, Calculator
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 
 TO_CHECK = [
@@ -30,12 +34,12 @@ class EnergyCalculationTest(TestInterface):
         self._separator = self.__class__.__name__
         self._cache = pd.read_csv(cache_path)
 
-        trainer = DefaultEnergyModelTrainer(self._logger)
-        model = trainer.train_or_load(self._cache)
-        predictor = DefaultAudioEnergyPredictor(self._logger, model)
+        self._energy_calculator_factory: EnergyCalculatorFactory = EnergyCalculatorFactory(self._logger)
+        energy_calculator = self._energy_calculator_factory.get_calculator(Calculator.Default)
+        energy_calculator.train_and_persist(DEFAULT_ENERGY_MODEL_CONFIG, self._cache)
 
         self._calculators: Dict[str, EnergyCalculator] = {
-            "Gemini  ": predictor
+            "Gemini  ": energy_calculator
         }
 
     def test(self) -> None:

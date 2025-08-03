@@ -5,18 +5,23 @@ from scipy.special import expit
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.model.energy_model import \
     EnergyModel
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_calculator import \
-    EnergyCalculator
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 
 
-class DefaultAudioEnergyPredictor(EnergyCalculator):
-    def __init__(self, logger: HoornLogger, model: EnergyModel):
+class DefaultAudioEnergyPredictor:
+    def __init__(self, logger: HoornLogger):
         self._logger = logger
         self._separator = self.__class__.__name__
+
+        self._model: EnergyModel | None = None
+
+    def set_model(self, model: EnergyModel):
         self._model = model
 
     def calculate_energy_for_row(self, row: pd.Series) -> float:
+        if self._model is None:
+            raise Exception(f"Training model not yet set. Make sure to call set_model before calculating energy.")
+
         track_features = row[self._model.feature_names]
         if track_features.isnull().any():
             return np.nan
@@ -33,6 +38,9 @@ class DefaultAudioEnergyPredictor(EnergyCalculator):
         return round(float(np.clip(final_energy, 1.0, 10.0)), 1)
 
     def calculate_ratings_for_df(self, df_to_process: pd.DataFrame, target_column: Header) -> pd.DataFrame:
+        if self._model is None:
+            raise Exception(f"Training model not yet set. Make sure to call set_model before calculating energy.")
+
         if df_to_process.empty:
             return df_to_process
 
