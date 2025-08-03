@@ -35,7 +35,7 @@ class DefaultEnergyCalculator(EnergyCalculator):
         model, loaded = self.train_or_load(config, training_data)
 
         if not loaded:
-            self.persist(config, model, training_data)
+            self.persist(config, model)
 
         return model
 
@@ -44,8 +44,8 @@ class DefaultEnergyCalculator(EnergyCalculator):
         self._predictor.set_model(model)
         return model, loaded
 
-    def persist(self, config: EnergyModelConfig, model: EnergyModel, features_df: pd.DataFrame) -> None:
-        self._persistence.save(model, config, features_df, model.data_hash)
+    def persist(self, config: EnergyModelConfig, model: EnergyModel) -> None:
+        self._persistence.save(model, config)
 
     def calculate_ratings_for_df(self, df_to_process: pd.DataFrame, target_column: Header) -> pd.DataFrame:
         return self._predictor.calculate_ratings_for_df(df_to_process, target_column)

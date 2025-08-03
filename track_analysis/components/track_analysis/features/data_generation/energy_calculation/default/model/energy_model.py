@@ -12,3 +12,4 @@ class EnergyModel(NamedTuple):
     feature_names: List[str]
     spline_y_points: List[float]
     data_hash: str
+    features_shape: List[int]

@@ -27,27 +27,27 @@ class DefaultInspectionDataPersistence:
             self._logger.error(f"Failed to load inspection data from {path}: {e}", separator=self._separator)
             return None
 
-    def save(self, path: Path, model: EnergyModel, config: EnergyModelConfig, features_df: pd.DataFrame, data_hash: str) -> None:
+    def save(self, path: Path, model: EnergyModel, config: EnergyModelConfig) -> None:
         """Creates and saves the inspection data to a given path."""
         try:
-            inspection_data = self._create_data_dict(model, config, features_df, data_hash)
+            inspection_data = self._create_data_dict(model, config)
             with open(path, 'w') as f:
                 json.dump(inspection_data, f, indent=4)
         except Exception as e:
             self._logger.error(f"Failed to save inspection data to {path}: {e}", separator=self._separator)
 
     @staticmethod
-    def _create_data_dict(model: EnergyModel, config: EnergyModelConfig, features_df: pd.DataFrame, data_hash: str) -> dict:
+    def _create_data_dict(model: EnergyModel, config: EnergyModelConfig) -> dict:
         """Creates the human-readable inspection JSON dictionary."""
         feature_names = [f.value for f in config.feature_columns]
         return {
             "metadata": {
                 "model_name": config.name,
                 "cache_created_utc": datetime.now(UTC).isoformat(),
-                "data_hash": data_hash
+                "data_hash": model.data_hash
             },
             "training": {
-                "training_set_shape": list(features_df.shape),
+                "training_set_shape": model.features_shape,
                 "feature_names": feature_names,
             },
             "pca": {

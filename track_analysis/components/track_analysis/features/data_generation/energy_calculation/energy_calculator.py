@@ -48,14 +48,13 @@ class EnergyCalculator(ABC):
         ...
 
     @abstractmethod
-    def persist(self, config: EnergyModelConfig, model: EnergyModel, features_df: pd.DataFrame) -> None:
+    def persist(self, config: EnergyModelConfig, model: EnergyModel) -> None:
         """
         Saves a trained model and its inspection data to the cache.
 
         Args:
             config: The configuration, used to determine the cache path.
             model: The trained EnergyModel object to save.
-            features_df: The feature data used for training.
         """
         ...
 

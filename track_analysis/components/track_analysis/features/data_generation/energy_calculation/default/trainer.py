@@ -69,5 +69,6 @@ class DefaultEnergyModelTrainer:
             scaler=scaler, pca=pca, spline=spline,
             feature_names=feature_names,
             spline_y_points=spline_y_points,
-            data_hash=data_hash
+            data_hash=data_hash,
+            features_shape=features_df.shape,
         )

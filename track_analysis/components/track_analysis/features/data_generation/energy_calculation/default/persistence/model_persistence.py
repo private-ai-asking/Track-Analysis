@@ -52,12 +52,13 @@ class DefaultModelPersistence:
                 feature_names=[f.value for f in config.feature_columns],
                 spline_y_points=params['y_points'],
                 data_hash=data_hash,
+                features_shape=inspection_data["training"]["training_set_shape"]
             )
         except Exception as e:
             self._logger.error(f"Failed to load model artifacts for '{config.name}': {e}", separator=self._separator)
             return None
 
-    def save(self, model: EnergyModel, config: EnergyModelConfig, features_df: pd.DataFrame, data_hash: str) -> None:
+    def save(self, model: EnergyModel, config: EnergyModelConfig) -> None:
         model_cache_dir = self._root_cache_dir / config.name
         model_cache_dir.mkdir(parents=True, exist_ok=True)
         scaler_path = model_cache_dir / "energy_scaler.joblib"
@@ -74,7 +75,7 @@ class DefaultModelPersistence:
                 json.dump(spline_params, f, indent=4)
 
             # Delegate saving the inspection file
-            self._inspection_persistence.save(inspection_path, model, config, features_df, data_hash)
+            self._inspection_persistence.save(inspection_path, model, config)
 
             self._logger.info(f"Energy model '{config.name}' saved to cache.", separator=self._separator)
 
