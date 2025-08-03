@@ -1,4 +1,5 @@
 import gc
+import time
 from pathlib import Path
 from typing import List, Dict, Callable
 
@@ -7,16 +8,24 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
+from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
 from track_analysis.components.track_analysis.features.audio_calculation.calculators.rms_calculator import \
     compute_short_time_rms_dbfs
+from track_analysis.components.track_analysis.features.audio_calculation.calculators.spectral_rhythm_calculator import \
+    SpectralRhythmCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler, AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.core.cacheing.harmonic import HarmonicExtractor
 from track_analysis.components.track_analysis.features.core.cacheing.magnitude_spectogram import \
     MagnitudeSpectrogramExtractor
+from track_analysis.components.track_analysis.features.core.cacheing.multi_band_onset import OnsetStrengthMultiExtractor
 from track_analysis.components.track_analysis.features.core.cacheing.onset_envelope import OnsetStrengthExtractor
+from track_analysis.components.track_analysis.features.core.cacheing.spectral_contrast import SpectralContrastExtractor
+from track_analysis.components.track_analysis.features.core.cacheing.spectral_flatness import SpectralFlatnessExtractor
+from track_analysis.components.track_analysis.features.core.cacheing.zero_crossing import ZeroCrossingRateExtractor
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
+
 
 
 class HandleRowsWithMissingData(IPipe):
@@ -28,8 +37,13 @@ class HandleRowsWithMissingData(IPipe):
         self._onset_extractor = OnsetStrengthExtractor(logger)
         self._harmonic_extractor = HarmonicExtractor(logger)
         self._magnitude_extractor = MagnitudeSpectrogramExtractor(logger)
+        onset_extractor_multi = OnsetStrengthMultiExtractor(logger, magnitude_extractor=self._magnitude_extractor)
+        zcr_extractor = ZeroCrossingRateExtractor(logger)
+        flatness_extractor = SpectralFlatnessExtractor(logger)
+        contrast_extractor = SpectralContrastExtractor(logger)
 
         self._header_processor_func_mapping: Dict[Header, Callable[[List[str], LibraryDataGenerationPipelineContext], None]] = {
+            Header.BPM: self._handle_missing_bpm,
             Header.Bit_Depth: self._handle_missing_bit_depth,
             Header.Start_Key: self._handle_missing_segment_keys,
             Header.End_Key: self._handle_missing_segment_keys,
@@ -37,8 +51,11 @@ class HandleRowsWithMissingData(IPipe):
             Header.Max_RMS: self._handle_missing_rms,
             Header.Percentile_90_RMS: self._handle_missing_rms,
             Header.RMS_IQR: self._handle_missing_rms,
-            # Header.Onset_Rate_Notes: self._handle_missing_onset_rate_events  # TODO - Add
+            Header.Spectral_Flatness_Mean: self._handle_missing_spectral
         }
+
+        self._spectral_calculator = SpectralRhythmCalculator(self._harmonic_extractor, self._magnitude_extractor, self._onset_extractor, onset_extractor_multi, zcr_extractor, flatness_extractor, contrast_extractor, hop_length=512)
+        self._time_utils: TimeUtils = TimeUtils()
 
         self._logger = logger
         self._logger.trace("Successfully initialized pipe.", separator=self._separator)
@@ -55,6 +72,19 @@ class HandleRowsWithMissingData(IPipe):
             processor(uuids, data)
 
         return data
+
+    def _get_existing_tempos(
+            self,
+            chunk: pd.DataFrame
+    ) -> Dict[Path, float]:
+        """Extracts BPM values for each audio path in this chunk."""
+        return {
+            Path(p): bpm
+            for p, bpm in zip(
+                chunk[Header.Audio_Path.value],
+                chunk[Header.BPM.value]
+            )
+        }
 
     def _handle_missing_bit_depth(self, uuids: List[str], data: LibraryDataGenerationPipelineContext) -> None:
         df: pd.DataFrame = data.loaded_audio_info_cache
@@ -90,6 +120,47 @@ class HandleRowsWithMissingData(IPipe):
             f"Finished processing {len(paths)} .flac tracks with missing bit depths!",
             separator=self._separator
         )
+
+    def _handle_missing_bpm(self, uuids: List[str], data: LibraryDataGenerationPipelineContext) -> None:
+        df: pd.DataFrame = data.loaded_audio_info_cache
+        batch_size = data.max_new_tracks_per_run
+
+        mask = df[Header.UUID.value].isin(uuids)
+        rows = df.loc[mask]
+        total = len(rows)
+        self._logger.info(
+            f"Found {total} tracks with missing BPM stats.",
+            separator=self._separator
+        )
+
+        # Process in batches to limit memory usage
+        for start in range(0, total, batch_size):
+            end = start + batch_size
+            rows_chunk = rows.iloc[start:end]
+            paths = [Path(p) for p in rows_chunk[Header.Audio_Path.value].tolist()]
+            if not paths:
+                continue
+
+            # Load audio info and samples for this batch
+            stream_infos: List[AudioStreamsInfoModel] = \
+                self._file_handler.get_audio_streams_info_batch(paths)
+
+            # Compute RMS stats per track
+            bpm = [info.tempo for info in stream_infos]
+
+            # Write back into DataFrame for this chunk
+            idxs = rows_chunk.index
+
+            df.loc[idxs, Header.BPM.value] = np.array(bpm, dtype=np.float64)
+
+            self._logger.info(
+                f"Filled BPM stats for tracks {start+1} to {min(end, total)}.",
+                separator=self._separator
+            )
+
+            # Cleanup to free memory
+            del stream_infos, bpm
+            gc.collect()
 
     # noinspection t
     def _handle_missing_segment_keys(self, uuids: List[str], data: LibraryDataGenerationPipelineContext) -> None:
@@ -188,6 +259,102 @@ class HandleRowsWithMissingData(IPipe):
 
             self._logger.info(
                 f"Filled RMS stats for tracks {start+1} to {min(end, total)}.",
+                separator=self._separator
+            )
+
+            # Cleanup to free memory
+            del stream_infos, stats
+            gc.collect()
+
+    def _handle_missing_spectral(self, uuids: List[str], data: LibraryDataGenerationPipelineContext) -> None:
+        df: pd.DataFrame = data.loaded_audio_info_cache
+        batch_size = data.max_new_tracks_per_run
+
+        mask = df[Header.UUID.value].isin(uuids)
+        rows = df.loc[mask]
+        total = len(rows)
+        self._logger.info(
+            f"Found {total} tracks with missing Spectral stats.",
+            separator=self._separator
+        )
+
+        # Process in batches to limit memory usage
+        for start in range(0, total, batch_size):
+            start_time = time.time()
+            end = start + batch_size
+            rows_chunk = rows.iloc[start:end]
+            paths = [Path(p) for p in rows_chunk[Header.Audio_Path.value].tolist()]
+            if not paths:
+                continue
+
+            existing_tempos = self._get_existing_tempos(rows_chunk)
+
+            # Load audio info and samples for this batch
+            stream_infos: List[AudioStreamsInfoModel] = \
+                self._file_handler.get_audio_streams_info_batch(paths, existing_tempos=existing_tempos)
+
+            # Compute spectral stats per track
+            stats = [
+                self._spectral_calculator.calculate(
+                    audio_path=info.path,
+                    samples=info.samples,
+                    sr=info.sample_rate_Hz,
+                    tempo=info.tempo
+                )
+                for info in stream_infos
+            ]
+
+            # Unpack each metric by key (iterating a dict yields its keys by default)
+            # so we must explicitly extract values via items() or direct key access
+            spec_centroid_mean_hz    = [s["spec_centroid_mean_hz"]   for s in stats]
+            spec_centroid_max_hz     = [s["spec_centroid_max_hz"]    for s in stats]
+            spec_flux_mean           = [s["spec_flux_mean"]          for s in stats]
+            spec_flux_max            = [s["spec_flux_max"]           for s in stats]
+            zcr_mean = [s["zcr_mean"] for s in stats]
+            spectral_flatness_mean = [s["spectral_flatness_mean"] for s in stats]
+            spectral_contrast_mean = [s["spectral_contrast_mean"] for s in stats]
+            onset_env_mean           = [s["onset_env_mean"]          for s in stats]
+            onset_rate               = [s["onset_rate"]              for s in stats]
+            onset_env_mean_kick      = [s["onset_env_mean_kick"]     for s in stats]
+            onset_rate_kick          = [s["onset_rate_kick"]         for s in stats]
+            onset_env_mean_snare     = [s["onset_env_mean_snare"]    for s in stats]
+            onset_rate_snare         = [s["onset_rate_snare"]        for s in stats]
+            onset_env_mean_low_mid   = [s["onset_env_mean_low_mid"]  for s in stats]
+            onset_rate_low_mid       = [s["onset_rate_low_mid"]      for s in stats]
+            onset_env_mean_hihat     = [s["onset_env_mean_hihat"]    for s in stats]
+            onset_rate_hihat         = [s["onset_rate_hihat"]        for s in stats]
+
+            # Write back into DataFrame for this chunk
+            idxs = rows_chunk.index
+            df.loc[idxs, Header.Spectral_Centroid_Mean.value] = np.array(spec_centroid_mean_hz,   dtype=np.float64)
+            df.loc[idxs, Header.Spectral_Centroid_Max.value]  = np.array(spec_centroid_max_hz,    dtype=np.float64)
+            df.loc[idxs, Header.Spectral_Flux_Mean.value]     = np.array(spec_flux_mean,          dtype=np.float64)
+            df.loc[idxs, Header.Spectral_Flux_Max.value]      = np.array(spec_flux_max,           dtype=np.float64)
+            df.loc[idxs, Header.Zero_Crossing_Rate_Mean.value] = np.array(zcr_mean, dtype=np.float64)
+            df.loc[idxs, Header.Spectral_Flatness_Mean.value] = np.array(spectral_flatness_mean, dtype=np.float64)
+            df.loc[idxs, Header.Spectral_Contrast_Mean.value] = np.array(spectral_contrast_mean, dtype=np.float64)
+
+            df.loc[idxs, Header.Onset_Env_Mean.value]         = np.array(onset_env_mean,          dtype=np.float64)
+            df.loc[idxs, Header.Onset_Rate.value]            = np.array(onset_rate,              dtype=np.float64)
+
+            df.loc[idxs, Header.Onset_Env_Mean_Kick.value]    = np.array(onset_env_mean_kick,     dtype=np.float64)
+            df.loc[idxs, Header.Onset_Rate_Kick.value]       = np.array(onset_rate_kick,         dtype=np.float64)
+
+            df.loc[idxs, Header.Onset_Env_Mean_Snare.value]  = np.array(onset_env_mean_snare,    dtype=np.float64)
+            df.loc[idxs, Header.Onset_Rate_Snare.value]      = np.array(onset_rate_snare,        dtype=np.float64)
+
+            df.loc[idxs, Header.Onset_Env_Mean_Low_Mid.value]= np.array(onset_env_mean_low_mid,  dtype=np.float64)
+            df.loc[idxs, Header.Onset_Rate_Low_Mid.value]   = np.array(onset_rate_low_mid,      dtype=np.float64)
+
+            df.loc[idxs, Header.Onset_Env_Mean_Hi_Hat.value] = np.array(onset_env_mean_hihat,    dtype=np.float64)
+            df.loc[idxs, Header.Onset_Rate_Hi_Hat.value]    = np.array(onset_rate_hihat,        dtype=np.float64)
+
+            end_time = time.time()
+            elapsed = end_time - start_time
+            elapsed_formatted = self._time_utils.format_time(elapsed, round_digits=4)
+
+            self._logger.info(
+                f"Filled Spectral stats for tracks {start+1} to {min(end, total)} [duration: {elapsed_formatted}].",
                 separator=self._separator
             )
 

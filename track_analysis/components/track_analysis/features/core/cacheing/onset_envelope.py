@@ -23,7 +23,6 @@ def compute_onset_strengths(
     If `audio` is provided, slices that array. Otherwise memory-maps the file.
     """
     if audio is None:
-        # float32 = 4 bytes/sample
         audio = np.memmap(
             str(file_path),
             dtype="float32",
@@ -32,7 +31,6 @@ def compute_onset_strengths(
             shape=(end_sample - start_sample,),
         )
     else:
-        # use the in-memory portion
         audio = audio[start_sample:end_sample]
 
     return librosa.onset.onset_strength(
@@ -40,6 +38,38 @@ def compute_onset_strengths(
         sr=sample_rate,
         hop_length=hop_length
     )
+
+
+@MEMORY.cache(ignore=["audio"])
+def compute_onset_peaks(
+        *,
+        file_path:     Path,
+        start_sample:  int,
+        end_sample:    int,
+        sample_rate:   int,
+        hop_length:    int,
+        audio:         np.ndarray = None,
+) -> np.ndarray:
+    """
+    Returns the frame indices of detected onset peaks for the given range.
+    Caches on same key as compute_onset_strengths.
+    """
+    # reuse cached onset-strength envelope
+    env = compute_onset_strengths(
+        file_path=file_path,
+        start_sample=start_sample,
+        end_sample=end_sample,
+        sample_rate=sample_rate,
+        hop_length=hop_length,
+        audio=audio,
+    )
+    # detect peaks
+    peaks = librosa.onset.onset_detect(
+        onset_envelope=env,
+        sr=sample_rate,
+        hop_length=hop_length
+    )
+    return peaks
 
 
 class OnsetStrengthExtractor:
@@ -57,15 +87,38 @@ class OnsetStrengthExtractor:
             audio:         np.ndarray = None,
     ) -> np.ndarray:
         """
-        Always gives you a cached result keyed by file & indices.
-        Pass `audio` if you’ve already decoded it, for in-memory slicing;
-        otherwise it will memmap from disk.
+        Returns the onset-strength envelope for the given range.
         """
         self._logger.debug(
-            f"Extracting onsets for {file_path.name}[{start_sample}:{end_sample}]",
+            f"Extracting onset strength for {file_path.name}[{start_sample}:{end_sample}]",
             separator=self._separator,
         )
         return compute_onset_strengths(
+            file_path=file_path,
+            start_sample=start_sample,
+            end_sample=end_sample,
+            sample_rate=sample_rate,
+            hop_length=hop_length,
+            audio=audio,
+        )
+
+    def extract_peaks(
+            self,
+            file_path:     Path,
+            start_sample:  int,
+            end_sample:    int,
+            sample_rate:   int,
+            hop_length:    int,
+            audio:         np.ndarray = None,
+    ) -> np.ndarray:
+        """
+        Returns the onset peak frame indices for the given range.
+        """
+        self._logger.debug(
+            f"Extracting onset peaks for {file_path.name}[{start_sample}:{end_sample}]",
+            separator=self._separator,
+        )
+        return compute_onset_peaks(
             file_path=file_path,
             start_sample=start_sample,
             end_sample=end_sample,

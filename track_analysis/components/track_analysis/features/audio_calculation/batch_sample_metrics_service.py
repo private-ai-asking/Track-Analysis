@@ -60,10 +60,15 @@ class BatchSampleMetricsService:
             Header.Max_RMS.value:                    sample_metrics["max_dbfs"],
             Header.Percentile_90_RMS.value:          sample_metrics["percentile_90_dbfs"],
             Header.RMS_IQR.value:                    sample_metrics["iqr_dbfs"],
+
+            # Spectral
             Header.Spectral_Centroid_Mean.value:     sample_metrics["spec_centroid_mean_hz"],
             Header.Spectral_Centroid_Max.value:      sample_metrics["spec_centroid_max_hz"],
             Header.Spectral_Flux_Mean.value:         sample_metrics["spec_flux_mean"],
             Header.Spectral_Flux_Max.value:          sample_metrics["spec_flux_max"],
+            Header.Zero_Crossing_Rate_Mean.value: sample_metrics["zcr_mean"],
+            Header.Spectral_Flatness_Mean.value: sample_metrics["spectral_flatness_mean"],
+            Header.Spectral_Contrast_Mean.value: sample_metrics["spectral_contrast_mean"],
 
             # Onsets
             Header.Onset_Env_Mean.value:             sample_metrics["onset_env_mean"],

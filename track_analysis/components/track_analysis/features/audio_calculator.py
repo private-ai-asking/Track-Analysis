@@ -25,6 +25,9 @@ from track_analysis.components.track_analysis.features.core.cacheing.magnitude_s
     MagnitudeSpectrogramExtractor
 from track_analysis.components.track_analysis.features.core.cacheing.multi_band_onset import OnsetStrengthMultiExtractor
 from track_analysis.components.track_analysis.features.core.cacheing.onset_envelope import OnsetStrengthExtractor
+from track_analysis.components.track_analysis.features.core.cacheing.spectral_contrast import SpectralContrastExtractor
+from track_analysis.components.track_analysis.features.core.cacheing.spectral_flatness import SpectralFlatnessExtractor
+from track_analysis.components.track_analysis.features.core.cacheing.zero_crossing import ZeroCrossingRateExtractor
 from track_analysis.components.track_analysis.features.data_generation.util.key_extractor import KeyExtractor
 
 
@@ -39,21 +42,13 @@ class AudioCalculator:
         harmonic_extractor = HarmonicExtractor(logger)
         magnitude_extractor = MagnitudeSpectrogramExtractor(logger)
 
-        onset_bands = {
-            # Kick / sub-kick fundamental energy
-            "kick":   (20.0,   150.0),
-            # Snare fundamentals & body
-            "snare":  (150.0,  2500.0),
-            # Toms / low-mid percussion (claps, wood blocks, congas)
-            "low_mid":(2500.0, 5000.0),
-            # Hi-hats, rides, cymbals
-            "hihat":  (5000.0, None),
-        }
-
         onset_extractor = OnsetStrengthExtractor(logger)
-        onset_extractor_multi = OnsetStrengthMultiExtractor(logger, bands=onset_bands, magnitude_extractor=magnitude_extractor)
+        onset_extractor_multi = OnsetStrengthMultiExtractor(logger, magnitude_extractor=magnitude_extractor)
+        zcr_extractor = ZeroCrossingRateExtractor(logger)
+        flatness_extractor = SpectralFlatnessExtractor(logger)
+        contrast_extractor = SpectralContrastExtractor(logger)
 
-        calculators = [LoudnessCalculator(), RmsCalculator(), SpectralRhythmCalculator(harmonic_extractor, magnitude_extractor, onset_extractor, onset_extractor_multi, hop_length=512)]
+        calculators = [LoudnessCalculator(), RmsCalculator(), SpectralRhythmCalculator(harmonic_extractor, magnitude_extractor, onset_extractor, onset_extractor_multi, zcr_extractor, flatness_extractor, contrast_extractor, hop_length=512)]
         sample_svc = BatchSampleMetricsService(calculators, num_workers)
 
         file_utils = FileUtils()

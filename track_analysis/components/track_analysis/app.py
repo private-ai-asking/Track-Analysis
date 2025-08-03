@@ -57,6 +57,7 @@ from track_analysis.components.track_analysis.features.track_downloading.pipelin
     DownloadPipelineContext
 from track_analysis.components.track_analysis.features.track_downloading.utils.genre_algorithm import GenreAlgorithm
 from track_analysis.tests.embedding_test import EmbeddingTest
+from track_analysis.tests.energy_calculation_test import EnergyCalculationTest
 from track_analysis.tests.key_test import KeyProgressionTest
 from track_analysis.tests.registration_test import RegistrationTest
 from track_analysis.tests.short_rms_test import ShortTimeRMSTest
@@ -183,6 +184,7 @@ class App:
         registration_test: RegistrationTest = RegistrationTest(logger, self._registration)
         embedding_test: EmbeddingTest = EmbeddingTest(logger, embedder=self._embedder, keys_path=keys_path, data_loader=self._scrobble_data_loader)
         short_time_rms_test: ShortTimeRMSTest = ShortTimeRMSTest(logger, self._audio_file_handler)
+        energy_test: EnergyCalculationTest = EnergyCalculationTest(logger, library_data_path)
 
         tests: List[TestConfiguration] = [
             TestConfiguration(
@@ -202,6 +204,12 @@ class App:
                 keyword_arguments=[],
                 command_description="Tests the short time rms.",
                 command_keys=["test_short_time_rms", "tstr"]
+            ),
+            TestConfiguration(
+                associated_test=energy_test,
+                keyword_arguments=[],
+                command_description="Tests the energy calculation.",
+                command_keys=["test_energy_calculation", "tec"]
             )
         ]
 
@@ -343,12 +351,15 @@ class App:
             use_threads=True,
             max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN,
             missing_headers_to_fill=[],
-            headers_to_refill=[]
+            headers_to_refill=[Header.Energy_Level]
         )
 
         # output_path.unlink(missing_ok=True)
 
-        pipeline = BuildLibraryDataCSVPipeline(self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._audio_calculator, self._string_utils, num_workers=NUM_WORKERS_CPU_HEAVY, num_workers_refill=NUM_WORKERS_CPU_HEAVY-14)
+        pipeline = BuildLibraryDataCSVPipeline(
+            self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._audio_calculator, self._string_utils,
+            num_workers=NUM_WORKERS_CPU_HEAVY, num_workers_refill=NUM_WORKERS_CPU_HEAVY-14
+        )
 
         def __run():
             pipeline.build_pipeline()

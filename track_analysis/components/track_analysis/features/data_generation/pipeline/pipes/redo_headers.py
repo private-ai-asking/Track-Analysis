@@ -1,5 +1,6 @@
 import ctypes
 import gc
+import time
 import traceback
 from pathlib import Path
 from typing import List, Dict, Callable, Tuple
@@ -11,7 +12,12 @@ import psutil
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
+from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler, AudioStreamsInfoModel
+from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.default_predictor import \
+    DefaultAudioEnergyPredictor
+from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.trainer import \
+    DefaultEnergyModelTrainer
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
@@ -29,8 +35,11 @@ class RedoHeaders(IPipe):
 
         self._header_processor: Dict[Header, Callable[[List[str], LibraryDataGenerationPipelineContext], None]] = {
             Header.BPM: self._redo_bpm,
-            Header.Key: self._redo_key
+            Header.Key: self._redo_key,
+            Header.Energy_Level: self._redo_energy,
         }
+
+        self._time_utils = TimeUtils()
 
         self._logger.trace("Successfully initialized pipe.", separator=self._separator)
 
@@ -225,6 +234,22 @@ class RedoHeaders(IPipe):
                     f"Failed to write BPM tag for \"{path}\": {e}\n{tb}",
                     separator=self._separator
                 )
+
+    def _redo_energy(self, uuids: List[str], data: LibraryDataGenerationPipelineContext) -> None:
+        df = data.loaded_audio_info_cache
+        mask = df[Header.UUID.value].isin(uuids)
+        to_process = df[mask]
+
+        trainer = DefaultEnergyModelTrainer(self._logger)
+        model = trainer.train_or_load(data.loaded_audio_info_cache)
+        predictor = DefaultAudioEnergyPredictor(self._logger, model)
+
+        processed = predictor.calculate_ratings_for_df(to_process, Header.Energy_Level)
+
+        new_energies = processed.set_index(Header.UUID.value)[Header.Energy_Level.value]
+        df = df.set_index(Header.UUID.value)
+        df.loc[new_energies.index, Header.Energy_Level.value] = new_energies
+        data.loaded_audio_info_cache = df.reset_index()
 
     # ----------------------- Memory Cleanup -----------------------
 
