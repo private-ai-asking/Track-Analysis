@@ -343,14 +343,16 @@ class App:
     def _make_csv(self, profile: bool = False) -> None:
         output_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
         key_progression_path: Path = OUTPUT_DIRECTORY.joinpath("key_progression.csv")
+        mfcc_path: Path = OUTPUT_DIRECTORY.joinpath("mfcc.csv")
 
         pipeline_context = LibraryDataGenerationPipelineContext(
             source_dir=ROOT_MUSIC_LIBRARY,
             main_data_output_file_path=output_path,
             key_progression_output_file_path=key_progression_path,
+            mfcc_data_output_file_path=mfcc_path,
             use_threads=True,
             max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN,
-            missing_headers_to_fill=[],
+            missing_headers_to_fill=[Header.Spectral_Rolloff_Mean],
             headers_to_refill=[]
         )
 

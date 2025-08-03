@@ -1,4 +1,3 @@
-import uuid
 from pathlib import Path
 from typing import Union, List
 
@@ -61,11 +60,6 @@ class TagExtractor:
 
         release_date = file.get('originaldate', ["Unknown"])[0]
         release_year = file.get('originalyear', ["Unknown"])[0] if (not release_date or release_date == "Unknown") else release_date[:4]
-
-        uid = uuid.uuid4()
-
-        # Relational purposes
-        track[Header.UUID.value] = str(uid)
 
         # Basic Metadata
         track[Header.Title.value] = file.get('title', ["Unknown"])[0]

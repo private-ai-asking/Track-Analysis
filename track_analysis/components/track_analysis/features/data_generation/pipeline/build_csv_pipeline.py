@@ -4,8 +4,6 @@ from track_analysis.components.md_common_python.py_common.patterns import AbPipe
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
 from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_calculator import \
-    EnergyCalculator
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.batch_process_new_tracks import \
@@ -17,7 +15,7 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_audio_files import \
     GetAudioFiles
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_invalid_cache import \
-    GetInvalidCache
+    HandleInvalidCache
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.handle_rows_with_missing_data import \
     HandleRowsWithMissingData
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.load_cache import LoadCache
@@ -67,7 +65,7 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._add_step(FilterCache(self._logger))
         self._add_step(GetAudioFiles(self._logger, self._filehandler))
         self._add_step(FilterFiles(self._logger))
-        self._add_step(GetInvalidCache(self._logger))
+        self._add_step(HandleInvalidCache(self._logger))
         self._add_exit_check(__exit_if_no_files_to_process)
         self._add_step(BatchProcessNewTracks(
             self._logger,

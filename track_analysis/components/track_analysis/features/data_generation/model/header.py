@@ -43,12 +43,16 @@ class Header(Enum):
     Max_RMS = "Max RMS (dBFS)"
     Percentile_90_RMS = "90th Percentile RMS (dBFS)"
     RMS_IQR = "RMS Dynamic Range (IQR dBFS)"
+    Tempo_Variation = "Tempo Variation (std)"
+    Harmonicity = "Harmonicity (0-1)"
 
     # Spectral
     Spectral_Centroid_Mean = "Spectral Centroid Mean (Hz)"
     Spectral_Centroid_Max  = "Spectral Centroid Max (Hz)"
     Spectral_Flux_Mean     = "Spectral Flux Mean"
     Spectral_Flux_Max      = "Spectral Flux Max"
+    Spectral_Rolloff_Mean = "Spectral Rolloff (mean)"
+    Spectral_Rolloff_Std = "Spectral Rolloff (std)"
     Zero_Crossing_Rate_Mean = "Zero Crossing Rate Mean"
     Spectral_Flatness_Mean = "Spectral Flatness Mean"
     Spectral_Contrast_Mean = "Spectral Contrast Mean"

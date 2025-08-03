@@ -72,6 +72,37 @@ def compute_onset_peaks(
     return peaks
 
 
+@MEMORY.cache(ignore=["audio"])
+def compute_dynamic_tempo(
+        *,
+        file_path: Path,
+        start_sample: int,
+        end_sample: int,
+        sample_rate: int,
+        hop_length: int,
+        audio: np.ndarray = None,
+) -> np.ndarray:
+    """
+    Returns the dynamic tempo for the given range.
+    Caches on same key as compute_onset_strengths.
+    """
+    # reuse cached onset-strength envelope
+    env = compute_onset_strengths(
+        file_path=file_path,
+        start_sample=start_sample,
+        end_sample=end_sample,
+        sample_rate=sample_rate,
+        hop_length=hop_length,
+        audio=audio,
+    )
+    return librosa.feature.tempo(
+        onset_envelope=env,
+        sr=sample_rate,
+        hop_length=hop_length,
+        aggregate=None
+    )
+
+
 class OnsetStrengthExtractor:
     def __init__(self, logger: HoornLogger):
         self._logger    = logger
@@ -119,6 +150,31 @@ class OnsetStrengthExtractor:
             separator=self._separator,
         )
         return compute_onset_peaks(
+            file_path=file_path,
+            start_sample=start_sample,
+            end_sample=end_sample,
+            sample_rate=sample_rate,
+            hop_length=hop_length,
+            audio=audio,
+        )
+
+    def extract_dynamic_tempo(
+            self,
+            file_path: Path,
+            start_sample: int,
+            end_sample: int,
+            sample_rate: int,
+            hop_length: int,
+            audio: np.ndarray = None,
+    ) -> np.ndarray:
+        """
+        Returns the dynamic tempo for the given range.
+        """
+        self._logger.debug(
+            f"Extracting dynamic tempo for {file_path.name}[{start_sample}:{end_sample}]",
+            separator=self._separator,
+        )
+        return compute_dynamic_tempo(
             file_path=file_path,
             start_sample=start_sample,
             end_sample=end_sample,

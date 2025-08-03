@@ -15,6 +15,7 @@ class LibraryDataGenerationPipelineContext(pydantic.BaseModel):
     source_dir: Path
     main_data_output_file_path: Path
     key_progression_output_file_path: Path
+    mfcc_data_output_file_path: Path
 
     use_threads: bool = True
     max_new_tracks_per_run: Optional[int] = 50
@@ -22,6 +23,8 @@ class LibraryDataGenerationPipelineContext(pydantic.BaseModel):
     headers_to_refill: List[Header] = []
 
     loaded_audio_info_cache: Optional[pd.DataFrame] = None
+    loaded_mfcc_info_cache: Optional[pd.DataFrame] = None
+    loaded_key_progression_cache: Optional[pd.DataFrame] = None
 
     missing_headers: Optional[Dict[Header, List[str]]] = None
     refill_headers: Optional[Dict[Header, List[str]]] = None
@@ -38,6 +41,8 @@ class LibraryDataGenerationPipelineContext(pydantic.BaseModel):
 
     extracted_stream_info: Optional[List[AudioStreamsInfoModel]] = []
     generated_audio_info: Optional[pd.DataFrame] = None
+    generated_mfcc_audio_info: Optional[pd.DataFrame] = None
+    generated_key_progression_audio_info: Optional[pd.DataFrame] = None
 
     model_config = {
         'arbitrary_types_allowed': True,

@@ -1,3 +1,4 @@
+import dataclasses
 from pathlib import Path
 from typing import List
 
@@ -9,6 +10,12 @@ from track_analysis.components.track_analysis.features.audio_calculation.batch_f
 from track_analysis.components.track_analysis.features.audio_calculation.batch_sample_metrics_service import \
     BatchSampleMetricsService
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
+
+@dataclasses.dataclass(frozen=True)
+class AudioProcessingResult:
+    main_df: pd.DataFrame
+    mfcc_df: pd.DataFrame
+    key_progression_df: pd.DataFrame
 
 
 class AudioProcessingPipeline:
@@ -24,15 +31,21 @@ class AudioProcessingPipeline:
             self,
             infos: List[AudioStreamsInfoModel],
             paths: List[Path],
+            uuids: List[str],
             samples_list: List[np.ndarray],
             sample_rates: List[int],
             tempos: List[float],
-    ) -> pd.DataFrame:
+    ) -> AudioProcessingResult:
+        # Pass UUIDs to the sample service
         sample_metrics = self._sample_service.compute(
-            paths, samples_list, sample_rates, tempos
+            uuids, paths, samples_list, sample_rates, tempos
         )
-        df_samples = self._sample_service.build_dataframe(sample_metrics)
 
-        df_files = self._file_service.compute(infos, paths)
+        # Build both DataFrames
+        df_main_samples = self._sample_service.build_main_dataframe(sample_metrics)
+        df_mfcc = self._sample_service.build_mfcc_dataframe(sample_metrics)
 
-        return pd.concat([df_samples, df_files], axis=1)
+        df_files, df_key_progression = self._file_service.compute(infos, paths, uuids)
+        df_main = pd.concat([df_main_samples, df_files], axis=1)
+
+        return AudioProcessingResult(df_main, df_mfcc, df_key_progression)

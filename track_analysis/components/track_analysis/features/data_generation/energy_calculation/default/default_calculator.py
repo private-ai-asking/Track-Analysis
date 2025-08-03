@@ -15,6 +15,8 @@ from track_analysis.components.track_analysis.features.data_generation.energy_ca
     DefaultModelPersistence
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.trainer import \
     DefaultEnergyModelTrainer
+from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.utils import \
+    get_dataframe_hash
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_calculator import \
     EnergyCalculator
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
@@ -47,7 +49,12 @@ class DefaultEnergyCalculator(EnergyCalculator):
         ...
 
     def validate_model(self, model: EnergyModel | None, data_or_hash: Union[pd.DataFrame, str]) -> bool:
-        return self._validator.is_valid(model, data_or_hash)
+        if not isinstance(data_or_hash, str):
+            data_hash = get_dataframe_hash(data_or_hash)
+        else:
+            data_hash = data_or_hash
+
+        self._validator.is_valid(model, data_hash)
 
     def load(self, config: EnergyModelConfig) -> EnergyModel | None:
         return self._persistence.load(config)

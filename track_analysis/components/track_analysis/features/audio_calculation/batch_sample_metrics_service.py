@@ -21,14 +21,16 @@ class BatchSampleMetricsService:
 
     def compute(
             self,
+            uuids: List[str],
             audio_paths: List[Path],
             samples_list: List[np.ndarray],
             sample_rates: List[int],
             tempos: List[float],
             chunk_size: int = 4096
     ) -> dict:
-        def _worker(path, samples, sr, tempo):
-            result = {}
+        # The worker now accepts the uuid and adds it to its result
+        def _worker(uuid, path, samples, sr, tempo):
+            result = {Header.UUID.value: uuid}
             for calc in self._calculators:
                 result.update(calc.calculate(
                     path,
@@ -42,16 +44,20 @@ class BatchSampleMetricsService:
         with ThreadPoolExecutor(max_workers=self._num_workers) as exe:
             raw = list(exe.map(
                 lambda args: _worker(*args),
-                zip(audio_paths, samples_list, sample_rates, tempos)
+                zip(uuids, audio_paths, samples_list, sample_rates, tempos)
             ))
 
         out = {}
         for metric_name in raw[0].keys():
-            out[metric_name] = np.array([r[metric_name] for r in raw], dtype=np.float32)
+            out[metric_name] = [r[metric_name] for r in raw]
+
         return out
 
-    def build_dataframe(self, sample_metrics: dict) -> pd.DataFrame:
+    @staticmethod
+    def build_main_dataframe(sample_metrics: dict) -> pd.DataFrame:
         data = {
+            Header.UUID: sample_metrics[Header.UUID.value],
+
             Header.True_Peak.value:                  sample_metrics["true_peak_dbtp"],
             Header.Integrated_LUFS.value:            sample_metrics["integrated_lufs"],
             Header.Program_Dynamic_Range_LRA.value:  sample_metrics["loudness_range_lu"],
@@ -60,12 +66,16 @@ class BatchSampleMetricsService:
             Header.Max_RMS.value:                    sample_metrics["max_dbfs"],
             Header.Percentile_90_RMS.value:          sample_metrics["percentile_90_dbfs"],
             Header.RMS_IQR.value:                    sample_metrics["iqr_dbfs"],
+            Header.Tempo_Variation.value: sample_metrics["tempo_variation"],
+            Header.Harmonicity.value: sample_metrics["harmonicity"],
 
             # Spectral
             Header.Spectral_Centroid_Mean.value:     sample_metrics["spec_centroid_mean_hz"],
             Header.Spectral_Centroid_Max.value:      sample_metrics["spec_centroid_max_hz"],
             Header.Spectral_Flux_Mean.value:         sample_metrics["spec_flux_mean"],
             Header.Spectral_Flux_Max.value:          sample_metrics["spec_flux_max"],
+            Header.Spectral_Rolloff_Mean.value: sample_metrics["spec_rolloff_mean"],
+            Header.Spectral_Rolloff_Std.value: sample_metrics["spec_rolloff_std"],
             Header.Zero_Crossing_Rate_Mean.value: sample_metrics["zcr_mean"],
             Header.Spectral_Flatness_Mean.value: sample_metrics["spectral_flatness_mean"],
             Header.Spectral_Contrast_Mean.value: sample_metrics["spectral_contrast_mean"],
@@ -86,4 +96,30 @@ class BatchSampleMetricsService:
             Header.Onset_Env_Mean_Hi_Hat.value:             sample_metrics["onset_env_mean_hihat"],
             Header.Onset_Rate_Hi_Hat.value:                 sample_metrics["onset_rate_hihat"],
         }
+        return pd.DataFrame(data)
+
+    @staticmethod
+    def build_mfcc_dataframe(sample_metrics: dict) -> pd.DataFrame:
+        """
+        Constructs a DataFrame specifically for MFCC features, correctly
+        unpacking the batch data into multiple rows.
+        """
+        # Use np.vstack to stack the lists of 1-D arrays into a single 2-D array
+        # This will result in a shape of (num_tracks, num_mfccs)
+        mfcc_means_stacked = np.vstack(sample_metrics['mffcc_means'])
+        mfcc_stds_stacked = np.vstack(sample_metrics['mfcc_stds'])
+
+        # Get the number of MFCC coefficients from the stacked array
+        num_mfccs = mfcc_means_stacked.shape[1]
+
+        # Create a dictionary to hold all the column data
+        data = {
+            'UUID': sample_metrics['UUID']
+        }
+
+        # Iterate through the coefficients and add them as separate columns
+        for i in range(num_mfccs):
+            data[f'mfcc_mean_{i}'] = mfcc_means_stacked[:, i]
+            data[f'mfcc_std_{i}'] = mfcc_stds_stacked[:, i]
+
         return pd.DataFrame(data)

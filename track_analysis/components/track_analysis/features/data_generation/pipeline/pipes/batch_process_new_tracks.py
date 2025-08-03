@@ -1,6 +1,7 @@
 import gc
+import uuid
 from pathlib import Path
-from typing import List, Dict
+from typing import List
 
 import pandas as pd
 
@@ -49,17 +50,27 @@ class BatchProcessNewTracks(IPipe):
             separator=self._separator
         )
 
-        batch_dfs: List[pd.DataFrame] = []
+        batch_main_dfs: List[pd.DataFrame] = []
+        batch_mfcc_dfs: List[pd.DataFrame] = []
+        batch_key_progression_dfs: List[pd.DataFrame] = []
 
         for start in range(0, total, batch_size):
             end = min(start + batch_size, total)
             batch_paths = paths[start:end]
-            self._process_batch(batch_paths, context, batch_dfs)
+            self._process_batch(batch_paths, context, batch_main_dfs, batch_mfcc_dfs, batch_key_progression_dfs)
 
         # Concatenate all batch results
         context.generated_audio_info = (
-            pd.concat(batch_dfs, ignore_index=True)
-            if batch_dfs else pd.DataFrame()
+            pd.concat(batch_main_dfs, ignore_index=True)
+            if batch_main_dfs else pd.DataFrame()
+        )
+        context.generated_mfcc_audio_info = (
+            pd.concat(batch_mfcc_dfs, ignore_index=True)
+            if batch_mfcc_dfs else pd.DataFrame()
+        )
+        context.generated_key_progression_audio_info = (
+            pd.concat(batch_key_progression_dfs, ignore_index=True)
+            if batch_key_progression_dfs else pd.DataFrame()
         )
 
         context.generated_audio_info = context.energy_calculator.calculate_ratings_for_df(context.generated_audio_info, Header.Energy_Level)
@@ -71,48 +82,42 @@ class BatchProcessNewTracks(IPipe):
             self,
             batch_paths: List[Path],
             context: LibraryDataGenerationPipelineContext,
-            batch_dfs: List[pd.DataFrame]
+            batch_main_dfs: List[pd.DataFrame],
+            batch_mfcc_dfs: List[pd.DataFrame],
+            batch_key_progression_dfs: List[pd.DataFrame],
     ) -> None:
         """
-        Handle a single batch: extract streams, metadata, and metrics,
-        then append the resulting DataFrame to batch_dfs.
+        Handle a single batch: extract streams, metadata, and both main and MFCC metrics,
+        then append the results to their respective lists.
         """
         self._logger.info(
-            f"Batch {batch_paths[0].name} to {batch_paths[-1].name}: extracting stream info...",
+            f"Batch {batch_paths[0].name} to {batch_paths[-1].name}: processing...",
             separator=self._separator
         )
 
-        bpm_col  = Header.BPM.value
-        path_col = Header.Audio_Path.value
+        # 1) Get stream info (which includes samples, sr, tempo, etc.)
+        stream_infos = self._file_handler.get_audio_streams_info_batch(batch_paths)
 
-        existing_tempo_map: Dict[Path, float] = {}
-        if hasattr(context, "loaded_audio_info_cache"):
-            df_cache = context.loaded_audio_info_cache
-            bpm_series = pd.to_numeric(df_cache[bpm_col], errors='coerce')
-            existing_tempo_map = {
-                Path(p): float(bpm)
-                for p, bpm in zip(df_cache[path_col], bpm_series)
-                if not pd.isna(bpm)
-            }
-
-        # now pass that map to your loader:
-        stream_infos = self._file_handler.get_audio_streams_info_batch(
-            batch_paths,
-            existing_tempos=existing_tempo_map
-        )
-
-        # 2) Build basic metadata
+        # 2) Build basic metadata DataFrame (Artist, Title, UUID, etc.)
         meta_df = self._build_metadata_df(batch_paths, stream_infos, context)
+        uuids: List[str] = meta_df[Header.UUID.value].tolist()
 
-        # 3) Compute advanced audio metrics
-        metrics_df = self._build_metrics_df(stream_infos, meta_df)
+        # 3) Compute audio metrics directly to get both DataFrames
+        infos, paths, samples, rates, tempos = zip(*((i, i.path, i.samples, i.sample_rate_Hz, i.tempo) for i in stream_infos))
+        processing_result = self._audio_calculator.process(infos, paths, uuids, samples, rates, tempos)
 
-        # 4) Combine
-        result_df = meta_df.join(metrics_df, how="left")
-        batch_dfs.append(result_df)
+        # 4) Combine metadata with the main metrics using a robust merge on UUID
+        # This ensures correct alignment even if the order changes.
+        uuid_col = Header.UUID.value
+        merged_main_df = pd.merge(meta_df, processing_result.main_df, on=uuid_col, how="left")
 
-        # 5) Cleanup
-        del stream_infos, meta_df, metrics_df, result_df
+        # 5) Append results to their respective lists
+        batch_main_dfs.append(merged_main_df)
+        batch_mfcc_dfs.append(processing_result.mfcc_df)
+        batch_key_progression_dfs.append(processing_result.key_progression_df)
+
+        # 6) Cleanup
+        del stream_infos, meta_df, processing_result, merged_main_df
         gc.collect()
 
     def _build_metadata_df(
@@ -124,7 +129,12 @@ class BatchProcessNewTracks(IPipe):
         """Creates a DataFrame with file paths and extracted tags."""
         records = []
         for path, info in zip(paths, infos):
-            record = {Header.Audio_Path.value: path}
+            uid = uuid.uuid4()
+
+            record = {
+                Header.Audio_Path.value: path,
+                Header.UUID.value: str(uid),
+            }
             self._tag_extractor.add_extracted_metadata_to_track(record, info)
             records.append(record)
 
@@ -138,20 +148,4 @@ class BatchProcessNewTracks(IPipe):
             )
 
         return df
-
-    def _build_metrics_df(
-            self,
-            infos: List[AudioStreamsInfoModel],
-            meta_df: pd.DataFrame
-    ) -> pd.DataFrame:
-        audio_paths, samples_list, sample_rates, tempos = zip(*(
-            (info.path, info.samples, info.sample_rate_Hz, info.tempo)
-            for info in infos
-        ))
-
-        index = meta_df.index
-        metrics = self._audio_calculator.process(infos, audio_paths, samples_list, sample_rates, tempos)
-        metrics_df = pd.DataFrame(metrics, index=index)
-
-        return metrics_df
 

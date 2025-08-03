@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -25,10 +25,13 @@ class BatchFileMetricsService:
     def compute(
             self,
             infos: List[AudioStreamsInfoModel],
-            paths: List[Path]
-    ) -> pd.DataFrame:
+            paths: List[Path],
+            uuids: List[str],
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         count = len(paths)
-        df = pd.DataFrame({
+        main_df = pd.DataFrame({
+            Header.UUID.value: uuids,
+
             Header.Duration.value:    [i.duration        for i in infos],
             Header.Bitrate.value:     [i.bitrate         for i in infos],
             Header.Sample_Rate.value: [i.sample_rate_kHz for i in infos],
@@ -43,25 +46,25 @@ class BatchFileMetricsService:
         ]
         maxdps = [ self._rate_cache.get(i) for i in infos ]
 
-        df[Header.Actual_Data_Rate.value]    = np.array(actual, dtype=np.float32) / 1e3
-        df[Header.Max_Data_Per_Second.value] = np.array(maxdps,   dtype=np.float32) / 1e3
-        df[Header.Efficiency.value]          = np.where(
-            df[Header.Max_Data_Per_Second.value] > 0,
-            df[Header.Actual_Data_Rate.value] / df[Header.Max_Data_Per_Second.value] * 100,
+        main_df[Header.Actual_Data_Rate.value]    = np.array(actual, dtype=np.float32) / 1e3
+        main_df[Header.Max_Data_Per_Second.value] = np.array(maxdps,   dtype=np.float32) / 1e3
+        main_df[Header.Efficiency.value]          = np.where(
+            main_df[Header.Max_Data_Per_Second.value] > 0,
+            main_df[Header.Actual_Data_Rate.value] / main_df[Header.Max_Data_Per_Second.value] * 100,
             0.0
         )
 
         # key-tagging + note-rate
-        gk, sk, ek, results = self._key_tagger.tag_and_record(paths)
-        df[Header.Key.value]       = gk
-        df[Header.Start_Key.value] = sk
-        df[Header.End_Key.value]   = ek
+        results = self._key_tagger.tag_and_record(paths)
+        main_df[Header.Key.value]       = results.global_keys
+        main_df[Header.Start_Key.value] = results.start_keys
+        main_df[Header.End_Key.value]   = results.end_keys
 
         # now build note_rate from the returned results
         note_rate = np.zeros(count, dtype=np.float32)
-        for res in results:
-            dur = infos[res.index].duration or 1.0
-            note_rate[res.index] = len(res.note_events) / dur
-        df[Header.Onset_Rate_Notes.value] = note_rate
+        for key_extraction_result in results.key_extraction_results:
+            dur = infos[key_extraction_result.index].duration or 1.0
+            note_rate[key_extraction_result.index] = len(key_extraction_result.note_events) / dur
+        main_df[Header.Onset_Rate_Notes.value] = note_rate
 
-        return df
+        return main_df, results.key_progression_df
