@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import overload, Union
 
 import pandas as pd
 
@@ -9,6 +9,8 @@ from track_analysis.components.track_analysis.features.data_generation.energy_ca
     EnergyModel
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.model.energy_model_config import \
     EnergyModelConfig
+from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.persistence.energy_model_validator import \
+    DefaultEnergyModelValidator
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.persistence.model_persistence import \
     DefaultModelPersistence
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.trainer import \
@@ -23,6 +25,7 @@ class DefaultEnergyCalculator(EnergyCalculator):
                  trainer: DefaultEnergyModelTrainer,
                  predictor: DefaultAudioEnergyPredictor,
                  persistence: DefaultModelPersistence,
+                 validator: DefaultEnergyModelValidator,
                  ):
         self._logger = logger
         self._separator = self.__class__.__name__
@@ -30,19 +33,33 @@ class DefaultEnergyCalculator(EnergyCalculator):
         self._trainer = trainer
         self._predictor = predictor
         self._persistence = persistence
+        self._validator = validator
+
+    def set_model(self, model: EnergyModel) -> None:
+        self._predictor.set_model(model)
+
+    @overload
+    def validate_model(self, model: EnergyModel | None, current_data: pd.DataFrame) -> bool:
+        ...
+
+    @overload
+    def validate_model(self, model: EnergyModel | None, current_data_hash: str) -> bool:
+        ...
+
+    def validate_model(self, model: EnergyModel | None, data_or_hash: Union[pd.DataFrame, str]) -> bool:
+        return self._validator.is_valid(model, data_or_hash)
+
+    def load(self, config: EnergyModelConfig) -> EnergyModel | None:
+        return self._persistence.load(config)
 
     def train_and_persist(self, config: EnergyModelConfig, training_data: pd.DataFrame) -> EnergyModel:
-        model, loaded = self.train_or_load(config, training_data)
-
-        if not loaded:
-            self.persist(config, model)
+        model = self.train(config, training_data)
+        self.persist(config, model)
 
         return model
 
-    def train_or_load(self, config: EnergyModelConfig, training_data: pd.DataFrame) -> Tuple[EnergyModel, bool]:
-        model, loaded = self._trainer.train_or_load(config, training_data)
-        self._predictor.set_model(model)
-        return model, loaded
+    def train(self, config: EnergyModelConfig, training_data: pd.DataFrame) -> EnergyModel:
+        return self._trainer.train(config, training_data)
 
     def persist(self, config: EnergyModelConfig, model: EnergyModel) -> None:
         self._persistence.save(model, config)

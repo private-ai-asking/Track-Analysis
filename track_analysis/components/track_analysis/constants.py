@@ -20,6 +20,8 @@ CACHE_DIRECTORY: Path = Path("X:\Track Analysis\cache")
 EXPENSIVE_CACHE_DIRECTORY: Path = Path(r"G:/")
 BENCHMARK_DIRECTORY: Path = Path(r"X:\Track Analysis\track_analysis\benchmarks")
 
+ENERGY_CALCULATION_REGENERATE_TRACK_INTERVAL: int = 100
+
 DEBUG: bool = False
 VERBOSE: bool = False
 PROFILE_DATA_LOADING: bool = False

@@ -6,6 +6,8 @@ from track_analysis.components.track_analysis.features.data_generation.energy_ca
     DefaultEnergyCalculator
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.default_predictor import \
     DefaultAudioEnergyPredictor
+from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.persistence.energy_model_validator import \
+    DefaultEnergyModelValidator
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.persistence.inspection import \
     DefaultInspectionDataPersistence
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.persistence.model_persistence import \
@@ -31,7 +33,8 @@ class EnergyCalculatorFactory:
             persistence = DefaultModelPersistence(self._logger, CACHE_DIRECTORY, inspection_persistence)
             trainer = DefaultEnergyModelTrainer(self._logger, persistence)
             predictor = DefaultAudioEnergyPredictor(self._logger)
-            return DefaultEnergyCalculator(self._logger, trainer, predictor, persistence)
+            validator = DefaultEnergyModelValidator(self._logger)
+            return DefaultEnergyCalculator(self._logger, trainer, predictor, persistence,validator)
 
         self._logger.warning(f"Calculator {calculator.name} not implemented.", separator=self._separator)
         return None

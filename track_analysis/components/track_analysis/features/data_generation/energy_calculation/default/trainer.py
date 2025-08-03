@@ -8,7 +8,7 @@ from sklearn.preprocessing import RobustScaler
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.model.energy_model import \
-    EnergyModel
+    EnergyModel, TrainingShape
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.model.energy_model_config import \
     EnergyModelConfig
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.persistence.model_persistence import \
@@ -24,27 +24,18 @@ class DefaultEnergyModelTrainer:
         self._persistence = persistence
         self._separator = self.__class__.__name__
 
-    def train_or_load(self, config: EnergyModelConfig, training_data: pd.DataFrame) -> Tuple[EnergyModel, bool]:
+    def train(self, config: EnergyModelConfig, training_data: pd.DataFrame) -> EnergyModel:
         feature_names = [f.value for f in config.feature_columns]
         features_df = training_data[feature_names].dropna()
         if features_df.empty:
             raise ValueError("No valid data for training after dropping NaNs.")
 
         data_hash = get_dataframe_hash(features_df)
-
-        # 1. Delegate loading to the persistence layer
-        model = self._persistence.load(config, data_hash)
-        if model:
-            self._logger.info(f"Loaded energy model '{config.name}' from cache.", separator=self._separator)
-            return model, True
-
-        # 2. If no model, orchestrate training
-        self._logger.info(f"Cache for '{config.name}' invalid. Training new model...", separator=self._separator)
         model = self._train_pipeline(config, features_df, data_hash)
 
         self._logger.info("Energy model training complete.", separator=self._separator)
 
-        return model, False
+        return model
 
     @staticmethod
     def _train_pipeline(config: EnergyModelConfig, features_df: pd.DataFrame, data_hash: str) -> EnergyModel:
@@ -70,5 +61,5 @@ class DefaultEnergyModelTrainer:
             feature_names=feature_names,
             spline_y_points=spline_y_points,
             data_hash=data_hash,
-            features_shape=features_df.shape,
+            features_shape=TrainingShape(features_df.shape[0], features_df.shape[1]),
         )

@@ -7,10 +7,6 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.md_common_python.py_common.testing import TestInterface
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.configurations.default import \
     DEFAULT_ENERGY_MODEL_CONFIG
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.default_predictor import \
-    DefaultAudioEnergyPredictor
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.trainer import \
-    DefaultEnergyModelTrainer
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_calculator import \
     EnergyCalculator
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_calculator_factory import \
@@ -36,7 +32,8 @@ class EnergyCalculationTest(TestInterface):
 
         self._energy_calculator_factory: EnergyCalculatorFactory = EnergyCalculatorFactory(self._logger)
         energy_calculator = self._energy_calculator_factory.get_calculator(Calculator.Default)
-        energy_calculator.train_and_persist(DEFAULT_ENERGY_MODEL_CONFIG, self._cache)
+        model = energy_calculator.load(DEFAULT_ENERGY_MODEL_CONFIG)
+        energy_calculator.set_model(model)
 
         self._calculators: Dict[str, EnergyCalculator] = {
             "Gemini  ": energy_calculator

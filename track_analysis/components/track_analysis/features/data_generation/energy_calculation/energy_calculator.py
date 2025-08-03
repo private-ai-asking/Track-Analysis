@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import overload, Union
 
 import pandas as pd
 
@@ -12,6 +12,35 @@ from track_analysis.components.track_analysis.features.data_generation.model.hea
 
 class EnergyCalculator(ABC):
     """A high-level facade for the interaction with energy calculation."""
+
+    @abstractmethod
+    def set_model(self, model: EnergyModel) -> None:
+        """Sets the active model to use for predictions."""
+
+    @overload
+    def validate_model(self, model: EnergyModel | None, current_data: pd.DataFrame) -> bool:
+        ...
+
+    @overload
+    def validate_model(self, model: EnergyModel | None, current_data_hash: str) -> bool:
+        ...
+
+    @abstractmethod
+    def validate_model(self, model: EnergyModel | None, data_or_hash: Union[pd.DataFrame, str]) -> bool:
+        """
+        Checks if a loaded model is valid against the current dataset.
+
+        A model is considered valid if it exists and its internal data hash matches
+        the hash of the current data. This prevents using a stale model.
+
+        Args:
+            model: The loaded EnergyModel object to validate, or None.
+            data_or_hash: The current data as a DataFrame to be hashed, or a pre-computed hash string.
+
+        Returns:
+            True if the model is valid and can be used, False otherwise.
+        """
+        ...
 
     @abstractmethod
     def train_and_persist(self, config: EnergyModelConfig, training_data: pd.DataFrame) -> EnergyModel:
@@ -31,7 +60,7 @@ class EnergyCalculator(ABC):
         ...
 
     @abstractmethod
-    def train_or_load(self, config: EnergyModelConfig, training_data: pd.DataFrame) -> Tuple[EnergyModel, bool]:
+    def train(self, config: EnergyModelConfig, training_data: pd.DataFrame) -> EnergyModel:
         """
         Performs the core training pipeline in memory without persistence.
 
@@ -43,7 +72,20 @@ class EnergyCalculator(ABC):
             training_data: The dataset to train on.
 
         Returns:
-            The trained, in-memory EnergyModel object and whether the model was loaded from cache or freshly generated.
+            The trained, in-memory EnergyModel object.
+        """
+        ...
+
+    @abstractmethod
+    def load(self, config: EnergyModelConfig) -> EnergyModel | None:
+        """
+        Loads the trained model if nothing goes wrong. Returns None otherwise.
+
+        Args:
+            config: The configuration defining how to load the model.
+
+        Returns:
+            The loaded model or None.
         """
         ...
 

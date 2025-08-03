@@ -21,6 +21,8 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.handle_rows_with_missing_data import \
     HandleRowsWithMissingData
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.load_cache import LoadCache
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.load_energy_calculator import \
+    LoadEnergyCalculator
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.make_csv import MakeCSV
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.preprocess_data import \
     PreprocessData
@@ -61,6 +63,7 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
 
         self._add_step(GetAlbumCosts())
         self._add_step(LoadCache(self._logger))
+        self._add_step(LoadEnergyCalculator(self._logger))
         self._add_step(FilterCache(self._logger))
         self._add_step(GetAudioFiles(self._logger, self._filehandler))
         self._add_step(FilterFiles(self._logger))

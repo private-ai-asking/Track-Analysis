@@ -47,7 +47,7 @@ class DefaultInspectionDataPersistence:
                 "data_hash": model.data_hash
             },
             "training": {
-                "training_set_shape": model.features_shape,
+                "training_set_shape": model.features_shape.to_dict(),
                 "feature_names": feature_names,
             },
             "pca": {
