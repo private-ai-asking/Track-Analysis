@@ -352,8 +352,8 @@ class App:
             mfcc_data_output_file_path=mfcc_path,
             use_threads=True,
             max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN,
-            missing_headers_to_fill=[Header.Spectral_Rolloff_Mean],
-            headers_to_refill=[]
+            missing_headers_to_fill=[],
+            headers_to_refill=[Header.MFCC]
         )
 
         # output_path.unlink(missing_ok=True)

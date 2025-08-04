@@ -75,3 +75,6 @@ class Header(Enum):
 
     Onset_Rate_Notes = "Onset Rate (note events/sec)"
 
+    # SPECIAL
+    MFCC = "Not used... Special for CSV flow"
+

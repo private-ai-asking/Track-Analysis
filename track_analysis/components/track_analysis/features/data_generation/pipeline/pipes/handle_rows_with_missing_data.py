@@ -378,26 +378,20 @@ class HandleRowsWithMissingData(IPipe):
 
             # --- WRITE BACK TO MFCC DATAFRAME  ---
             chunk_uuids = rows_chunk[Header.UUID.value].tolist()
-
-            # Recreate the sample_metrics dict for the chunk
             mfcc_metrics_chunk = {
                 Header.UUID.value: chunk_uuids,
                 "mffcc_means": mfcc_means,
                 "mfcc_stds": mfcc_stds
             }
-
-            # Build the new MFCC DataFrame for this chunk using the corrected static method
             mfcc_df_chunk = BatchSampleMetricsService.build_mfcc_dataframe(mfcc_metrics_chunk)
 
-            # Merge the new chunk into the main MFCC DataFrame.
-            # This handles both updates and new rows in a single operation.
-            data.loaded_mfcc_info_cache = pd.merge(
-                df_mfcc,
-                mfcc_df_chunk,
-                on=Header.UUID.value,
-                how='outer',
-                suffixes=('_old', '')
-            )
+            current_mfcc_cache_indexed = df_mfcc.set_index(Header.UUID.value)
+            mfcc_chunk_indexed = mfcc_df_chunk.set_index(Header.UUID.value)
+
+            combined_df = mfcc_chunk_indexed.combine_first(current_mfcc_cache_indexed)
+
+            # Reset the index to make UUID a regular column again
+            data.loaded_mfcc_info_cache = combined_df.reset_index()
 
             end_time = time.time()
             elapsed = end_time - start_time
