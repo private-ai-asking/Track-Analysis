@@ -36,18 +36,36 @@ class AudioDataFeatureCalculatorOrchestrator:
         """Iterates through a specific execution plan and runs each calculator."""
         results = initial_data.copy()
         for calculator in execution_plan:
-            for dep in calculator.dependencies:
-                if dep not in results:
-                    raise KeyError(
-                        f"Dependency resolution failed: Calculator '{calculator.__class__.__name__}' "
-                        f"requires dependency '{dep.name}', which was not found in the results. "
-                        f"Ensure the producer of '{dep.name}' ran first."
-                    )
+            calculator_name: str = calculator.__class__.__name__
+            self._validate_dependencies(calculator.dependencies, results, calculator_name)
 
             input_data = {dep: results[dep] for dep in calculator.dependencies}
             calculated_data = calculator.calculate(input_data)
+
+            self._validate_output(calculator.output_features, calculated_data, calculator_name)
             self._update_results(results, calculator.output_features, calculated_data)
         return results
+
+    @staticmethod
+    def _validate_dependencies(dependencies: List[AudioDataFeature], results: Dict[AudioDataFeature, Any], calc_name: str) -> None:
+        for dep in dependencies:
+            if dep not in results:
+                raise KeyError(
+                    f"Dependency resolution failed: Calculator '{calc_name}' "
+                    f"requires dependency '{dep.name}', which was not found in the results. "
+                    f"Ensure the producer of '{dep.name}' ran first."
+                )
+
+    @staticmethod
+    def _validate_output(calculator_outputs: List[AudioDataFeature] | AudioDataFeature, results: Dict[AudioDataFeature, Any], calc_name: str) -> None:
+        outputs = [calculator_outputs] if not isinstance(calculator_outputs, list) else calculator_outputs
+
+        for k, v in results.items():
+            if k not in outputs:
+                raise RuntimeError(
+                    f"Calculator output failed: Calculator '{calc_name}' "
+                    f"gives output '{k.name}' which wasn't in its possible outputs."
+                )
 
     @staticmethod
     def _update_results(
