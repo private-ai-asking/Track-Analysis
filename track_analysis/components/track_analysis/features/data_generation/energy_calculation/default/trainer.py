@@ -25,8 +25,7 @@ class DefaultEnergyModelTrainer:
         self._separator = self.__class__.__name__
 
     def train(self, config: EnergyModelConfig, training_data: pd.DataFrame) -> EnergyModel:
-        feature_names = [f.value for f in config.feature_columns]
-        features_df = training_data[feature_names].dropna()
+        features_df = training_data[config.get_feature_names()].dropna()
         if features_df.empty:
             raise ValueError("No valid data for training after dropping NaNs.")
 
@@ -44,8 +43,7 @@ class DefaultEnergyModelTrainer:
 
         pca = PCA(n_components=1)
         pca.fit(scaled_features)
-        feature_names = [f.value for f in config.feature_columns]
-        loudness_idx = feature_names.index(Header.Mean_RMS.value)
+        loudness_idx = config.get_feature_names().index(Header.Mean_RMS.value)
         if pca.components_[0, loudness_idx] < 0:
             pca.components_ = -pca.components_
         pc1_scores = pca.transform(scaled_features)
@@ -58,7 +56,7 @@ class DefaultEnergyModelTrainer:
 
         return EnergyModel(
             scaler=scaler, pca=pca, spline=spline,
-            feature_names=feature_names,
+            feature_names=config.get_feature_names(),
             spline_y_points=spline_y_points,
             data_hash=data_hash,
             features_shape=TrainingShape(features_df.shape[0], features_df.shape[1]),

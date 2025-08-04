@@ -20,16 +20,17 @@ class DefaultAudioEnergyPredictor:
 
     def calculate_energy_for_row(self, row: pd.Series) -> float:
         if self._model is None:
-            raise Exception(f"Training model not yet set. Make sure to call set_model before calculating energy.")
+            raise Exception("Training model not yet set. Make sure to call set_model before calculating energy.")
 
         track_features = row[self._model.feature_names]
         if track_features.isnull().any():
             return np.nan
 
-        features_array = track_features.values.reshape(1, -1)
-        scaled_features = self._model.scaler.transform(features_array)
-        pc1_score = self._model.pca.transform(scaled_features)[0, 0]
+        features_df = track_features.to_frame().T
 
+        scaled_features = self._model.scaler.transform(features_df)
+
+        pc1_score = self._model.pca.transform(scaled_features)[0, 0]
         initial_rating = self._model.spline(pc1_score)
         scaled_rating = (initial_rating - 5.5) * (10 / 9)
         sigmoid_output = expit(scaled_rating)
@@ -39,15 +40,26 @@ class DefaultAudioEnergyPredictor:
 
     def calculate_ratings_for_df(self, df_to_process: pd.DataFrame, target_column: Header) -> pd.DataFrame:
         if self._model is None:
-            raise Exception(f"Training model not yet set. Make sure to call set_model before calculating energy.")
+            raise Exception("Training model not yet set. Make sure to call set_model before calculating energy.")
 
         if df_to_process.empty:
             return df_to_process
 
-        self._logger.info(f"Calculating energy for a DataFrame with {len(df_to_process)} tracks...", separator=self._separator)
         df_copy = df_to_process.copy()
-        energy_ratings = df_copy.apply(self.calculate_energy_for_row, axis=1)
-        df_copy[target_column.value] = energy_ratings
-        self._logger.info("Calculation complete.", separator=self._separator)
+
+        features_df = df_copy[self._model.feature_names]
+
+
+        scaled_features = self._model.scaler.transform(features_df)
+        pc1_scores = self._model.pca.transform(scaled_features)
+
+        initial_ratings = self._model.spline(pc1_scores.flatten())
+        scaled_ratings = (initial_ratings - 5.5) * (10 / 9)
+        sigmoid_outputs = expit(scaled_ratings)
+        final_energies = 1 + sigmoid_outputs * 9
+
+        final_energies = np.clip(final_energies, 1.0, 10.0).round(1)
+
+        df_copy[target_column.value] = final_energies
 
         return df_copy

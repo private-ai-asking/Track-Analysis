@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import overload, Union
+from typing import overload, Union, Tuple
 
 import pandas as pd
 

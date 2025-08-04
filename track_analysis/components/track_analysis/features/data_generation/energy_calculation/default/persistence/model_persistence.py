@@ -46,7 +46,7 @@ class DefaultModelPersistence:
 
             return EnergyModel(
                 scaler=scaler, pca=pca, spline=spline,
-                feature_names=[f.value for f in config.feature_columns],
+                feature_names=config.get_feature_names(),
                 spline_y_points=params['y_points'],
                 data_hash=inspection_data["metadata"]["data_hash"],
                 features_shape=TrainingShape.from_dict(inspection_data["training"]["training_set_shape"])

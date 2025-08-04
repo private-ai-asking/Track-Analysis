@@ -20,7 +20,7 @@ class LoadEnergyCalculator(IPipe):
 
     def flow(self, data: LibraryDataGenerationPipelineContext) -> LibraryDataGenerationPipelineContext:
         self._logger.trace("Loading energy calculator if existing...", separator=self._separator)
-        data.energy_calculator = self._energy_calculator_factory.get_calculator(Calculator.Default)
+        data.energy_calculator = self._energy_calculator_factory.get_calculator(Calculator.Default, data.loaded_mfcc_info_cache)
         config = DEFAULT_ENERGY_MODEL_CONFIG
         loaded_model = data.energy_calculator.load(DEFAULT_ENERGY_MODEL_CONFIG)
 

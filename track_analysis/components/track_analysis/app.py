@@ -94,7 +94,8 @@ def _run_with_profiling(func: Callable[[], T], category: str) -> T:
 
 class App:
     def __init__(self, logger: HoornLogger):
-        library_data_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
+        self._library_data_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
+        self._mfcc_data_path: Path = OUTPUT_DIRECTORY.joinpath("mfcc.csv")
         scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles.csv")
         # scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles_test.csv")
         # scrobble_data_path: Path = DATA_DIRECTORY / "training" / "gold_standard.csv"
@@ -144,7 +145,7 @@ class App:
             threshold=token_accept_threshold
         )
 
-        self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, library_data_path, scrobble_data_path, self._string_utils, scrobble_utils, DATA_DIRECTORY / "__internal__", keys_path)
+        self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, self._library_data_path, scrobble_data_path, self._string_utils, scrobble_utils, DATA_DIRECTORY / "__internal__", keys_path)
 
         def _load():
             self._scrobble_data_loader.load(TEST_SAMPLE_SIZE)
@@ -184,7 +185,7 @@ class App:
         registration_test: RegistrationTest = RegistrationTest(logger, self._registration)
         embedding_test: EmbeddingTest = EmbeddingTest(logger, embedder=self._embedder, keys_path=keys_path, data_loader=self._scrobble_data_loader)
         short_time_rms_test: ShortTimeRMSTest = ShortTimeRMSTest(logger, self._audio_file_handler)
-        energy_test: EnergyCalculationTest = EnergyCalculationTest(logger, library_data_path)
+        energy_test: EnergyCalculationTest = EnergyCalculationTest(logger, self._library_data_path, mfcc_data_path=self._mfcc_data_path, train_model=False)
 
         tests: List[TestConfiguration] = [
             TestConfiguration(
@@ -341,19 +342,17 @@ class App:
         _perform_linking()
 
     def _make_csv(self, profile: bool = False) -> None:
-        output_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
         key_progression_path: Path = OUTPUT_DIRECTORY.joinpath("key_progression.csv")
-        mfcc_path: Path = OUTPUT_DIRECTORY.joinpath("mfcc.csv")
 
         pipeline_context = LibraryDataGenerationPipelineContext(
             source_dir=ROOT_MUSIC_LIBRARY,
-            main_data_output_file_path=output_path,
+            main_data_output_file_path=self._library_data_path,
             key_progression_output_file_path=key_progression_path,
-            mfcc_data_output_file_path=mfcc_path,
+            mfcc_data_output_file_path=self._mfcc_data_path,
             use_threads=True,
             max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN,
             missing_headers_to_fill=[],
-            headers_to_refill=[Header.MFCC]
+            headers_to_refill=[]
         )
 
         # output_path.unlink(missing_ok=True)

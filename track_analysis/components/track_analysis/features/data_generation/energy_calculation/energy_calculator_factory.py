@@ -1,5 +1,7 @@
 from enum import Enum
 
+import pandas as pd
+
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.default_calculator import \
@@ -27,14 +29,14 @@ class EnergyCalculatorFactory:
         self._logger = logger
         self._separator = self.__class__.__name__
 
-    def get_calculator(self, calculator: Calculator) -> EnergyCalculator | None:
+    def get_calculator(self, calculator: Calculator, mfcc_data: pd.DataFrame = pd.DataFrame()) -> EnergyCalculator | None:
         if calculator == Calculator.Default:
             inspection_persistence = DefaultInspectionDataPersistence(self._logger)
             persistence = DefaultModelPersistence(self._logger, CACHE_DIRECTORY, inspection_persistence)
             trainer = DefaultEnergyModelTrainer(self._logger, persistence)
             predictor = DefaultAudioEnergyPredictor(self._logger)
             validator = DefaultEnergyModelValidator(self._logger)
-            return DefaultEnergyCalculator(self._logger, trainer, predictor, persistence,validator)
+            return DefaultEnergyCalculator(self._logger, trainer, predictor, persistence, validator, mfcc_data)
 
         self._logger.warning(f"Calculator {calculator.name} not implemented.", separator=self._separator)
         return None

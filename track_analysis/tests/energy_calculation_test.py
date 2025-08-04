@@ -24,16 +24,22 @@ TO_CHECK = [
 ]
 
 class EnergyCalculationTest(TestInterface):
-    def __init__(self, logger: HoornLogger, cache_path: Path):
+    def __init__(self, logger: HoornLogger, main_data_path: Path, mfcc_data_path: Path, train_model: bool = False):
         super().__init__(logger, is_child=True)
         self._logger = logger
         self._separator = self.__class__.__name__
-        self._cache = pd.read_csv(cache_path)
+        self._cache = pd.read_csv(main_data_path)
+        self._mfcc_data = pd.read_csv(mfcc_data_path)
 
         self._energy_calculator_factory: EnergyCalculatorFactory = EnergyCalculatorFactory(self._logger)
-        energy_calculator = self._energy_calculator_factory.get_calculator(Calculator.Default)
-        model = energy_calculator.load(DEFAULT_ENERGY_MODEL_CONFIG)
-        energy_calculator.set_model(model)
+        energy_calculator = self._energy_calculator_factory.get_calculator(Calculator.Default, self._mfcc_data)
+
+        if not train_model:
+            model = energy_calculator.load(DEFAULT_ENERGY_MODEL_CONFIG)
+            energy_calculator.set_model(model)
+        else:
+            model, = energy_calculator.train_and_persist(DEFAULT_ENERGY_MODEL_CONFIG, self._cache)
+            energy_calculator.set_model(model)
 
         self._calculators: Dict[str, EnergyCalculator] = {
             "Gemini  ": energy_calculator

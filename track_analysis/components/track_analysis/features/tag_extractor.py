@@ -75,10 +75,6 @@ class TagExtractor:
         track[Header.Bought.value] = True if "[01] hq" in str(track_path) else False
         track[Header.Extension.value] = track_path.suffix
 
-        # Sonic Metadata
-        track[Header.BPM.value] = audio_info.tempo
-        track[Header.Energy_Level.value] = file.get('energylevel', ["Unknown"])[0]
-
         file['bpm'] = str(round(audio_info.tempo, 4))
         file.save()
 

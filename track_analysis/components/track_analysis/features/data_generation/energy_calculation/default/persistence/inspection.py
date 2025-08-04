@@ -39,7 +39,7 @@ class DefaultInspectionDataPersistence:
     @staticmethod
     def _create_data_dict(model: EnergyModel, config: EnergyModelConfig) -> dict:
         """Creates the human-readable inspection JSON dictionary."""
-        feature_names = [f.value for f in config.feature_columns]
+        feature_names = config.get_feature_names()
         return {
             "metadata": {
                 "model_name": config.name,
