@@ -11,7 +11,7 @@ from track_analysis.components.track_analysis.features.audio_calculation.provide
 class IQRRmsProvider(AudioDataFeatureProvider):
     @property
     def dependencies(self) -> List[AudioDataFeature]:
-        return [AudioDataFeature.AUDIO_PATH, AudioDataFeature.AUDIO_SAMPLES, AudioDataFeature.AUDIO_SAMPLE_RATE]
+        return [AudioDataFeature.AUDIO_PATH, AudioDataFeature.AUDIO_SAMPLES, AudioDataFeature.SAMPLE_RATE_HZ]
 
     @property
     def output_features(self) -> AudioDataFeature:
@@ -21,6 +21,6 @@ class IQRRmsProvider(AudioDataFeatureProvider):
         rms_metrics = compute_short_time_rms_dbfs(
             file_path=data[AudioDataFeature.AUDIO_PATH],
             samples=data[AudioDataFeature.AUDIO_SAMPLES],
-            sr=data[AudioDataFeature.AUDIO_SAMPLE_RATE]
+            sr=data[AudioDataFeature.SAMPLE_RATE_HZ]
         )
         return {AudioDataFeature.RMS_IQR: rms_metrics.iqr_dbfs}

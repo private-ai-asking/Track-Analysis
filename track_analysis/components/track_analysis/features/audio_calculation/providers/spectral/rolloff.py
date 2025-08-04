@@ -18,7 +18,7 @@ class SpectralRolloffProvider(AudioDataFeatureProvider):
 
     @property
     def dependencies(self) -> List[AudioDataFeature]:
-        return [AudioDataFeature.AUDIO_PATH, AudioDataFeature.AUDIO_SAMPLE_RATE, AudioDataFeature.HARMONIC_AUDIO]
+        return [AudioDataFeature.AUDIO_PATH, AudioDataFeature.SAMPLE_RATE_HZ, AudioDataFeature.HARMONIC_AUDIO]
 
     @property
     def output_features(self) -> List[AudioDataFeature]:
@@ -28,7 +28,7 @@ class SpectralRolloffProvider(AudioDataFeatureProvider):
         harmonic = data[AudioDataFeature.HARMONIC_AUDIO]
         rolloff_args = {
             "file_path": data[AudioDataFeature.AUDIO_PATH],
-            "sample_rate": data[AudioDataFeature.AUDIO_SAMPLE_RATE],
+            "sample_rate": data[AudioDataFeature.SAMPLE_RATE_HZ],
             "audio": harmonic,
             "start_sample": 0,
             "end_sample": len(harmonic),

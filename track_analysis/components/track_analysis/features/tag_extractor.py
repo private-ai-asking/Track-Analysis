@@ -41,7 +41,7 @@ class TagExtractor:
 
         return artists
 
-    def add_extracted_metadata_to_track(self, track: pd.Series, audio_info: AudioStreamsInfoModel, album_costs: List[AlbumCostModel]) -> None:
+    def add_extracted_metadata_to_track(self, track: pd.Series, album_costs: List[AlbumCostModel]) -> None:
         """
         Extracts mp3 tags from the given audio file.
 
@@ -83,9 +83,6 @@ class TagExtractor:
                 album_cost = album_cost_model.Album_Cost
 
         track[Header.Album_Cost.value] = album_cost
-
-        file['bpm'] = str(round(audio_info.tempo, 4))
-        file.save()
 
         self._logger.trace(f"Finished extracting tags from {track}", separator=self._module_separator)
         return None

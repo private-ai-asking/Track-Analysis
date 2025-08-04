@@ -1,11 +1,21 @@
 from enum import Enum
 
-# goes to 61
+# goes to 72
 class AudioDataFeature(Enum):
     # BASE FEATURES
     AUDIO_PATH = 0
     AUDIO_SAMPLES = 1
-    AUDIO_SAMPLE_RATE = 2
+    SAMPLE_RATE_HZ = 2
+    DURATION = 63
+    SAMPLE_RATE_KHZ = 64
+    BIT_DEPTH = 65
+    BIT_RATE = 68
+    NUM_CHANNELS = 66
+    FILE_FORMAT = 67
+    DATA_RATE = 70
+    MAX_DATA_RATE = 71
+    DATA_EFFICIENCY = 72
+
     BPM = 12
     UUID = 46
 
@@ -21,6 +31,7 @@ class AudioDataFeature(Enum):
     SPECTRAL_FLUX_ARRAY = 45
     SPECTRAL_CENTROID_ARRAY = 44
     LOUDNESS_ANALYSIS_RESULT = 51
+    EXISTING_TEMPO_CACHE = 69
 
     # LOUDNESS
     INTEGRATED_LUFS = 52

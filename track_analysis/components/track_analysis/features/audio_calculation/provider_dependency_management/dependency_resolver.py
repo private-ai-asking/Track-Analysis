@@ -35,11 +35,17 @@ class DependencyResolver:
     # --- Private Helper Methods ---
 
     def _build_feature_to_provider_map(self) -> Dict[AudioDataFeature, AudioDataFeatureProvider]:
-        feature_map = {}
+        """Creates a map from each output feature to the provider that produces it."""
+        feature_map: Dict[AudioDataFeature, AudioDataFeatureProvider] = {}
         for calc in self._all_providers:
             for out_feature in self._get_provider_outputs(calc):
                 if out_feature in feature_map:
-                    raise ValueError(f"Feature '{out_feature.name}' is produced by multiple providers.")
+                    existing_provider = feature_map[out_feature].__class__.__name__
+                    new_provider = calc.__class__.__name__
+                    raise ValueError(
+                        f"Feature '{out_feature.name}' is produced by multiple providers: "
+                        f"'{existing_provider}' and '{new_provider}'."
+                    )
                 feature_map[out_feature] = calc
         return feature_map
 

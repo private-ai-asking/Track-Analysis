@@ -146,7 +146,8 @@ class KeyProgressionAnalyzer:
         sample_rate = info.sample_rate_Hz
 
         # 2) Detect beats (tempo + frame indices + times):
-        tempo, beat_frames, beat_times = self._beat_detector.detect(audio_path=file_path, audio=audio_samples, sample_rate=sample_rate)
+        tempo = self._beat_detector.get_tempo(audio_path=file_path, audio=audio_samples, sample_rate=sample_rate, onset_envelope=None)
+        beat_frames, beat_times = self._beat_detector.get_beat_frames_and_times(audio_path=file_path, audio=audio_samples, sample_rate=sample_rate, onset_envelope=None)
 
         if tempo == 0:
             self._logger.warning(f"[Tempo = 0] Local key estimation failed for: \"{file_path}\"...", separator=self._separator)

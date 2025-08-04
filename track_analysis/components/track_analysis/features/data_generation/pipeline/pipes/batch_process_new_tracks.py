@@ -14,7 +14,6 @@ from track_analysis.components.track_analysis.features.audio_calculation.process
     KeyFeatureProcessor
 from track_analysis.components.track_analysis.features.audio_calculation.processors.sample_feature_processor import \
     SampleFeatureProcessor
-from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.model.album_cost import AlbumCostModel
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
@@ -29,22 +28,16 @@ class BatchProcessNewTracks(IPipe):
     def __init__(
             self,
             logger: HoornLogger,
-            file_handler: AudioFileHandler,
             metadata_builder: MetadataDFBuilder,
-            key_processor: KeyFeatureProcessor,
             key_data_builder: KeyDataFramesBuilder,
-            sample_processor: SampleFeatureProcessor,
             results_mapper: ResultsMapper,
     ):
         self._logger = logger
         self._separator = "BuildCSV.BatchProcessNewTracks"
 
         # High-level components this orchestrator manages
-        self._file_handler = file_handler
         self._metadata_builder = metadata_builder
-        self._key_processor = key_processor
         self._key_data_builder = key_data_builder
-        self._sample_processor = sample_processor
         self._results_mapper = results_mapper
 
         self._logger.trace("Initialized batch processor orchestrator.", separator=self._separator)
@@ -67,14 +60,14 @@ class BatchProcessNewTracks(IPipe):
         )
 
         # The core processing logic is to run all batches and map the results
-        all_results_df, all_key_prog_dfs = self._process_all_batches(paths, batch_size, context.album_costs)
+        all_results_df, all_key_prog_dfs = self._process_all_batches(context.key_processor, context.sample_processor, paths, batch_size, context.album_costs)
         self._results_mapper.map_results_to_context(all_results_df, all_key_prog_dfs, context)
 
         self._logger.info("Completed batch processing of new tracks.", separator=self._separator)
         return context
 
     def _process_all_batches(
-            self, paths: List[Path], batch_size: int, album_costs: List[AlbumCostModel]
+            self, key_processor: KeyFeatureProcessor, sample_processor: SampleFeatureProcessor, paths: List[Path], batch_size: int, album_costs: List[AlbumCostModel]
     ) -> Tuple[pd.DataFrame, List[pd.DataFrame]]:
         """Manages the iteration over all batches and concatenates their results."""
         all_batch_results = []
@@ -90,7 +83,7 @@ class BatchProcessNewTracks(IPipe):
                 separator=self._separator
             )
 
-            batch_df, key_prog_dfs = self._process_single_batch(batch_paths, album_costs)
+            batch_df, key_prog_dfs = self._process_single_batch(key_processor, sample_processor, batch_paths, album_costs)
             all_batch_results.append(batch_df)
             all_key_progression_dfs.extend(key_prog_dfs)
 
@@ -99,21 +92,20 @@ class BatchProcessNewTracks(IPipe):
         return final_df, all_key_progression_dfs
 
     def _process_single_batch(
-            self, batch_paths: List[Path], album_costs: List[AlbumCostModel]
+            self, key_processor: KeyFeatureProcessor, sample_processor: SampleFeatureProcessor, batch_paths: List[Path], album_costs: List[AlbumCostModel]
     ) -> Tuple[pd.DataFrame, List[pd.DataFrame]]:
         """
         Handles a single batch by calling a sequence of specialized processors and builders.
         """
-        stream_infos = self._file_handler.get_audio_streams_info_batch(batch_paths)
-        meta_df = self._metadata_builder.build_metadata_df(batch_paths, stream_infos, album_costs)
+        meta_df = self._metadata_builder.build_metadata_df(batch_paths, album_costs)
 
-        raw_key_results = self._key_processor.extract_raw_keys(meta_df)
+        raw_key_results = key_processor.extract_raw_keys(meta_df)
         key_df, key_prog_dfs = self._key_data_builder.build(raw_key_results, meta_df)
 
         meta_with_keys_df = meta_df.merge(key_df, left_index=True, right_on='original_index',
                                           how='left').drop(columns=['original_index'])
 
-        calculated_features_df = self._sample_processor.process_batch(meta_with_keys_df, stream_infos)
+        calculated_features_df = sample_processor.process_batch(meta_with_keys_df)
 
         final_batch_df = pd.concat(
             [meta_with_keys_df.reset_index(drop=True), calculated_features_df.reset_index(drop=True)],

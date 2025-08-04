@@ -23,6 +23,8 @@ from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRAR
     DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START, CACHE_DIRECTORY, CLEAR_CACHE, \
     DOWNLOAD_CSV_FILE, TEST_SAMPLE_SIZE, PROFILE_DATA_LOADING, EMBED_BATCH_SIZE, NUM_WORKERS_CPU_HEAVY, \
     MAX_NEW_TRACKS_PER_RUN, EXPENSIVE_CACHE_DIRECTORY
+from track_analysis.components.track_analysis.features.audio_calculation.utils.cacheing.max_rate_cache import \
+    MaxRateCache
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import \
     BuildLibraryDataCSVPipeline, PipelineConfiguration
@@ -114,7 +116,9 @@ class App:
         self._tag_extractor: TagExtractor = TagExtractor(logger)
         self._file_handler: FileHandler = FileHandler()
 
-        self._audio_file_handler: AudioFileHandler = AudioFileHandler(logger, num_workers=NUM_WORKERS_CPU_HEAVY, max_rate_cache_path=EXPENSIVE_CACHE_DIRECTORY / "max_rate_cache.pkl")
+        self._max_rate_cache: MaxRateCache = MaxRateCache(EXPENSIVE_CACHE_DIRECTORY / "max_rate_cache.pkl")
+
+        self._audio_file_handler: AudioFileHandler = AudioFileHandler(logger, num_workers=NUM_WORKERS_CPU_HEAVY, max_rate_cache=self._max_rate_cache)
         self._time_utils: TimeUtils = TimeUtils()
         self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)
         self._downloader: MusicDownloadInterface = YTDLPMusicDownloader(logger, music_track_download_dir)
@@ -361,8 +365,8 @@ class App:
 
         pipeline = BuildLibraryDataCSVPipeline(
             logger=self._logger,
-            filehandler=self._file_handler, audio_file_handler=self._audio_file_handler, string_utils=self._string_utils,
-            tag_extractor=self._tag_extractor, key_extractor=self._key_extractor,
+            filehandler=self._file_handler, string_utils=self._string_utils,
+            tag_extractor=self._tag_extractor, key_extractor=self._key_extractor, max_rate_cache=self._max_rate_cache,
             configuration=pipeline_config
         )
 

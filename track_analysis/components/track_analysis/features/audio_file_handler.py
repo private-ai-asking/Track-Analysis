@@ -43,7 +43,7 @@ class AudioFileHandler:
     def __init__(
             self,
             logger: HoornLogger,
-            max_rate_cache_path: Path,
+            max_rate_cache: MaxRateCache,
             num_workers: int = 4
     ):
         self._separator = "AudioFileHandler"
@@ -53,7 +53,7 @@ class AudioFileHandler:
         self._num_workers = num_workers
         self._beat_detector: BeatDetector = BeatDetector(logger)
         self._file_utils: FileUtils = FileUtils()
-        self._rate_cache: MaxRateCache = MaxRateCache(max_rate_cache_path)
+        self._rate_cache: MaxRateCache = max_rate_cache
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
@@ -118,7 +118,7 @@ class AudioFileHandler:
         if existing_tempos and audio_file in existing_tempos:
             tempo = existing_tempos[audio_file]
         else:
-            tempo, _, _ = self._beat_detector.detect(audio_path=audio_file, audio=samples, sample_rate=sr)
+            tempo = self._beat_detector.get_tempo(audio_path=audio_file, audio=samples, sample_rate=sr, onset_envelope=None)
 
         # 4) Calculate File-Based Metrics using existing variables
         actual_rate_bps = (self._file_utils.get_size_bytes(audio_file) * 8) / duration_s if duration_s > 0 else 0.0

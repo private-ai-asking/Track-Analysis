@@ -1,6 +1,17 @@
+from pathlib import Path
+from typing import Dict
+
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature_provider_orchestrator import \
     AudioDataFeatureProviderOrchestrator
+from track_analysis.components.track_analysis.features.audio_calculation.providers.basic.audio_data_provider import \
+    AudioDataProvider
+from track_analysis.components.track_analysis.features.audio_calculation.providers.basic.data_efficiency_provider import \
+    DataEfficiencyProvider
+from track_analysis.components.track_analysis.features.audio_calculation.providers.basic.raw_audio_info_provider import \
+    RawAudioInfoProvider
+from track_analysis.components.track_analysis.features.audio_calculation.providers.basic.tempo_provider import \
+    TempoProvider
 from track_analysis.components.track_analysis.features.audio_calculation.providers.loudness.crest_factor import \
     CrestFactorProvider
 from track_analysis.components.track_analysis.features.audio_calculation.providers.loudness.integrated_lufs import \
@@ -54,6 +65,10 @@ from track_analysis.components.track_analysis.features.audio_calculation.provide
 from track_analysis.components.track_analysis.features.audio_calculation.providers.spectral.tempo_variation import \
     TempoVariationProvider
 from track_analysis.components.track_analysis.features.audio_calculation.providers.spectral.zcr import ZCRProvider
+from track_analysis.components.track_analysis.features.audio_calculation.utils.cacheing.max_rate_cache import \
+    MaxRateCache
+from track_analysis.components.track_analysis.features.audio_calculation.utils.file_utils import FileUtils
+from track_analysis.components.track_analysis.features.core.cacheing.beat import BeatDetector
 from track_analysis.components.track_analysis.features.core.cacheing.magnitude_spectogram import \
     MagnitudeSpectrogramExtractor
 from track_analysis.components.track_analysis.features.core.cacheing.multi_band_onset import OnsetStrengthMultiExtractor
@@ -63,10 +78,17 @@ class AudioFeatureOrchestratorFactory:
     def __init__(self, logger: HoornLogger):
         self._logger = logger
 
-    def create_audio_feature_orchestrator(self, hop_length: int = 512, n_fft: int = 2048) -> AudioDataFeatureProviderOrchestrator:
+    def create_audio_feature_orchestrator(self,
+                                          max_rate_cache: MaxRateCache,
+                                          existing_tempo_cache: Dict[Path, float] | None = None,
+                                          hop_length: int = 512,
+                                          n_fft: int = 2048,
+                                          ) -> AudioDataFeatureProviderOrchestrator:
         """Factory function to assemble and configure all audio feature calculators."""
         magnitude_extractor = MagnitudeSpectrogramExtractor(self._logger, n_fft=n_fft, hop_length=hop_length)
         onset_multi_extractor = OnsetStrengthMultiExtractor(self._logger, magnitude_extractor)
+        beat_detector: BeatDetector = BeatDetector(self._logger, existing_tempo_cache=existing_tempo_cache)
+        file_utils: FileUtils = FileUtils()
 
         all_calculators = [
             CrestFactorProvider(), IntegratedLufsProvider(), LoudnessAnalyzer(),
@@ -86,6 +108,9 @@ class AudioFeatureOrchestratorFactory:
             OnsetEnvelopeProvider(self._logger, hop_length=hop_length),
             OnsetPeaksProvider(self._logger, hop_length=hop_length),
             DynamicTempoProvider(self._logger, hop_length=hop_length),
+            AudioDataProvider(self._logger), RawAudioInfoProvider(self._logger),
+            TempoProvider(beat_detector, hop_length=hop_length),
+            DataEfficiencyProvider(file_utils, max_rate_cache)
         ]
 
         return AudioDataFeatureProviderOrchestrator(all_calculators)

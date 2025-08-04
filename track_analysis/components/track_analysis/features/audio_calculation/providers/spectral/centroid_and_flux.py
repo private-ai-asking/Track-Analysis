@@ -17,7 +17,7 @@ class SpectralCentroidAndFluxProvider(AudioDataFeatureProvider):
     """
     @property
     def dependencies(self) -> List[AudioDataFeature]:
-        return [AudioDataFeature.HARMONIC_MAGNITUDE_SPECTROGRAM, AudioDataFeature.AUDIO_SAMPLE_RATE]
+        return [AudioDataFeature.HARMONIC_MAGNITUDE_SPECTROGRAM, AudioDataFeature.SAMPLE_RATE_HZ]
 
     @property
     def output_features(self) -> List[AudioDataFeature]:
@@ -26,7 +26,7 @@ class SpectralCentroidAndFluxProvider(AudioDataFeatureProvider):
 
     def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, np.ndarray]:
         s_h = data[AudioDataFeature.HARMONIC_MAGNITUDE_SPECTROGRAM]
-        sr = data[AudioDataFeature.AUDIO_SAMPLE_RATE]
+        sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
         n_bins, n_frames = s_h.shape
 
         if n_frames < 2:

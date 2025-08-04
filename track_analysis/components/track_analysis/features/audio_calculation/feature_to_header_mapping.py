@@ -4,6 +4,17 @@ from track_analysis.components.track_analysis.features.data_generation.model.hea
 # This dictionary explicitly maps all the features we want to calculate
 # to the final column names in the output DataFrames.
 FEATURE_TO_HEADER_MAPPING = {
+    # BASE FEATURES
+    AudioDataFeature.DATA_RATE: Header.Actual_Data_Rate,
+    AudioDataFeature.MAX_DATA_RATE: Header.Max_Data_Per_Second,
+    AudioDataFeature.DATA_EFFICIENCY: Header.Efficiency,
+    AudioDataFeature.DURATION: Header.Duration,
+    AudioDataFeature.SAMPLE_RATE_KHZ: Header.Sample_Rate,
+    AudioDataFeature.BIT_DEPTH: Header.Bit_Depth,
+    AudioDataFeature.FILE_FORMAT: Header.Format,
+    AudioDataFeature.BIT_RATE: Header.Bitrate,
+    AudioDataFeature.BPM: Header.BPM,
+
     # Loudness Features
     AudioDataFeature.INTEGRATED_LUFS: Header.Integrated_LUFS,
     AudioDataFeature.LOUDNESS_RANGE_LU: Header.Program_Dynamic_Range_LRA,

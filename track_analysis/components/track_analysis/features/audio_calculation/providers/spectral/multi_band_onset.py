@@ -21,7 +21,7 @@ class MultiBandOnsetEnvelopeProvider(AudioDataFeatureProvider):
     def dependencies(self) -> List[AudioDataFeature]:
         return [
             AudioDataFeature.AUDIO_PATH,
-            AudioDataFeature.AUDIO_SAMPLE_RATE,
+            AudioDataFeature.SAMPLE_RATE_HZ,
             AudioDataFeature.PERCUSSIVE_AUDIO,
         ]
 
@@ -33,7 +33,7 @@ class MultiBandOnsetEnvelopeProvider(AudioDataFeatureProvider):
         percussive = data[AudioDataFeature.PERCUSSIVE_AUDIO]
         common_args = {
             "file_path": data[AudioDataFeature.AUDIO_PATH],
-            "sample_rate": data[AudioDataFeature.AUDIO_SAMPLE_RATE],
+            "sample_rate": data[AudioDataFeature.SAMPLE_RATE_HZ],
             "audio": percussive,
             "start_sample": 0,
             "end_sample": len(percussive),
@@ -56,7 +56,7 @@ class MultiBandOnsetPeaksProvider(AudioDataFeatureProvider):
     def dependencies(self) -> List[AudioDataFeature]:
         return [
             AudioDataFeature.AUDIO_PATH,
-            AudioDataFeature.AUDIO_SAMPLE_RATE,
+            AudioDataFeature.SAMPLE_RATE_HZ,
             AudioDataFeature.PERCUSSIVE_AUDIO,
         ]
 
@@ -68,7 +68,7 @@ class MultiBandOnsetPeaksProvider(AudioDataFeatureProvider):
         percussive = data[AudioDataFeature.PERCUSSIVE_AUDIO]
         common_args = {
             "file_path": data[AudioDataFeature.AUDIO_PATH],
-            "sample_rate": data[AudioDataFeature.AUDIO_SAMPLE_RATE],
+            "sample_rate": data[AudioDataFeature.SAMPLE_RATE_HZ],
             "audio": percussive,
             "start_sample": 0,
             "end_sample": len(percussive),
@@ -100,7 +100,7 @@ class OnsetRateKickProvider(AudioDataFeatureProvider):
         return [
             AudioDataFeature.MULTI_BAND_ONSET_PEAKS,
             AudioDataFeature.AUDIO_SAMPLES,
-            AudioDataFeature.AUDIO_SAMPLE_RATE,
+            AudioDataFeature.SAMPLE_RATE_HZ,
         ]
 
     @property
@@ -110,7 +110,7 @@ class OnsetRateKickProvider(AudioDataFeatureProvider):
     def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
         onset_peaks = data[AudioDataFeature.MULTI_BAND_ONSET_PEAKS]
         samples = data[AudioDataFeature.AUDIO_SAMPLES]
-        sr = data[AudioDataFeature.AUDIO_SAMPLE_RATE]
+        sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
         duration_sec = len(samples) / sr if sr > 0 else 1.0
         return {AudioDataFeature.ONSET_RATE_KICK: len(onset_peaks.get("kick", [])) / duration_sec}
 
@@ -137,7 +137,7 @@ class OnsetRateSnareProvider(AudioDataFeatureProvider):
         return [
             AudioDataFeature.MULTI_BAND_ONSET_PEAKS,
             AudioDataFeature.AUDIO_SAMPLES,
-            AudioDataFeature.AUDIO_SAMPLE_RATE,
+            AudioDataFeature.SAMPLE_RATE_HZ,
         ]
 
     @property
@@ -147,7 +147,7 @@ class OnsetRateSnareProvider(AudioDataFeatureProvider):
     def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
         onset_peaks = data[AudioDataFeature.MULTI_BAND_ONSET_PEAKS]
         samples = data[AudioDataFeature.AUDIO_SAMPLES]
-        sr = data[AudioDataFeature.AUDIO_SAMPLE_RATE]
+        sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
         duration_sec = len(samples) / sr if sr > 0 else 1.0
         return {AudioDataFeature.ONSET_RATE_SNARE: len(onset_peaks.get("snare", [])) / duration_sec}
 
@@ -174,7 +174,7 @@ class OnsetRateLowMidProvider(AudioDataFeatureProvider):
         return [
             AudioDataFeature.MULTI_BAND_ONSET_PEAKS,
             AudioDataFeature.AUDIO_SAMPLES,
-            AudioDataFeature.AUDIO_SAMPLE_RATE,
+            AudioDataFeature.SAMPLE_RATE_HZ,
         ]
 
     @property
@@ -184,7 +184,7 @@ class OnsetRateLowMidProvider(AudioDataFeatureProvider):
     def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
         onset_peaks = data[AudioDataFeature.MULTI_BAND_ONSET_PEAKS]
         samples = data[AudioDataFeature.AUDIO_SAMPLES]
-        sr = data[AudioDataFeature.AUDIO_SAMPLE_RATE]
+        sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
         duration_sec = len(samples) / sr if sr > 0 else 1.0
         return {AudioDataFeature.ONSET_RATE_LOW_MID: len(onset_peaks.get("low_mid", [])) / duration_sec}
 
@@ -211,7 +211,7 @@ class OnsetRateHiHatProvider(AudioDataFeatureProvider):
         return [
             AudioDataFeature.MULTI_BAND_ONSET_PEAKS,
             AudioDataFeature.AUDIO_SAMPLES,
-            AudioDataFeature.AUDIO_SAMPLE_RATE,
+            AudioDataFeature.SAMPLE_RATE_HZ,
         ]
 
     @property
@@ -221,6 +221,6 @@ class OnsetRateHiHatProvider(AudioDataFeatureProvider):
     def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
         onset_peaks = data[AudioDataFeature.MULTI_BAND_ONSET_PEAKS]
         samples = data[AudioDataFeature.AUDIO_SAMPLES]
-        sr = data[AudioDataFeature.AUDIO_SAMPLE_RATE]
+        sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
         duration_sec = len(samples) / sr if sr > 0 else 1.0
         return {AudioDataFeature.ONSET_RATE_HI_HAT: len(onset_peaks.get("hihat", [])) / duration_sec}

@@ -19,7 +19,7 @@ class LoudnessAnalyzer(AudioDataFeatureProvider):
     """
     @property
     def dependencies(self) -> List[AudioDataFeature]:
-        return [AudioDataFeature.AUDIO_SAMPLES, AudioDataFeature.AUDIO_SAMPLE_RATE]
+        return [AudioDataFeature.AUDIO_SAMPLES, AudioDataFeature.SAMPLE_RATE_HZ]
 
     @property
     def output_features(self) -> AudioDataFeature:
@@ -27,7 +27,7 @@ class LoudnessAnalyzer(AudioDataFeatureProvider):
 
     def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
         samples = data[AudioDataFeature.AUDIO_SAMPLES]
-        sr = data[AudioDataFeature.AUDIO_SAMPLE_RATE]
+        sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
         chunk_size = 4096
 
         if samples.ndim == 1:

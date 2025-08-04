@@ -34,7 +34,7 @@ class SingleTrackProfiler:
         info = self._audio_loader.get_audio_streams_info_batch([track_path])[0]
         audio_samples = info.samples
         sample_rate = info.sample_rate_Hz
-        tempo, _, _ = self._beat_detector.detect(audio_path=track_path, audio=audio_samples, sample_rate=sample_rate)
+        tempo = self._beat_detector.get_tempo(audio_path=track_path, audio=audio_samples, sample_rate=sample_rate, onset_envelope=None)
         notes: List[NoteEvent] = self._note_extractor.extract(
             track_path, audio_samples, sample_rate, tempo, visualize=False
         ).notes

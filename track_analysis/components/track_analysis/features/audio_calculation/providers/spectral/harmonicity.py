@@ -17,7 +17,7 @@ class HarmonicityProvider(AudioDataFeatureProvider):
     def dependencies(self) -> List[AudioDataFeature]:
         return [
             AudioDataFeature.AUDIO_PATH,
-            AudioDataFeature.AUDIO_SAMPLE_RATE,
+            AudioDataFeature.SAMPLE_RATE_HZ,
             AudioDataFeature.HARMONIC_AUDIO,
             AudioDataFeature.AUDIO_SAMPLES,
         ]
@@ -30,7 +30,7 @@ class HarmonicityProvider(AudioDataFeatureProvider):
         samples = data[AudioDataFeature.AUDIO_SAMPLES]
         harmonicity = self._harmonicity_extractor.extract(
             file_path=data[AudioDataFeature.AUDIO_PATH],
-            sample_rate=data[AudioDataFeature.AUDIO_SAMPLE_RATE],
+            sample_rate=data[AudioDataFeature.SAMPLE_RATE_HZ],
             start_sample=0,
             end_sample=len(samples),
             harmonic=data[AudioDataFeature.HARMONIC_AUDIO],

@@ -16,7 +16,7 @@ class SpectralFlatnessProvider(AudioDataFeatureProvider):
 
     @property
     def dependencies(self) -> List[AudioDataFeature]:
-        return [AudioDataFeature.AUDIO_PATH, AudioDataFeature.AUDIO_SAMPLE_RATE, AudioDataFeature.AUDIO_SAMPLES]
+        return [AudioDataFeature.AUDIO_PATH, AudioDataFeature.SAMPLE_RATE_HZ, AudioDataFeature.AUDIO_SAMPLES]
 
     @property
     def output_features(self) -> AudioDataFeature:
@@ -26,7 +26,7 @@ class SpectralFlatnessProvider(AudioDataFeatureProvider):
         samples = data[AudioDataFeature.AUDIO_SAMPLES]
         common_args = {
             "file_path": data[AudioDataFeature.AUDIO_PATH],
-            "sample_rate": data[AudioDataFeature.AUDIO_SAMPLE_RATE],
+            "sample_rate": data[AudioDataFeature.SAMPLE_RATE_HZ],
             "audio": samples,
             "start_sample": 0,
             "end_sample": len(samples),

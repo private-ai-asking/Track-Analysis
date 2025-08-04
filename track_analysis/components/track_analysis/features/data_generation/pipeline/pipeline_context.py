@@ -4,6 +4,10 @@ from typing import List, Optional, Dict
 import pandas as pd
 import pydantic
 
+from track_analysis.components.track_analysis.features.audio_calculation.processors.key_feature_processor import \
+    KeyFeatureProcessor
+from track_analysis.components.track_analysis.features.audio_calculation.processors.sample_feature_processor import \
+    SampleFeatureProcessor
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_calculator import \
     EnergyCalculator
@@ -30,6 +34,9 @@ class LibraryDataGenerationPipelineContext(pydantic.BaseModel):
     refill_headers: Optional[Dict[Header, List[str]]] = None
 
     # Generated Along the Line
+    sample_processor: SampleFeatureProcessor = None
+    key_processor: KeyFeatureProcessor = None
+
     album_costs: Optional[List[AlbumCostModel]] = []
 
     all_audio_file_paths: Optional[List[Path]] = []

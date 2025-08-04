@@ -16,7 +16,7 @@ class HPSSExtractor(AudioDataFeatureProvider):
 
     @property
     def dependencies(self) -> List[AudioDataFeature]:
-        return [AudioDataFeature.AUDIO_PATH, AudioDataFeature.AUDIO_SAMPLES, AudioDataFeature.AUDIO_SAMPLE_RATE, AudioDataFeature.BPM]
+        return [AudioDataFeature.AUDIO_PATH, AudioDataFeature.AUDIO_SAMPLES, AudioDataFeature.SAMPLE_RATE_HZ, AudioDataFeature.BPM]
 
     # This calculator produces MULTIPLE outputs. The orchestrator can be adapted to handle this,
     # or you can have two separate classes. For simplicity, we'll assume the orchestrator can handle it.
@@ -28,7 +28,7 @@ class HPSSExtractor(AudioDataFeatureProvider):
         harmonic, percussive = self._harmonic_extractor.extract_harmonic(
             file_path=data[AudioDataFeature.AUDIO_PATH],
             audio=data[AudioDataFeature.AUDIO_SAMPLES],
-            sample_rate=data[AudioDataFeature.AUDIO_SAMPLE_RATE],
+            sample_rate=data[AudioDataFeature.SAMPLE_RATE_HZ],
             tempo_bpm=data[AudioDataFeature.BPM]
         )
         return {
