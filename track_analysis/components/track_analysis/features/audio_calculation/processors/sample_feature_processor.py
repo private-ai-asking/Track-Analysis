@@ -5,8 +5,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature import AudioDataFeature
-from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature_calculator_orchestrator import \
-    AudioDataFeatureCalculatorOrchestrator
+from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature_provider_orchestrator import \
+    AudioDataFeatureProviderOrchestrator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 
@@ -14,7 +14,7 @@ from track_analysis.components.track_analysis.features.data_generation.model.hea
 class SampleFeatureProcessor:
     def __init__(
             self,
-            orchestrator: AudioDataFeatureCalculatorOrchestrator,
+            orchestrator: AudioDataFeatureProviderOrchestrator,
             features_to_calculate: List[AudioDataFeature],
             logger: HoornLogger,
             num_workers: int = 4,

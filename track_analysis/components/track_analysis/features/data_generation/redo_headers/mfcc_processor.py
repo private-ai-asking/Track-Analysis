@@ -8,7 +8,7 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
 from track_analysis.components.track_analysis.features.audio_calculation.batch_sample_metrics_service import \
     BatchSampleMetricsService
-from track_analysis.components.track_analysis.features.audio_calculation.calculators.helpers.mfcc_helper import \
+from track_analysis.components.track_analysis.features.audio_calculation.providers.helpers.mfcc_helper import \
     MFCCHelper
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler, AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.core.cacheing.mfcc import MfccExtractor
