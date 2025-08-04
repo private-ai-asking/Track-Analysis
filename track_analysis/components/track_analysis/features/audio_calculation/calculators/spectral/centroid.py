@@ -15,7 +15,7 @@ class SpectralCentroidCalculator(AudioDataFeatureCalculator):
 
     @property
     def output_features(self) -> List[AudioDataFeature]:
-        return [AudioDataFeature.SPECTRAL_CENTROID_MEAN, AudioDataFeature.SPECTRAL_CENTROID_MAX]
+        return [AudioDataFeature.SPECTRAL_CENTROID_MEAN, AudioDataFeature.SPECTRAL_CENTROID_MAX, AudioDataFeature.SPECTRAL_CENTROID_STD]
 
     def calculate(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, float]:
         array = data[AudioDataFeature.SPECTRAL_CENTROID_ARRAY]

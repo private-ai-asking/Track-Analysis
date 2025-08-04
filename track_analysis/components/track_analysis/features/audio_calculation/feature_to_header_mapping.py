@@ -44,8 +44,4 @@ FEATURE_TO_HEADER_MAPPING = {
     AudioDataFeature.ONSET_RATE_LOW_MID: Header.Onset_Rate_Low_Mid,
     AudioDataFeature.ONSET_ENV_MEAN_HI_HAT: Header.Onset_Env_Mean_Hi_Hat,
     AudioDataFeature.ONSET_RATE_HI_HAT: Header.Onset_Rate_Hi_Hat,
-
-    # MFCC Features (mapped to a special value, handled separately)
-    AudioDataFeature.MFCC_MEANS: Header.MFCC,
-    AudioDataFeature.MFCC_STDS: Header.MFCC,
 }

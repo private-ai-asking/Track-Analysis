@@ -17,7 +17,7 @@ class SpectralFluxCalculator(AudioDataFeatureCalculator):
 
     @property
     def output_features(self) -> List[AudioDataFeature]:
-        return [AudioDataFeature.SPECTRAL_FLUX_MEAN, AudioDataFeature.SPECTRAL_FLUX_MAX]
+        return [AudioDataFeature.SPECTRAL_FLUX_MEAN, AudioDataFeature.SPECTRAL_FLUX_MAX, AudioDataFeature.SPECTRAL_FLUX_STD]
 
     def calculate(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, float]:
         return {

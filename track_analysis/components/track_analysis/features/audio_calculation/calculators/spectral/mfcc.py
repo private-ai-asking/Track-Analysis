@@ -26,13 +26,13 @@ class MfccCalculator(AudioDataFeatureCalculator):
     def output_features(self) -> List[AudioDataFeature]:
         return [AudioDataFeature.MFCC_MEANS, AudioDataFeature.MFCC_STDS]
 
-    def calculate(self, data: Dict[AudioDataFeature, Any]) -> Dict[str, np.ndarray]:
+    def calculate(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, np.ndarray]:
         mfcc_means, mfcc_stds = self._mfcc_helper.get_mffcs(
             audio_path=data[AudioDataFeature.AUDIO_PATH],
             sample_rate=data[AudioDataFeature.AUDIO_SAMPLE_RATE],
             audio=data[AudioDataFeature.AUDIO_SAMPLES]
         )
         return {
-            AudioDataFeature.MFCC_MEANS.name: mfcc_means,
-            AudioDataFeature.MFCC_STDS.name: mfcc_stds,
+            AudioDataFeature.MFCC_MEANS: mfcc_means,
+            AudioDataFeature.MFCC_STDS: mfcc_stds,
         }

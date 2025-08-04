@@ -25,7 +25,7 @@ from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRAR
     MAX_NEW_TRACKS_PER_RUN, EXPENSIVE_CACHE_DIRECTORY
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import \
-    BuildLibraryDataCSVPipeline
+    BuildLibraryDataCSVPipeline, PipelineConfiguration
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
 from track_analysis.components.track_analysis.features.data_generation.util.key_extractor import KeyExtractor
@@ -357,9 +357,13 @@ class App:
 
         # output_path.unlink(missing_ok=True)
 
+        pipeline_config: PipelineConfiguration = PipelineConfiguration(NUM_WORKERS_CPU_HEAVY, NUM_WORKERS_CPU_HEAVY-14, 512, 2048)
+
         pipeline = BuildLibraryDataCSVPipeline(
-            self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._string_utils, key_extractor=self._key_extractor,
-            num_workers=NUM_WORKERS_CPU_HEAVY, num_workers_refill=NUM_WORKERS_CPU_HEAVY-14
+            logger=self._logger,
+            filehandler=self._file_handler, audio_file_handler=self._audio_file_handler, string_utils=self._string_utils,
+            tag_extractor=self._tag_extractor, key_extractor=self._key_extractor,
+            configuration=pipeline_config
         )
 
         def __run():

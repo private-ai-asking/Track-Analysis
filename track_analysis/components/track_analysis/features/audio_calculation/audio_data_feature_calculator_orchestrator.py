@@ -1,4 +1,5 @@
-from typing import List, Dict, Any, Union
+from enum import Enum
+from typing import List, Dict, Any, Union, Set
 
 from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature import AudioDataFeature
 from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature_calculator import (
@@ -58,13 +59,14 @@ class AudioDataFeatureCalculatorOrchestrator:
 
     @staticmethod
     def _validate_output(calculator_outputs: List[AudioDataFeature] | AudioDataFeature, results: Dict[AudioDataFeature, Any], calc_name: str) -> None:
-        outputs = [calculator_outputs] if not isinstance(calculator_outputs, list) else calculator_outputs
+        outputs_list = [calculator_outputs] if not isinstance(calculator_outputs, list) else calculator_outputs
+        allowed_outputs_set: Set[AudioDataFeature] = set(outputs_list)
 
-        for k, v in results.items():
-            if k not in outputs:
+        for k in results.keys():
+            if k not in allowed_outputs_set:
                 raise RuntimeError(
                     f"Calculator output failed: Calculator '{calc_name}' "
-                    f"gives output '{k.name}' which wasn't in its possible outputs."
+                    f"gives output '{k.name if isinstance(k, Enum) else k}' which wasn't in its possible outputs."
                 )
 
     @staticmethod

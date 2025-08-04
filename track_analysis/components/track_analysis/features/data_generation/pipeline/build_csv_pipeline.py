@@ -1,12 +1,29 @@
+import dataclasses
+
 from track_analysis.components.md_common_python.py_common.handlers import FileHandler
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import AbPipeline
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
+from track_analysis.components.track_analysis.features.audio_calculation.builders.key_data_frames_builder import \
+    KeyDataFramesBuilder
+from track_analysis.components.track_analysis.features.audio_calculation.builders.metadata_df_builder import \
+    MetadataDFBuilder
+from track_analysis.components.track_analysis.features.audio_calculation.factory.audio_feature_orchestrator_factory import \
+    AudioFeatureOrchestratorFactory
+from track_analysis.components.track_analysis.features.audio_calculation.feature_to_header_mapping import \
+    FEATURE_TO_HEADER_MAPPING
+from track_analysis.components.track_analysis.features.audio_calculation.mappers.results_mapper import ResultsMapper
+from track_analysis.components.track_analysis.features.audio_calculation.processors.key_feature_processor import \
+    KeyFeatureProcessor
+from track_analysis.components.track_analysis.features.audio_calculation.processors.sample_feature_processor import \
+    SampleFeatureProcessor
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.batch_process_new_tracks import \
     BatchProcessNewTracks
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.calculate_energy_levels import \
+    EnergyLevelCalculatorPipe
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.filter_cache import FilterCache
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.filter_files import FilterFiles
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_album_costs import \
@@ -30,6 +47,14 @@ from track_analysis.components.track_analysis.features.data_generation.util.key_
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 
 
+@dataclasses.dataclass(frozen=True)
+class PipelineConfiguration:
+    num_workers: int
+    num_workers_refill: int
+    hop_length: int
+    n_fft: int
+
+
 class BuildLibraryDataCSVPipeline(AbPipeline):
     def __init__(self,
                  logger: HoornLogger,
@@ -38,16 +63,23 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
                  audio_file_handler: AudioFileHandler,
                  string_utils: StringUtils,
                  key_extractor: KeyExtractor,
-                 num_workers: int,
-                 num_workers_refill: int):
+                 configuration: PipelineConfiguration):
         self._logger = logger
         self._filehandler = filehandler
-        self._tag_extractor = tag_extractor
         self._audio_file_handler = audio_file_handler
         self._key_extractor = key_extractor
         self._string_utils = string_utils
-        self._num_workers: int = num_workers
-        self._num_workers_refill: int = num_workers_refill
+        self._num_workers: int = configuration.num_workers
+        self._num_workers_refill: int = configuration.num_workers_refill
+
+        audio_feature_orchestrator_factory = AudioFeatureOrchestratorFactory(self._logger)
+        _orchestrator = audio_feature_orchestrator_factory.create_audio_feature_orchestrator(hop_length=configuration.hop_length, n_fft=configuration.n_fft)
+        self._metadata_provider: MetadataDFBuilder = MetadataDFBuilder(self._audio_file_handler, tag_extractor)
+        self._results_mapper: ResultsMapper = ResultsMapper(FEATURE_TO_HEADER_MAPPING)
+        self._key_processor: KeyFeatureProcessor = KeyFeatureProcessor(self._key_extractor, self._logger)
+        self._key_data_builder: KeyDataFramesBuilder = KeyDataFramesBuilder()
+        self._sample_processor: SampleFeatureProcessor = SampleFeatureProcessor(_orchestrator, list(FEATURE_TO_HEADER_MAPPING.keys()), self._logger)
+
         super().__init__(logger)
 
     def build_pipeline(self):
@@ -68,11 +100,15 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._add_step(HandleInvalidCache(self._logger))
         self._add_exit_check(__exit_if_no_files_to_process)
         self._add_step(BatchProcessNewTracks(
-            self._logger,
-            self._audio_file_handler,
-            self._tag_extractor,
-            self._key_extractor
+            logger=self._logger,
+            file_handler=self._audio_file_handler,
+            key_processor=self._key_processor,
+            key_data_builder=self._key_data_builder,
+            sample_processor=self._sample_processor,
+            results_mapper=self._results_mapper,
+            metadata_builder=self._metadata_provider,
         ))
+        self._add_step(EnergyLevelCalculatorPipe(self._logger))
         self._add_step(RemoveInvalidCachedEntries(self._logger))
         # self._add_step(HandleRowsWithMissingData(self._logger, self._audio_file_handler))
         # self._add_step(RedoHeaders(self._logger, self._audio_file_handler, self._num_workers_refill))
