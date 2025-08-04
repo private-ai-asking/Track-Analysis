@@ -3,10 +3,7 @@ from pathlib import Path
 
 import numpy as np
 
-from track_analysis.components.track_analysis.features.audio_calculation.calculators.metric_calculator import \
-    AudioMetricCalculator
-from track_analysis.components.track_analysis.features.core.cacheing.rms import compute_linear_rms, \
-    compute_linear_rms_cached
+from track_analysis.components.track_analysis.features.core.cacheing.rms import compute_linear_rms_cached
 
 
 @dataclass(frozen=True)
@@ -40,14 +37,3 @@ def compute_short_time_rms_dbfs(
         percentile_90_dbfs=float(np.percentile(rms_dbfs, 90)),
         iqr_dbfs=float(p75 - p25)
     )
-
-
-class RmsCalculator(AudioMetricCalculator):
-    def calculate(self, audio_path: Path, samples: np.ndarray, sr: int, **_):
-        rms = compute_short_time_rms_dbfs(file_path=audio_path, samples=samples, sr=sr)
-        return {
-            "mean_dbfs": rms.mean_dbfs,
-            "max_dbfs": rms.max_dbfs,
-            "percentile_90_dbfs": rms.percentile_90_dbfs,
-            "iqr_dbfs": rms.iqr_dbfs,
-        }

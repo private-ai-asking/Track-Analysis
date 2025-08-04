@@ -2,7 +2,6 @@ from track_analysis.components.md_common_python.py_common.handlers import FileHa
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import AbPipeline
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
-from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
@@ -16,17 +15,18 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
     GetAudioFiles
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_invalid_cache import \
     HandleInvalidCache
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.handle_rows_with_missing_data import \
-    HandleRowsWithMissingData
+# from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.handle_rows_with_missing_data import \
+#     HandleRowsWithMissingData
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.load_cache import LoadCache
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.load_energy_calculator import \
     LoadEnergyCalculator
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.make_csv import MakeCSV
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.preprocess_data import \
     PreprocessData
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.redo_headers import RedoHeaders
+# from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.redo_headers import RedoHeaders
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.remove_invalid_cached_entries import \
     RemoveInvalidCachedEntries
+from track_analysis.components.track_analysis.features.data_generation.util.key_extractor import KeyExtractor
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 
 
@@ -36,15 +36,15 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
                  filehandler: FileHandler,
                  tag_extractor: TagExtractor,
                  audio_file_handler: AudioFileHandler,
-                 audio_calculator: AudioCalculator,
                  string_utils: StringUtils,
+                 key_extractor: KeyExtractor,
                  num_workers: int,
                  num_workers_refill: int):
         self._logger = logger
         self._filehandler = filehandler
         self._tag_extractor = tag_extractor
         self._audio_file_handler = audio_file_handler
-        self._audio_calculator = audio_calculator
+        self._key_extractor = key_extractor
         self._string_utils = string_utils
         self._num_workers: int = num_workers
         self._num_workers_refill: int = num_workers_refill
@@ -71,10 +71,10 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
             self._logger,
             self._audio_file_handler,
             self._tag_extractor,
-            self._audio_calculator,
+            self._key_extractor
         ))
         self._add_step(RemoveInvalidCachedEntries(self._logger))
-        self._add_step(HandleRowsWithMissingData(self._logger, self._audio_file_handler))
-        self._add_step(RedoHeaders(self._logger, self._audio_file_handler, self._num_workers_refill))
+        # self._add_step(HandleRowsWithMissingData(self._logger, self._audio_file_handler))
+        # self._add_step(RedoHeaders(self._logger, self._audio_file_handler, self._num_workers_refill))
         self._add_step(PreprocessData(self._logger, self._string_utils))
         self._add_step(MakeCSV(self._logger))

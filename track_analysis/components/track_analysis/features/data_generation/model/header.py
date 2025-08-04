@@ -49,8 +49,10 @@ class Header(Enum):
     # Spectral
     Spectral_Centroid_Mean = "Spectral Centroid Mean (Hz)"
     Spectral_Centroid_Max  = "Spectral Centroid Max (Hz)"
+    Spectral_Centroid_Std = "Spectral Centroid Std (Hz)"
     Spectral_Flux_Mean     = "Spectral Flux Mean"
     Spectral_Flux_Max      = "Spectral Flux Max"
+    Spectral_Flux_Std = "Spectral Flux Std"
     Spectral_Rolloff_Mean = "Spectral Rolloff (mean)"
     Spectral_Rolloff_Std = "Spectral Rolloff (std)"
     Zero_Crossing_Rate_Mean = "Zero Crossing Rate Mean"
@@ -72,8 +74,6 @@ class Header(Enum):
 
     Onset_Env_Mean_Hi_Hat = "Mean Onset Strength [Hi Hat]"
     Onset_Rate_Hi_Hat = "Onset Rate (events/sec) [Hi Hat]"
-
-    Onset_Rate_Notes = "Onset Rate (note events/sec)"
 
     # SPECIAL
     MFCC = "Not used... Special for CSV flow"

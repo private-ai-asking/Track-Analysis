@@ -22,14 +22,13 @@ from track_analysis.components.md_common_python.py_common.utils.string_utils imp
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
     DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START, CACHE_DIRECTORY, CLEAR_CACHE, \
     DOWNLOAD_CSV_FILE, TEST_SAMPLE_SIZE, PROFILE_DATA_LOADING, EMBED_BATCH_SIZE, NUM_WORKERS_CPU_HEAVY, \
-    MAX_NEW_TRACKS_PER_RUN
-from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
+    MAX_NEW_TRACKS_PER_RUN, EXPENSIVE_CACHE_DIRECTORY
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
-from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import \
     BuildLibraryDataCSVPipeline
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
+from track_analysis.components.track_analysis.features.data_generation.util.key_extractor import KeyExtractor
 from track_analysis.components.track_analysis.features.key_extraction.core.definitions.definition_templates import \
     TemplateMode
 from track_analysis.components.track_analysis.features.key_extraction.profile_generation.profile_generator import \
@@ -114,8 +113,8 @@ class App:
         self._user_input_helper: UserInputHelper = UserInputHelper(logger)
         self._tag_extractor: TagExtractor = TagExtractor(logger)
         self._file_handler: FileHandler = FileHandler()
-        self._audio_file_handler: AudioFileHandler = AudioFileHandler(logger, num_workers=NUM_WORKERS_CPU_HEAVY)
-        self._audio_calculator: AudioCalculator = AudioCalculator(logger, self._audio_file_handler, key_csv_path=OUTPUT_DIRECTORY.joinpath("key_progression.csv"), num_workers=NUM_WORKERS_CPU_HEAVY-14)
+
+        self._audio_file_handler: AudioFileHandler = AudioFileHandler(logger, num_workers=NUM_WORKERS_CPU_HEAVY, max_rate_cache_path=EXPENSIVE_CACHE_DIRECTORY / "max_rate_cache.pkl")
         self._time_utils: TimeUtils = TimeUtils()
         self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)
         self._downloader: MusicDownloadInterface = YTDLPMusicDownloader(logger, music_track_download_dir)
@@ -123,6 +122,7 @@ class App:
         self._metadata_api: MetadataAPI = MetadataAPI(logger, self._genre_algorithm)
         self._command_helper: CommandHelper = CommandHelper(logger, "CommandHelper")
         self._profile_creator: ProfileGenerator = ProfileGenerator(logger, self._audio_file_handler, template_profile_normalized_to=100, num_workers=NUM_WORKERS_CPU_HEAVY-14)
+        self._key_extractor = KeyExtractor(logger, self._audio_file_handler, num_workers=NUM_WORKERS_CPU_HEAVY-14)
 
         self._download_pipeline: DownloadPipeline = DownloadPipeline(
             logger,
@@ -358,7 +358,7 @@ class App:
         # output_path.unlink(missing_ok=True)
 
         pipeline = BuildLibraryDataCSVPipeline(
-            self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._audio_calculator, self._string_utils,
+            self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._string_utils, key_extractor=self._key_extractor,
             num_workers=NUM_WORKERS_CPU_HEAVY, num_workers_refill=NUM_WORKERS_CPU_HEAVY-14
         )
 
