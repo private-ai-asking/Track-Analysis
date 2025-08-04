@@ -6,6 +6,8 @@ from typing import Dict, Any
 
 from numba import njit, prange
 
+from track_analysis.components.track_analysis.features.audio_calculation.calculators.helpers.mfcc_helper import \
+    MFCCHelper
 from track_analysis.components.track_analysis.features.audio_calculation.calculators.metric_calculator import \
     AudioMetricCalculator
 from track_analysis.components.track_analysis.features.core.cacheing.harmonic import HarmonicExtractor
@@ -89,6 +91,7 @@ class SpectralRhythmCalculator(AudioMetricCalculator):
     def __init__(self, extractors: FeatureExtractors, hop_length: int):
         self._extractors = extractors
         self._hop_length = hop_length
+        self._mfcc_helper: MFCCHelper = MFCCHelper(self._extractors.mfcc)
 
     def calculate(
             self,
@@ -197,21 +200,16 @@ class SpectralRhythmCalculator(AudioMetricCalculator):
         zcr = self._extractors.zcr.extract(**common_args)
         flatness = self._extractors.flatness.extract(**common_args)
         contrast = self._extractors.contrast.extract(**common_args)
-        mffccs = self._extractors.mfcc.extract(**{
-            "file_path": common_args["file_path"],
-            "start_sample": common_args["start_sample"],
-            "end_sample": common_args["end_sample"],
-            "audio": common_args["audio"],
-            "sample_rate": common_args["sample_rate"]
-        }, n_mfcc=20)
-
-        mffcc_means = np.mean(mffccs, axis=1)
-        mfcc_stds = np.std(mffccs, axis=1)
+        mffcc_means, mfcc_stds = self._mfcc_helper.get_mffcs(
+            audio_path=common_args["file_path"],
+            sample_rate=common_args["sr"],
+            audio=common_args["audio"]
+        )
 
         return {
             "zcr_mean": float(zcr.mean()),
             "spectral_flatness_mean": float(flatness.mean()),
             "spectral_contrast_mean": float(contrast.mean()),
-            "mffcc_means": np.array(mffcc_means),
+            "mfcc_means": np.array(mffcc_means),
             "mfcc_stds": np.array(mfcc_stds),
         }

@@ -380,7 +380,7 @@ class HandleRowsWithMissingData(IPipe):
             chunk_uuids = rows_chunk[Header.UUID.value].tolist()
             mfcc_metrics_chunk = {
                 Header.UUID.value: chunk_uuids,
-                "mffcc_means": mfcc_means,
+                "mfcc_means": mfcc_means,
                 "mfcc_stds": mfcc_stds
             }
             mfcc_df_chunk = BatchSampleMetricsService.build_mfcc_dataframe(mfcc_metrics_chunk)

@@ -106,7 +106,7 @@ class BatchSampleMetricsService:
         """
         # Use np.vstack to stack the lists of 1-D arrays into a single 2-D array
         # This will result in a shape of (num_tracks, num_mfccs)
-        mfcc_means_stacked = np.vstack(sample_metrics['mffcc_means'])
+        mfcc_means_stacked = np.vstack(sample_metrics['mfcc_means'])
         mfcc_stds_stacked = np.vstack(sample_metrics['mfcc_stds'])
 
         # Get the number of MFCC coefficients from the stacked array

@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import pandas as pd
 
@@ -12,38 +12,57 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
 class FilterCache(IPipe):
     def __init__(self, logger: HoornLogger):
         self._separator = "BuildCSV.FilterCache"
-
         self._logger = logger
         self._logger.trace("Successfully initialized pipe.", separator=self._separator)
 
     def flow(self, data: LibraryDataGenerationPipelineContext) -> LibraryDataGenerationPipelineContext:
         df: pd.DataFrame = data.loaded_audio_info_cache
 
-        column_missing_dict: Dict[Header, List[str]] = {
-            Header(col): df.loc[df[col].isna(), Header.UUID.value].tolist()
-            for col in df.columns
-            if Header(col) in data.missing_headers_to_fill and df[col].isna().any()
-        }
+        missing_data, missing_count = self._get_missing_headers(df, data.missing_headers_to_fill)
+        refill_data, refill_count = self._get_refill_headers(df, data.headers_to_refill)
 
-        missing: int = 0
-        for _, items in column_missing_dict.items():
-            missing += len(items)
+        self._logger.info(f"Found {missing_count} rows with missing data!", separator=self._separator)
+        self._logger.info(f"Found {refill_count} rows with refill data!", separator=self._separator)
 
-        self._logger.info(f"Found {missing} rows with missing data!", separator=self._separator)
-
-        column_refill_dict: Dict[Header, List[str]] = {
-            Header(col): df[Header.UUID.value].tolist()
-            for col in df.columns
-            if Header(col) in data.headers_to_refill
-        }
-
-        refill: int = 0
-        for _, items in column_refill_dict.items():
-            refill += len(items)
-
-        self._logger.info(f"Found {refill} rows with refill data!", separator=self._separator)
-
-        data.missing_headers = column_missing_dict
-        data.refill_headers = column_refill_dict
+        data.missing_headers = missing_data
+        data.refill_headers = refill_data
 
         return data
+
+    @staticmethod
+    def _get_missing_headers(df: pd.DataFrame, headers_to_fill: List[Header]) -> Tuple[Dict[Header, List[str]], int]:
+        missing_data = {}
+        missing_count = 0
+        headers_set = set(headers_to_fill)
+
+        for col in df.columns:
+            header = Header(col)
+            if header in headers_set:
+                null_mask = df[header.value].isna()
+                if null_mask.any():
+                    uuids = df.loc[null_mask, Header.UUID.value].tolist()
+                    missing_data[header] = uuids
+                    missing_count += len(uuids)
+
+        return missing_data, missing_count
+
+    @staticmethod
+    def _get_refill_headers(df: pd.DataFrame, headers_to_refill: List[Header]) -> Tuple[Dict[Header, List[str]], int]:
+        refill_data = {}
+        refill_count = 0
+        headers_set = set(headers_to_refill)
+
+        if Header.MFCC in headers_set:
+            uuids = df[Header.UUID.value].tolist()
+            refill_data[Header.MFCC] = uuids
+            refill_count += len(uuids)
+            headers_set.discard(Header.MFCC)
+
+        for col in df.columns:
+            header = Header(col)
+            if header in headers_set:
+                uuids = df[Header.UUID.value].tolist()
+                refill_data[header] = uuids
+                refill_count += len(uuids)
+
+        return refill_data, refill_count

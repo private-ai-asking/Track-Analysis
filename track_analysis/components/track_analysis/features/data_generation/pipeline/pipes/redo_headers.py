@@ -3,6 +3,7 @@ from typing import Dict
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
+from track_analysis.components.track_analysis.features.core.cacheing.mfcc import MfccExtractor
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
@@ -12,6 +13,7 @@ from track_analysis.components.track_analysis.features.data_generation.redo_head
 from track_analysis.components.track_analysis.features.data_generation.redo_headers.energy_processor import \
     EnergyProcessor
 from track_analysis.components.track_analysis.features.data_generation.redo_headers.key_processor import KeyProcessor
+from track_analysis.components.track_analysis.features.data_generation.redo_headers.mfcc_processor import MFCCProcessor
 from track_analysis.components.track_analysis.features.data_generation.util.key_extractor import KeyExtractor
 
 
@@ -32,11 +34,13 @@ class RedoHeaders(IPipe):
         self._bpm_processor = BPMProcessor(logger, file_handler)
         self._key_processor = KeyProcessor(logger, file_handler, self._key_extractor)
         self._energy_processor = EnergyProcessor(logger, file_handler)
+        self._mfcc_processor = MFCCProcessor(logger, file_handler, MfccExtractor(logger))
 
         self._header_processors: Dict[Header, BaseHeaderProcessor] = {
             Header.BPM: self._bpm_processor,
             Header.Key: self._key_processor,
             Header.Energy_Level: self._energy_processor,
+            Header.MFCC: self._mfcc_processor,
         }
 
         self._logger.trace("Successfully initialized pipe.", separator=self._SEPARATOR)
