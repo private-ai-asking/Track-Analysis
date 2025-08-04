@@ -78,7 +78,7 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._results_mapper: ResultsMapper = ResultsMapper(FEATURE_TO_HEADER_MAPPING)
         self._key_processor: KeyFeatureProcessor = KeyFeatureProcessor(self._key_extractor, self._logger)
         self._key_data_builder: KeyDataFramesBuilder = KeyDataFramesBuilder()
-        self._sample_processor: SampleFeatureProcessor = SampleFeatureProcessor(_orchestrator, list(FEATURE_TO_HEADER_MAPPING.keys()), self._logger)
+        self._sample_processor: SampleFeatureProcessor = SampleFeatureProcessor(_orchestrator, list(FEATURE_TO_HEADER_MAPPING.keys()), self._logger, num_workers=configuration.num_workers)
 
         super().__init__(logger)
 
