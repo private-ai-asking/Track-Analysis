@@ -54,7 +54,7 @@ class DefaultEnergyCalculator(EnergyCalculator):
         else:
             data_hash = data_or_hash
 
-        self._validator.is_valid(model, data_hash)
+        return self._validator.is_valid(model, data_hash)
 
     def load(self, config: EnergyModelConfig) -> EnergyModel | None:
         return self._persistence.load(config)
