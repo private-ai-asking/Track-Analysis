@@ -190,7 +190,7 @@ class App:
         registration_test: RegistrationTest = RegistrationTest(logger, self._registration)
         embedding_test: EmbeddingTest = EmbeddingTest(logger, embedder=self._embedder, keys_path=keys_path, data_loader=self._scrobble_data_loader)
         short_time_rms_test: ShortTimeRMSTest = ShortTimeRMSTest(logger, self._audio_file_handler)
-        energy_test: EnergyCalculationTest = EnergyCalculationTest(logger, self._library_data_path, mfcc_data_path=self._mfcc_data_path, train_model=True)
+        energy_test: EnergyCalculationTest = EnergyCalculationTest(logger, self._library_data_path, mfcc_data_path=self._mfcc_data_path, train_model=False)
 
         tests: List[TestConfiguration] = [
             TestConfiguration(
@@ -357,7 +357,7 @@ class App:
             use_threads=True,
             max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN,
             missing_headers_to_fill=[],
-            headers_to_refill=[]
+            headers_to_refill=[Header.Energy_Level]
         )
 
         # output_path.unlink(missing_ok=True)

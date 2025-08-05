@@ -51,8 +51,11 @@ class EnergyDataPreparer:
             columns_to_join=mfcc_columns_to_join
         )
 
-        # Ensure only the required features are returned, in the correct order
-        return prepared_df[model_features]
+        columns_to_return = model_features + [Header.UUID.value]
+
+        final_columns = list(dict.fromkeys(columns_to_return))
+
+        return prepared_df[final_columns]
 
     def _merge_with_mfcc_data(self, main_df: pd.DataFrame, columns_to_join: List[str]) -> pd.DataFrame:
         """Merges a dataframe with the stored MFCC data on the UUID index."""
@@ -76,7 +79,6 @@ class EnergyDataPreparer:
         main_df_indexed = main_df.set_index(Header.UUID.value)
         merged_df = main_df_indexed.join(mfcc_df_filtered, how='left')
 
-        # Add columns for missing features and fill with NA
         for col in missing_columns:
             merged_df[col] = pd.NA
 

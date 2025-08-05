@@ -18,9 +18,20 @@ TO_CHECK = [
     r"W:\media\music\[02] organized\[01] hq\OST\Path of Exile (Original Game Soundtrack)\30 High Templar Avarius.flac",
     r"W:\media\music\[02] organized\[01] hq\OST\Path of Exile (Original Game Soundtrack)\08 Merveil.flac",
     r"W:\media\music\[02] organized\[01] hq\Reggae\Damian Marley\Stony Hill (Explicit)\03 Damian “Jr. Gong” Marley - Nail Pon Cross.flac",
+    r"W:\media\music\[02] organized\[01] hq\Classical\Ludovico Einaudi\Elegy For The Arctic\01 Elegy for the Arctic.flac",
     r"W:\media\music\[02] organized\[02] lq\Ambient\Tenebrae Aeternae\01 - myNoise - Ora Pro Nobis.flac",
     r"W:\media\music\[02] organized\[02] lq\Ambient\Tenebrae Aeternae\07 - myNoise - Homini Lupus.flac",
-    r"W:\media\music\[02] organized\[01] hq\Classical\Ludovico Einaudi\Elegy For The Arctic\01 Elegy for the Arctic.flac"
+    r"W:\media\music\[02] organized\[02] lq\Ambient\Tenebrae Aeternae\02 - myNoise - Lux Noctis.flac",
+    r"W:\media\music\[02] organized\[02] lq\Ambient\Tenebrae Aeternae\03 - myNoise - Verbum Maleficum.flac",
+    r"W:\media\music\[02] organized\[02] lq\Ambient\Tenebrae Aeternae\04 - myNoise - Tenebrarum Tempora.flac",
+    r"W:\media\music\[02] organized\[02] lq\Ambient\Tenebrae Aeternae\05 - myNoise - Pax Animis Nostris.flac",
+    r"W:\media\music\[02] organized\[02] lq\Ambient\Tenebrae Aeternae\06 - myNoise - Vagabunda Anima.flac",
+    r"W:\media\music\[02] organized\[02] lq\Ambient\Tenebrae Aeternae\08 - myNoise - Maledictus Spiritus.flac",
+    r"W:\media\music\[02] organized\[02] lq\Ambient\Tenebrae Aeternae\09 - myNoise - Omen Malum.flac",
+    r"W:\media\music\[02] organized\[02] lq\Ambient\Tenebrae Aeternae\10 - myNoise - Inquietus Somnus.flac",
+    r"W:\media\music\[02] organized\[02] lq\Ambient\Tenebrae Aeternae\11 - myNoise - Temporis Infinitas.flac",
+    r"W:\media\music\[02] organized\[02] lq\Ambient\Tenebrae Aeternae\12 - myNoise - Terribile Monstrum.flac",
+
 ]
 
 class EnergyCalculationTest(TestInterface):

@@ -39,16 +39,22 @@ class DefaultAudioEnergyPredictor:
         return round(float(np.clip(final_energy, 1.0, 10.0)), 1)
 
     def calculate_ratings_for_df(self, df_to_process: pd.DataFrame, target_column: Header) -> pd.DataFrame:
+        """
+        Calculates energy ratings and returns a DataFrame containing the
+        UUID and the calculated energy.
+        """
         if self._model is None:
             raise Exception("Training model not yet set. Make sure to call set_model before calculating energy.")
 
         if df_to_process.empty:
-            return df_to_process
+            return pd.DataFrame(columns=[Header.UUID.value, target_column.value])
+
+        if Header.UUID.value not in df_to_process.columns:
+            raise KeyError(f"Input DataFrame to 'calculate_ratings_for_df' must contain '{Header.UUID.value}' column.")
 
         df_copy = df_to_process.copy()
 
         features_df = df_copy[self._model.feature_names]
-
 
         scaled_features = self._model.scaler.transform(features_df)
         pc1_scores = self._model.pca.transform(scaled_features)
@@ -60,6 +66,9 @@ class DefaultAudioEnergyPredictor:
 
         final_energies = np.clip(final_energies, 1.0, 10.0).round(1)
 
-        df_copy[target_column.value] = final_energies
+        result_df = pd.DataFrame({
+            Header.UUID.value: df_copy[Header.UUID.value],
+            target_column.value: final_energies
+        })
 
-        return df_copy
+        return result_df
