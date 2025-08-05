@@ -3,12 +3,11 @@ from pathlib import Path
 import numpy as np
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.core.cacheing.rms import compute_linear_rms, \
-    compute_linear_rms_cached
-from track_analysis.components.track_analysis.features.core.cacheing.shared import MEMORY
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.rms import compute_linear_rms_cached
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.shared import MEMORY
 
 
-@MEMORY.cache(ignore=["harmonic", "full_audio"])
+@MEMORY.cache(identifier_arg="file_path", ignore=["harmonic", "full_audio"])
 def compute_harmonicity(
         *,
         file_path:     Path,

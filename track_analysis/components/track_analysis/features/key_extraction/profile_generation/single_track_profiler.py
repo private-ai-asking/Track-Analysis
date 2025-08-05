@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import List
 
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
-from track_analysis.components.track_analysis.features.core.cacheing.beat import BeatDetector
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.beat import BeatDetector
 from track_analysis.components.track_analysis.features.key_extraction.core.parsing.parse_label import parse_label
 from track_analysis.components.track_analysis.features.key_extraction.feature.vector.feature_vector_extractor import \
     FeatureVectorExtractor

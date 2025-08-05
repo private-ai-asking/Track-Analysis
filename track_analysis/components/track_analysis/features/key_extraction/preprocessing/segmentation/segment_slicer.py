@@ -5,7 +5,7 @@ import numpy as np
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import VERBOSE
-from track_analysis.components.track_analysis.features.core.cacheing.onset_envelope import OnsetStrengthExtractor
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.onset_envelope import OnsetStrengthExtractor
 from track_analysis.components.track_analysis.features.key_extraction.preprocessing.segmentation.model.segmentation_result import \
     SegmentationResult
 

@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 
-from track_analysis.components.track_analysis.features.core.cacheing.shared import MEMORY
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.shared import MEMORY
 
 
 def compute_linear_rms(
@@ -32,7 +32,7 @@ def compute_linear_rms(
     rms_vals = np.sqrt(np.mean(windows**2, axis=1))
     return rms_vals
 
-@MEMORY.cache(ignore=["audio"])
+@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
 def compute_linear_rms_cached(
         *,
         file_path:     Path,

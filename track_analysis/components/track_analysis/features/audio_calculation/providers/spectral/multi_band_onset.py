@@ -6,7 +6,7 @@ from track_analysis.components.track_analysis.features.audio_calculation.audio_d
     AudioDataFeature
 from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature_provider import \
     AudioDataFeatureProvider
-from track_analysis.components.track_analysis.features.core.cacheing.multi_band_onset import OnsetStrengthMultiExtractor
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.multi_band_onset import OnsetStrengthMultiExtractor
 
 
 class MultiBandOnsetEnvelopeProvider(AudioDataFeatureProvider):

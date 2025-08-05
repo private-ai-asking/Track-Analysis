@@ -3,7 +3,7 @@ from typing import Dict, Any, List
 from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature import AudioDataFeature
 from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature_provider import \
     AudioDataFeatureProvider
-from track_analysis.components.track_analysis.features.core.cacheing.beat import BeatDetector
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.beat import BeatDetector
 
 
 class TempoProvider(AudioDataFeatureProvider):

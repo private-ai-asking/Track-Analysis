@@ -5,11 +5,11 @@ from typing import Dict, Tuple, cast
 
 # Assuming these are placeholder imports for a larger project structure.
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.core.cacheing.shared import MEMORY
-from track_analysis.components.track_analysis.features.core.cacheing.magnitude_spectogram import MagnitudeSpectrogramExtractor
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.shared import MEMORY
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.magnitude_spectogram import MagnitudeSpectrogramExtractor
 
 
-@MEMORY.cache(ignore=["audio", "magnitude_extractor"])
+@MEMORY.cache(identifier_arg="file_path", ignore=["audio", "magnitude_extractor"])
 def compute_onset_strengths_multi(
         *,
         file_path: Path,
@@ -58,7 +58,7 @@ def compute_onset_strengths_multi(
     return {band_names[idx]: onset_envs[idx] for idx in range(len(band_names))}
 
 
-@MEMORY.cache(ignore=["audio", "magnitude_extractor"])
+@MEMORY.cache(identifier_arg="file_path", ignore=["audio", "magnitude_extractor"])
 def compute_onset_peaks_multi(
         *,
         file_path: Path,

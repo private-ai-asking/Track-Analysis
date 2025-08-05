@@ -4,7 +4,7 @@ from typing import List, Tuple, Optional, Dict
 from track_analysis.components.md_common_python.py_common.algorithms.sequence.run_length_merger import StateRun
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
-from track_analysis.components.track_analysis.features.core.cacheing.beat import BeatDetector
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.beat import BeatDetector
 from track_analysis.components.track_analysis.features.key_extraction.core.config.key_progression_config import \
     KeyProgressionConfig
 from track_analysis.components.track_analysis.features.key_extraction.core.extraction.global_key_extractor import \

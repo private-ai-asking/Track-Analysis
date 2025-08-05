@@ -3,10 +3,10 @@ import numpy as np
 import librosa.effects
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.core.cacheing.shared import MEMORY
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.shared import MEMORY
 
 
-@MEMORY.cache(ignore=["audio"])
+@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
 def _compute_hpss(
         *,
         file_path: Path,
@@ -21,17 +21,8 @@ def _compute_hpss(
     """
     Cached HPSS computation:
     - Cache key: (file_path, start_sample, end_sample, hop_length, n_fft, kernel_size, margin)
-    - `audio` is ignored in the cache key, but used for in-memory slicing if provided.
     """
-    if audio is None:
-        length = end_sample - start_sample
-        audio = np.memmap(
-            str(file_path), dtype="float32", mode="r",
-            offset=start_sample * 4,
-            shape=(length,)
-        )
-    else:
-        audio = audio[start_sample:end_sample]
+    audio = audio[start_sample:end_sample]
 
     # Perform harmonic-percussive source separation
     if margin is not None:
@@ -48,6 +39,7 @@ def _compute_hpss(
             win_length=None,
             power=2
         )
+
     return harmonic, percussive
 
 

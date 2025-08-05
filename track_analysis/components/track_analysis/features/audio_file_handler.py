@@ -12,7 +12,7 @@ from track_analysis.components.track_analysis.apis.ffprobe_client import FFprobe
 from track_analysis.components.track_analysis.features.audio_calculation.utils.cacheing.max_rate_cache import \
     MaxRateCache
 from track_analysis.components.track_analysis.features.audio_calculation.utils.file_utils import FileUtils
-from track_analysis.components.track_analysis.features.core.cacheing.beat import BeatDetector
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.beat import BeatDetector
 from track_analysis.components.track_analysis.util.audio_format_converter import AudioFormatConverter
 
 

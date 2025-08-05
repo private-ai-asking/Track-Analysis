@@ -1,24 +1,27 @@
 from pathlib import Path
-
 import numpy as np
-from librosa.feature import zero_crossing_rate
+from librosa.feature import spectral_rolloff
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.core.cacheing.shared import MEMORY
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.shared import MEMORY
 
 
-@MEMORY.cache(ignore=["audio"])
-def compute_zero_crossing_rate(
+@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
+def compute_spectral_rolloff(
         *,
         file_path:     Path,
         start_sample:  int,
         end_sample:    int,
         sample_rate:   int,
         hop_length:    int,
+        roll_percent:  float = 0.85,
         audio:         np.ndarray = None,
 ) -> np.ndarray:
     """
-    Returns the zero-crossing rate for the given range.
+    Returns the spectral rolloff for the given range.
+    Caches on (file_path, start_sample, end_sample, sample_rate, hop_length, roll_percent) only.
+
+    If `audio` is provided, slices that array. Otherwise memory-maps the file.
     """
     if audio is None:
         audio = np.memmap(
@@ -31,13 +34,15 @@ def compute_zero_crossing_rate(
     else:
         audio = audio[start_sample:end_sample]
 
-    return zero_crossing_rate(
+    return spectral_rolloff(
         y=audio,
-        hop_length=hop_length
+        sr=sample_rate,
+        hop_length=hop_length,
+        roll_percent=roll_percent,
     )
 
 
-class ZeroCrossingRateExtractor:
+class SpectralRolloffExtractor:
     def __init__(self, logger: HoornLogger):
         self._logger    = logger
         self._separator = self.__class__.__name__
@@ -49,20 +54,22 @@ class ZeroCrossingRateExtractor:
             end_sample:    int,
             sample_rate:   int,
             hop_length:    int,
+            roll_percent:  float = 0.85,
             audio:         np.ndarray = None,
     ) -> np.ndarray:
         """
-        Extracts zero-crossing rate envelope, cached.
+        Returns the spectral rolloff for the given range.
         """
         self._logger.debug(
-            f"ZeroCrossingRateExtractor: {file_path.name}[{start_sample}:{end_sample}]",
+            f"Extracting spectral rolloff for {file_path.name}[{start_sample}:{end_sample}]",
             separator=self._separator,
         )
-        return compute_zero_crossing_rate(
+        return compute_spectral_rolloff(
             file_path=file_path,
             start_sample=start_sample,
             end_sample=end_sample,
             sample_rate=sample_rate,
             hop_length=hop_length,
+            roll_percent=roll_percent,
             audio=audio,
         )

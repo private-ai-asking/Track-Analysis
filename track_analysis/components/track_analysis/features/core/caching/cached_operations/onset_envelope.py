@@ -3,10 +3,10 @@ import numpy as np
 import librosa
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.core.cacheing.shared import MEMORY
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.shared import MEMORY
 
 
-@MEMORY.cache(ignore=["audio"])
+@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
 def compute_onset_strengths(
         *,
         file_path:     Path,
@@ -40,7 +40,7 @@ def compute_onset_strengths(
     )
 
 
-@MEMORY.cache(ignore=["audio"])
+@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
 def compute_onset_peaks(
         *,
         file_path:     Path,
@@ -72,7 +72,7 @@ def compute_onset_peaks(
     return peaks
 
 
-@MEMORY.cache(ignore=["audio"])
+@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
 def compute_dynamic_tempo(
         *,
         file_path: Path,

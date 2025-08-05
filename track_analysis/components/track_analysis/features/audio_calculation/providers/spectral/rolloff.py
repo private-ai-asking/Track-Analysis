@@ -6,7 +6,7 @@ from track_analysis.components.track_analysis.features.audio_calculation.audio_d
     AudioDataFeatureProvider
 from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature import \
     AudioDataFeature
-from track_analysis.components.track_analysis.features.core.cacheing.spectral_rolloff import SpectralRolloffExtractor
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.spectral_rolloff import SpectralRolloffExtractor
 
 
 class SpectralRolloffProvider(AudioDataFeatureProvider):

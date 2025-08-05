@@ -5,10 +5,10 @@ import numpy as np
 import librosa
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.core.cacheing.shared import MEMORY
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.shared import MEMORY
 
 
-@MEMORY.cache(ignore=["spectral_data"])
+@MEMORY.cache(identifier_arg="file_path", ignore=["spectral_data"])
 def _compute_spectral_peaks(
         *,
         file_path: Path,

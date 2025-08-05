@@ -8,7 +8,7 @@ from track_analysis.components.track_analysis.features.audio_calculation.audio_d
     AudioDataFeature
 from track_analysis.components.track_analysis.features.audio_calculation.providers.helpers.mfcc_helper import \
     MFCCHelper
-from track_analysis.components.track_analysis.features.core.cacheing.mfcc import MfccExtractor
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.mfcc import MfccExtractor
 
 
 class MfccProvider(AudioDataFeatureProvider):

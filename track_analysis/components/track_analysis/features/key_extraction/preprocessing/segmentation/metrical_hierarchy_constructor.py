@@ -1,33 +1,12 @@
-import os
 from pathlib import Path
 from typing import List, Tuple
+
 import numpy as np
-from joblib import Memory
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import VERBOSE
-
-def _generate_subbeat_events(
-        subdivisions: int,
-        beat_times: np.ndarray,
-        beat_frames: np.ndarray) -> List[Tuple[float, int]]:
-    events: List[Tuple[float, int]] = []
-
-    for i in range(beat_times.size - 1):
-        t0, t1 = beat_times[i], beat_times[i + 1]
-        f0, f1 = beat_frames[i], beat_frames[i + 1]
-        interval = t1 - t0
-        frame_span = f1 - f0
-
-        for sub in range(subdivisions):
-            frac = sub / subdivisions
-            time_point = t0 + frac * interval
-            frame_point = int(f0 + frac * frame_span)
-            events.append((time_point, frame_point))  # type: ignore
-
-    # include the final beat
-    events.append((float(beat_times[-1]), int(beat_frames[-1])))
-    return sorted(events, key=lambda evt: evt[0])
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.metrical_hierarcy_construction import \
+    generate_subbeat_events
 
 
 class MetricalHierarchyConstructor:
@@ -42,17 +21,14 @@ class MetricalHierarchyConstructor:
             subdivisions_per_beat: int,
             logger: HoornLogger,
             separator: str,
-            cache_dir: Path
     ) -> None:
         self._subdivisions = subdivisions_per_beat
         self._logger = logger
         self._separator = separator
 
-        os.makedirs(cache_dir, exist_ok=True)
-        self._compute = Memory(cache_dir, verbose=0).cache(_generate_subbeat_events)
-
     def construct_hierarchy(
             self,
+            file_path: Path,
             beat_times: np.ndarray,
             beat_frames: np.ndarray,
             beats_per_segment: int,
@@ -65,7 +41,7 @@ class MetricalHierarchyConstructor:
         events_per_bar = self._calculate_events_per_segment(beats_per_segment)
         top_divisors = self._get_top_divisors(events_per_bar)
 
-        events = self._generate_subbeat_events(beat_times, beat_frames)
+        events = self._generate_subbeat_events(file_path, beat_times, beat_frames)
         levels, event_times = self._assign_event_levels(
             events, events_per_bar, top_divisors
         )
@@ -107,6 +83,7 @@ class MetricalHierarchyConstructor:
 
     def _generate_subbeat_events(
             self,
+            file_path: Path,
             beat_times: np.ndarray,
             beat_frames: np.ndarray,
     ) -> List[Tuple[float, int]]:
@@ -114,7 +91,7 @@ class MetricalHierarchyConstructor:
         Linearly interpolate times and frames between beats for subdivisions.
         Returns a sorted list of (time, frame) tuples for each sub-beat event.
         """
-        return self._compute(self._subdivisions, beat_times, beat_frames)
+        return generate_subbeat_events(file_path, self._subdivisions, beat_times, beat_frames)
 
     def _assign_event_levels(
             self,

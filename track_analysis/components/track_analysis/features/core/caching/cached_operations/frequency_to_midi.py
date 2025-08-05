@@ -4,10 +4,10 @@ import numpy as np
 import librosa
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.core.cacheing.shared import MEMORY
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.shared import MEMORY
 
 
-@MEMORY.cache(ignore=["frequencies", "magnitudes"])
+@MEMORY.cache(identifier_arg="file_path", ignore=["frequencies", "magnitudes"])
 def _convert_to_midi(
         *,
         file_path: Path,

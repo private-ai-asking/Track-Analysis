@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 
-from track_analysis.components.track_analysis.features.core.cacheing.rms import compute_linear_rms_cached
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.rms import compute_linear_rms_cached
 
 
 @dataclass(frozen=True)

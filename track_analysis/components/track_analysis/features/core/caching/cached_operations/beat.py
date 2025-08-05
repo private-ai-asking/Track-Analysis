@@ -5,11 +5,11 @@ import numpy as np
 import librosa.beat
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.core.cacheing.harmonic import HarmonicExtractor
-from track_analysis.components.track_analysis.features.core.cacheing.shared import MEMORY
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.harmonic import HarmonicExtractor
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.shared import MEMORY
 
 
-@MEMORY.cache(ignore=["audio", "onset_envelope", "tempo"])
+@MEMORY.cache(identifier_arg="file_path", ignore=["audio", "onset_envelope", "tempo"])
 def _compute_beat_track(
         *,
         file_path: Path,
@@ -25,16 +25,7 @@ def _compute_beat_track(
     Cached beat tracking:
     - Cache key: (file_path, start_sample, end_sample, sample_rate)
     """
-    # Slice or memmap the audio segment
-    if audio is None:
-        length = end_sample - start_sample
-        audio = np.memmap(
-            str(file_path), dtype="float32", mode="r",
-            offset=start_sample * 4,
-            shape=(length,)
-        )
-    else:
-        audio = audio[start_sample:end_sample]
+    audio = audio[start_sample:end_sample]
 
     # Run beat tracking
     tempo, frames = librosa.beat.beat_track(

@@ -8,16 +8,16 @@ from matplotlib.colors import ListedColormap
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import EXPENSIVE_CACHE_DIRECTORY
-from track_analysis.components.track_analysis.features.core.cacheing.frequency_to_midi import FrequencyToMidi
-from track_analysis.components.track_analysis.features.core.cacheing.harmonic import HarmonicExtractor
-from track_analysis.components.track_analysis.features.core.cacheing.magnitude_spectogram import \
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.frequency_to_midi import FrequencyToMidi
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.harmonic import HarmonicExtractor
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.magnitude_spectogram import \
     MagnitudeSpectrogramExtractor
-from track_analysis.components.track_analysis.features.core.cacheing.midi_to_pitch import MidiToPitchClassesConverter
-from track_analysis.components.track_analysis.features.core.cacheing.pitch_class_cleaner import \
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.midi_to_pitch import MidiToPitchClassesConverter
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.pitch_class_cleaner import \
     NormalizedPitchClassesCleaner
-from track_analysis.components.track_analysis.features.core.cacheing.pitch_class_normalizer import \
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.pitch_class_normalizer import \
     PitchClassesNormalizer
-from track_analysis.components.track_analysis.features.core.cacheing.spectral_peak import SpectralPeakExtractor
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.spectral_peak import SpectralPeakExtractor
 from track_analysis.components.track_analysis.features.key_extraction.feature.visualization.chroma_visualizer import \
     ChromaVisualizer
 from track_analysis.components.track_analysis.features.key_extraction.feature.visualization.model.config import \
@@ -65,9 +65,9 @@ class NoteExtractor:
         harmonic_spec = self._magnitude_spec_extractor.extract(file_path=file_path, audio=harmonic, start_sample=0, end_sample=harmonic.shape[0])
         frequencies, magnitudes = self._spectral_peak_extractor.extract_spectral_peaks(file_path=file_path, spectral_data=harmonic_spec, start_sample=0, end_sample=harmonic_spec.shape[0], sample_rate=sample_rate)
         midi = self._frequency_to_midi_converter.convert(file_path=file_path, start_sample=0, end_sample=frequencies.shape[0], frequencies=frequencies, magnitudes=magnitudes, sample_rate=sample_rate)
-        pitch_classes = self._midi_to_pitch_classes_converter.convert(midi)
-        normalized = self._pitch_classes_normalizer.normalize_pitch_classes(pitch_classes)
-        cleaned_binary, cleaned_chroma = self._normalized_pitch_classes_cleaner.clean(normalized, audio_samples_raw, self._n_fft, self._hop_length_samples, sample_rate)
+        pitch_classes = self._midi_to_pitch_classes_converter.convert(file_path, midi)
+        normalized = self._pitch_classes_normalizer.normalize_pitch_classes(file_path, pitch_classes)
+        cleaned_binary, cleaned_chroma = self._normalized_pitch_classes_cleaner.clean(file_path, normalized, audio_samples_raw, self._n_fft, self._hop_length_samples, sample_rate)
         note_events = self._note_event_builder.build_note_events(cleaned_binary, midi, self._hop_length_samples, sample_rate)
 
         if visualize:

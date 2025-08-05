@@ -4,11 +4,11 @@ import numpy as np
 from librosa.feature import mfcc
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.core.cacheing.shared import MEMORY
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.shared import MEMORY
 
 
-@MEMORY.cache(ignore=["audio"])
-def compute_mfccs(
+@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
+def _compute_mfccs(
         *,
         file_path:     Path,
         start_sample:  int,
@@ -20,19 +20,8 @@ def compute_mfccs(
     """
     Returns the Mel-frequency cepstral coefficients (MFCCs) for the given range.
     Caches on (file_path, start_sample, end_sample, sample_rate, n_mfcc) only.
-
-    If `audio` is provided, slices that array. Otherwise memory-maps the file.
     """
-    if audio is None:
-        audio = np.memmap(
-            str(file_path),
-            dtype="float32",
-            mode="r",
-            offset=start_sample * 4,
-            shape=(end_sample - start_sample,),
-        )
-    else:
-        audio = audio[start_sample:end_sample]
+    audio = audio[start_sample:end_sample]
 
     return mfcc(
         y=audio,
@@ -62,7 +51,7 @@ class MfccExtractor:
             f"Extracting MFCCs for {file_path.name}[{start_sample}:{end_sample}]",
             separator=self._separator,
         )
-        return compute_mfccs(
+        return _compute_mfccs(
             file_path=file_path,
             start_sample=start_sample,
             end_sample=end_sample,

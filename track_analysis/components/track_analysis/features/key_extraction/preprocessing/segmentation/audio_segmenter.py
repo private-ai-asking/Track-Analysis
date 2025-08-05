@@ -19,7 +19,6 @@ class AudioSegmenter:
     def __init__(
             self,
             logger: HoornLogger,
-            cache_dir: Path,
             hop_length_samples: int = 512,
             subdivisions_per_beat: int = 2,
             beats_per_segment: int = 8
@@ -27,7 +26,7 @@ class AudioSegmenter:
         self._logger = logger
         self._separator = "AudioSegmenter"
         self._beats_per_segment: int = beats_per_segment
-        self._hierarchy = MetricalHierarchyConstructor(subdivisions_per_beat, logger, self._separator, cache_dir / "hierarchy construction")
+        self._hierarchy = MetricalHierarchyConstructor(subdivisions_per_beat, logger, self._separator)
         self._slicer = SegmentSlicer(logger, self._separator)
 
         self._hop_length_samples = hop_length_samples
@@ -65,7 +64,7 @@ class AudioSegmenter:
             return None
 
         level_array, event_times = self._hierarchy.construct_hierarchy(
-            beat_times, beat_frames, self._beats_per_segment
+            audio_path, beat_times, beat_frames, self._beats_per_segment
         )
         strong_times = [t for t, lvl in zip(event_times, level_array) if lvl >= min_segment_level]
 

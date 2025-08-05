@@ -4,7 +4,7 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature import AudioDataFeature
 from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature_provider import \
     AudioDataFeatureProvider
-from track_analysis.components.track_analysis.features.core.cacheing.onset_envelope import OnsetStrengthExtractor
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.onset_envelope import OnsetStrengthExtractor
 
 
 class OnsetPeaksProvider(AudioDataFeatureProvider):

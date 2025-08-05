@@ -63,7 +63,6 @@ class LocalKeyEstimator:
         self._note_extractor = NoteExtractor(logger, hop_length_samples=config.hop_length)
         self._audio_segmenter = AudioSegmenter(
             logger,
-            config.cache_dir,
             hop_length_samples=config.hop_length,
             subdivisions_per_beat=config.subdivisions_per_beat,
         )

@@ -3,7 +3,7 @@ from typing import Tuple
 
 import numpy as np
 
-from track_analysis.components.track_analysis.features.core.cacheing.mfcc import MfccExtractor
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.mfcc import MfccExtractor
 
 
 class MFCCHelper:
@@ -14,7 +14,7 @@ class MFCCHelper:
                   audio_path: Path,
                   audio: np.ndarray,
                   sample_rate: int) -> Tuple[np.ndarray, np.ndarray]:
-        mffccs = self._mfcc_extractor.extract(file_path=audio_path, start_sample=0, end_sample=len(audio), sample_rate=sample_rate, n_mfcc=20)
+        mffccs = self._mfcc_extractor.extract(file_path=audio_path, start_sample=0, end_sample=len(audio), sample_rate=sample_rate, n_mfcc=20, audio=audio)
 
         mffcc_means = np.mean(mffccs, axis=1)
         mfcc_stds = np.std(mffccs, axis=1)

@@ -8,7 +8,7 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
-from track_analysis.components.track_analysis.features.core.cacheing.beat import BeatDetector
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.beat import BeatDetector
 from track_analysis.components.track_analysis.features.key_extraction.feature.lof.lof_feature_transformer import (
     LOFFeatureTransformer,
 )

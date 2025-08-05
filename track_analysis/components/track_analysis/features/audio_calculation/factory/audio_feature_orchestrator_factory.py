@@ -68,10 +68,10 @@ from track_analysis.components.track_analysis.features.audio_calculation.provide
 from track_analysis.components.track_analysis.features.audio_calculation.utils.cacheing.max_rate_cache import \
     MaxRateCache
 from track_analysis.components.track_analysis.features.audio_calculation.utils.file_utils import FileUtils
-from track_analysis.components.track_analysis.features.core.cacheing.beat import BeatDetector
-from track_analysis.components.track_analysis.features.core.cacheing.magnitude_spectogram import \
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.beat import BeatDetector
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.magnitude_spectogram import \
     MagnitudeSpectrogramExtractor
-from track_analysis.components.track_analysis.features.core.cacheing.multi_band_onset import OnsetStrengthMultiExtractor
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.multi_band_onset import OnsetStrengthMultiExtractor
 
 
 class AudioFeatureOrchestratorFactory:
