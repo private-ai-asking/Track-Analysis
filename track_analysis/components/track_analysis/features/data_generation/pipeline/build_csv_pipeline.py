@@ -1,27 +1,18 @@
 import dataclasses
-from typing import List
 
 from track_analysis.components.md_common_python.py_common.handlers import FileHandler
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import AbPipeline
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
-from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature import AudioDataFeature
 from track_analysis.components.track_analysis.features.audio_calculation.builders.key_data_frames_builder import \
     KeyDataFramesBuilder
 from track_analysis.components.track_analysis.features.audio_calculation.builders.metadata_df_builder import \
     MetadataDFBuilder
-from track_analysis.components.track_analysis.features.audio_calculation.factory.audio_feature_orchestrator_factory import \
-    AudioFeatureOrchestratorFactory
 from track_analysis.components.track_analysis.features.audio_calculation.feature_to_header_mapping import \
     FEATURE_TO_HEADER_MAPPING
 from track_analysis.components.track_analysis.features.audio_calculation.mappers.results_mapper import ResultsMapper
-from track_analysis.components.track_analysis.features.audio_calculation.processors.key_feature_processor import \
-    KeyFeatureProcessor
-from track_analysis.components.track_analysis.features.audio_calculation.processors.main_feature_processor import \
-    MainFeatureProcessor
 from track_analysis.components.track_analysis.features.audio_calculation.utils.cacheing.max_rate_cache import \
     MaxRateCache
-from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.batch_process_new_tracks import \
@@ -36,8 +27,8 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
     GetAudioFiles
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.get_invalid_cache import \
     HandleInvalidCache
-# from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.handle_rows_with_missing_data import \
-#     HandleRowsWithMissingData
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.handle_rows_with_missing_data import \
+    FillMissingHeadersPipe
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.load_cache import LoadCache
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.load_energy_calculator import \
     LoadEnergyCalculator
@@ -47,7 +38,6 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.preprocess_data import \
     PreprocessData
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.redo_headers import RedoHeaders
-# from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.redo_headers import RedoHeaders
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.remove_invalid_cached_entries import \
     RemoveInvalidCachedEntries
 from track_analysis.components.track_analysis.features.data_generation.util.key_extractor import KeyExtractor
@@ -119,7 +109,7 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         ))
         self._add_step(EnergyLevelCalculatorPipe(self._logger))
         self._add_step(RemoveInvalidCachedEntries(self._logger))
-        # self._add_step(HandleRowsWithMissingData(self._logger, self._audio_file_handler))
+        self._add_step(FillMissingHeadersPipe(self._logger))
         self._add_step(RedoHeaders(self._logger))
         self._add_step(PreprocessData(self._logger, self._string_utils))
         self._add_step(MakeCSV(self._logger))
