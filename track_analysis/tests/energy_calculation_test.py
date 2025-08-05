@@ -5,12 +5,12 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.testing import TestInterface
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.configurations.default import \
+from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.configuration.default import \
     DEFAULT_ENERGY_MODEL_CONFIG
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_calculator import \
     EnergyCalculator
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_calculator_factory import \
-    EnergyCalculatorFactory, Calculator
+from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_factory import \
+    EnergyFactory, Implementation
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 
 TO_CHECK = [
@@ -28,25 +28,36 @@ class EnergyCalculationTest(TestInterface):
         super().__init__(logger, is_child=True)
         self._logger = logger
         self._separator = self.__class__.__name__
-        self._cache = pd.read_csv(main_data_path)
+        self._main_data = pd.read_csv(main_data_path)
         self._mfcc_data = pd.read_csv(mfcc_data_path)
 
-        self._energy_calculator_factory: EnergyCalculatorFactory = EnergyCalculatorFactory(self._logger)
-        energy_calculator = self._energy_calculator_factory.get_calculator(Calculator.Default, self._mfcc_data)
+        self._energy_factory = EnergyFactory(self._logger, self._mfcc_data)
+        manager = self._energy_factory.create_lifecycle_manager(Implementation.Default)
+        if manager is None:
+            raise RuntimeError("Failed to create the EnergyModelLifecycleManager.")
 
         if not train_model:
-            model = energy_calculator.load(DEFAULT_ENERGY_MODEL_CONFIG)
-            energy_calculator.set_model(model)
+            self._logger.info("Loading existing energy model...", separator=self._separator)
+            model = manager.load_model(DEFAULT_ENERGY_MODEL_CONFIG)
+            if not manager.validate_model(model, self._main_data):
+                self._logger.warning("Loaded model is stale or invalid. Consider retraining.", separator=self._separator)
         else:
-            model, = energy_calculator.train_and_persist(DEFAULT_ENERGY_MODEL_CONFIG, self._cache)
-            energy_calculator.set_model(model)
+            self._logger.info("Training new energy model...", separator=self._separator)
+            model = manager.train_and_persist_model(DEFAULT_ENERGY_MODEL_CONFIG, self._main_data)
+
+        self._energy_calculator: EnergyCalculator | None = None
+        if model:
+            self._logger.info("Creating energy calculator with the configured model.", separator=self._separator)
+            self._energy_calculator = self._energy_factory.create_calculator(Implementation.Default, model)
+        else:
+            self._logger.error("Could not load or train a valid energy model. Calculator will be unavailable.", separator=self._separator)
 
         self._calculators: Dict[str, EnergyCalculator] = {
-            "Gemini  ": energy_calculator
+            "Gemini  ": self._energy_calculator
         }
 
     def test(self) -> None:
-        df = self._cache
+        df = self._main_data
         mask = df[Header.Audio_Path.value].isin(TO_CHECK)
         filtered = df[mask]
         for _, row in filtered.iterrows():
