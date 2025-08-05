@@ -1,6 +1,9 @@
+import time
 from enum import Enum
 from typing import List, Dict, Any, Union, Set
 
+from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
 from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature import AudioDataFeature
 from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature_provider import (
     AudioDataFeatureProvider,
@@ -10,8 +13,11 @@ from track_analysis.components.track_analysis.features.audio_calculation.provide
 
 
 class AudioDataFeatureProviderOrchestrator:
-    def __init__(self, calculators: List[AudioDataFeatureProvider]):
-        self._resolver = DependencyResolver(calculators)
+    def __init__(self, providers: List[AudioDataFeatureProvider], logger: HoornLogger):
+        self._resolver = DependencyResolver(providers)
+        self._logger = logger
+        self._separator = self.__class__.__name__
+        self._time_utils: TimeUtils = TimeUtils()
 
     # --- Execution Methods ---
 
@@ -85,14 +91,24 @@ class AudioDataFeatureProviderOrchestrator:
 
     def process_track(
             self,
+            track_idx: int,
             initial_data: Dict[AudioDataFeature, Any],
             features_to_calculate: List[AudioDataFeature],
     ) -> Dict[AudioDataFeature, Any]:
         """
         Processes a single track, calculating only the requested metrics and their dependencies.
         """
+        start_time = time.time()
+
+        self._logger.debug(f"Processing track: {track_idx}", separator=self._separator)
+
+        self._logger.trace(f"Processing track [{track_idx}]... getting execution plan.", separator=self._separator)
         execution_plan = self._resolver.get_execution_plan(features_to_calculate)
+
+        self._logger.trace(f"Processing track [{track_idx}]... validating initial data.", separator=self._separator)
         self._validate_initial_data(initial_data, execution_plan)
+
+        self._logger.trace(f"Processing track [{track_idx}]... executing plan.", separator=self._separator)
         all_results = self._execute_plan(initial_data, execution_plan)
 
         # Filter the final dictionary to return only what the user asked for, plus initial data.
@@ -100,5 +116,10 @@ class AudioDataFeatureProviderOrchestrator:
         for feature in features_to_calculate:
             if feature in all_results:
                 final_results[feature] = all_results[feature]
+
+        end_time = time.time()
+        elapsed = end_time - start_time
+
+        self._logger.debug(f"Finished processing track {track_idx} in: {self._time_utils.format_time(elapsed, round_digits=2)}.", separator=self._separator)
 
         return final_results

@@ -1,19 +1,16 @@
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict
 
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature import AudioDataFeature
 from track_analysis.components.track_analysis.features.audio_calculation.factory.audio_feature_orchestrator_factory import \
     AudioFeatureOrchestratorFactory
-from track_analysis.components.track_analysis.features.audio_calculation.feature_to_header_mapping import \
-    FEATURE_TO_HEADER_MAPPING
 from track_analysis.components.track_analysis.features.audio_calculation.processors.key_feature_processor import \
     KeyFeatureProcessor
-from track_analysis.components.track_analysis.features.audio_calculation.processors.sample_feature_processor import \
-    SampleFeatureProcessor
+from track_analysis.components.track_analysis.features.audio_calculation.processors.main_feature_processor import \
+    MainFeatureProcessor
 from track_analysis.components.track_analysis.features.audio_calculation.utils.cacheing.max_rate_cache import \
     MaxRateCache
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
@@ -40,15 +37,17 @@ class CreateProcessors(IPipe):
     def flow(self, data: LibraryDataGenerationPipelineContext) -> LibraryDataGenerationPipelineContext:
         self._logger.trace("Creating processors.", separator=self._separator)
 
-        to_calculate: List[AudioDataFeature] = list(FEATURE_TO_HEADER_MAPPING.keys())
-        to_calculate.extend([AudioDataFeature.MFCC_MEANS, AudioDataFeature.MFCC_STDS])
-
         audio_feature_orchestrator_factory = AudioFeatureOrchestratorFactory(self._logger)
         orchestrator = audio_feature_orchestrator_factory.create_audio_feature_orchestrator(hop_length=self._hop_length, n_fft=self._n_fft, max_rate_cache=self._max_rate_cache, existing_tempo_cache=self._get_existing_tempo_cache(data.loaded_audio_info_cache))
-        sample_processor: SampleFeatureProcessor = SampleFeatureProcessor(orchestrator, to_calculate, self._logger, num_workers=self._num_workers)
+        main_processor: MainFeatureProcessor = MainFeatureProcessor(
+            orchestrator, self._logger,
+            max_io_workers=data.max_new_tracks_per_run,
+            cpu_workers=self._num_workers,
+            adjustment_interval=25
+        )
         key_processor = KeyFeatureProcessor(self._key_extractor, self._logger)
 
-        data.sample_processor = sample_processor
+        data.main_processor = main_processor
         data.key_processor = key_processor
 
         return data

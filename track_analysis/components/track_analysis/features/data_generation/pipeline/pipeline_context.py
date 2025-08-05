@@ -6,8 +6,8 @@ import pydantic
 
 from track_analysis.components.track_analysis.features.audio_calculation.processors.key_feature_processor import \
     KeyFeatureProcessor
-from track_analysis.components.track_analysis.features.audio_calculation.processors.sample_feature_processor import \
-    SampleFeatureProcessor
+from track_analysis.components.track_analysis.features.audio_calculation.processors.main_feature_processor import \
+    MainFeatureProcessor
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_calculator import \
     EnergyCalculator
@@ -31,10 +31,9 @@ class LibraryDataGenerationPipelineContext(pydantic.BaseModel):
     loaded_key_progression_cache: Optional[pd.DataFrame] = None
 
     missing_headers: Optional[Dict[Header, List[str]]] = None
-    refill_headers: Optional[Dict[Header, List[str]]] = None
 
     # Generated Along the Line
-    sample_processor: SampleFeatureProcessor = None
+    main_processor: MainFeatureProcessor = None
     key_processor: KeyFeatureProcessor = None
 
     album_costs: Optional[List[AlbumCostModel]] = []

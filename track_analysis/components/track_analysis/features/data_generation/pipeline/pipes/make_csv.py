@@ -16,6 +16,28 @@ class MakeCSV(IPipe):
     def flow(self, context: LibraryDataGenerationPipelineContext) -> LibraryDataGenerationPipelineContext:
         self._logger.trace("Writing data...", separator=self._separator)
 
+        # --- DEBUGGING CODE TO FIND DUPLICATE COLUMNS ---
+        df1 = context.generated_audio_info
+        df2 = context.loaded_audio_info_cache
+
+        # Use .columns.duplicated() which is the most efficient way to find dupes
+        df1_dupes = df1.columns[df1.columns.duplicated()].tolist()
+        df2_dupes = df2.columns[df2.columns.duplicated()].tolist()
+
+        if df1_dupes:
+            self._logger.error(
+                f"Duplicate columns found in 'generated_audio_info': {df1_dupes}",
+                separator=self._separator
+            )
+        if df2_dupes:
+            self._logger.error(
+                f"Duplicate columns found in 'loaded_audio_info_cache': {df2_dupes}",
+                separator=self._separator
+            )
+
+        if df1_dupes or df2_dupes:
+            raise ValueError("Duplicate columns found. Halting execution. Check logs for details.")
+
         main_df_write = pd.concat([context.generated_audio_info, context.loaded_audio_info_cache], ignore_index=True, sort=True)
         mfcc_df_write = pd.concat([context.generated_mfcc_audio_info, context.loaded_mfcc_info_cache], ignore_index=True, sort=True)
         key_progression_df_to_write = pd.concat([context.generated_key_progression_audio_info, context.loaded_key_progression_cache], ignore_index=True, sort=True)

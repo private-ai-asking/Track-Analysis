@@ -26,6 +26,7 @@ from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRAR
 from track_analysis.components.track_analysis.features.audio_calculation.utils.cacheing.max_rate_cache import \
     MaxRateCache
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
+from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import \
     BuildLibraryDataCSVPipeline, PipelineConfiguration
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
@@ -361,7 +362,7 @@ class App:
 
         # output_path.unlink(missing_ok=True)
 
-        pipeline_config: PipelineConfiguration = PipelineConfiguration(NUM_WORKERS_CPU_HEAVY, NUM_WORKERS_CPU_HEAVY-14, 512, 2048)
+        pipeline_config: PipelineConfiguration = PipelineConfiguration(NUM_WORKERS_CPU_HEAVY-10, 512, 2048)
 
         pipeline = BuildLibraryDataCSVPipeline(
             logger=self._logger,

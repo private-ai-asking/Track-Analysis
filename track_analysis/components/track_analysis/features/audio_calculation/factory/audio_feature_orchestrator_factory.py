@@ -113,4 +113,4 @@ class AudioFeatureOrchestratorFactory:
             DataEfficiencyProvider(file_utils, max_rate_cache)
         ]
 
-        return AudioDataFeatureProviderOrchestrator(all_calculators)
+        return AudioDataFeatureProviderOrchestrator(all_calculators, self._logger)

@@ -27,8 +27,7 @@ class RawAudioInfoProvider(AudioDataFeatureProvider):
             AudioDataFeature.SAMPLE_RATE_KHZ,
             AudioDataFeature.BIT_DEPTH,
             AudioDataFeature.NUM_CHANNELS,
-            AudioDataFeature.FILE_FORMAT,
-            AudioDataFeature.BIT_RATE
+            AudioDataFeature.BIT_RATE,
         ]
 
     def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
@@ -42,7 +41,6 @@ class RawAudioInfoProvider(AudioDataFeatureProvider):
         sample_rate = int(audio_track.sampling_rate) if audio_track.sampling_rate else 0
         bit_depth = float(audio_track.bit_depth) if audio_track.bit_depth else None
         channels = int(audio_track.channel_s) if audio_track.channel_s else 0
-        audio_format = audio_track.format
 
         return {
             AudioDataFeature.DURATION: duration_s,
@@ -51,5 +49,4 @@ class RawAudioInfoProvider(AudioDataFeatureProvider):
             AudioDataFeature.SAMPLE_RATE_KHZ: sample_rate / 1000,
             AudioDataFeature.BIT_DEPTH: bit_depth,
             AudioDataFeature.NUM_CHANNELS: channels,
-            AudioDataFeature.FILE_FORMAT: audio_format,
         }

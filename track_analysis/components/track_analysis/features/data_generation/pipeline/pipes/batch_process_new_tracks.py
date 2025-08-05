@@ -5,16 +5,20 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
+from track_analysis.components.track_analysis.features.audio_calculation.audio_data_feature import AudioDataFeature
 from track_analysis.components.track_analysis.features.audio_calculation.builders.key_data_frames_builder import \
     KeyDataFramesBuilder
 from track_analysis.components.track_analysis.features.audio_calculation.builders.metadata_df_builder import \
     MetadataDFBuilder
+from track_analysis.components.track_analysis.features.audio_calculation.feature_to_header_mapping import \
+    FEATURE_TO_HEADER_MAPPING
 from track_analysis.components.track_analysis.features.audio_calculation.mappers.results_mapper import ResultsMapper
 from track_analysis.components.track_analysis.features.audio_calculation.processors.key_feature_processor import \
     KeyFeatureProcessor
-from track_analysis.components.track_analysis.features.audio_calculation.processors.sample_feature_processor import \
-    SampleFeatureProcessor
+from track_analysis.components.track_analysis.features.audio_calculation.processors.main_feature_processor import \
+    MainFeatureProcessor
 from track_analysis.components.track_analysis.features.data_generation.model.album_cost import AlbumCostModel
+from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
     LibraryDataGenerationPipelineContext
 
@@ -40,6 +44,11 @@ class BatchProcessNewTracks(IPipe):
         self._key_data_builder = key_data_builder
         self._results_mapper = results_mapper
 
+        to_calculate: List[AudioDataFeature] = list(FEATURE_TO_HEADER_MAPPING.keys())
+        to_calculate.extend([AudioDataFeature.MFCC_MEANS, AudioDataFeature.MFCC_STDS])
+
+        self._all_features: List[AudioDataFeature] = to_calculate
+
         self._logger.trace("Initialized batch processor orchestrator.", separator=self._separator)
 
     def flow(
@@ -60,14 +69,14 @@ class BatchProcessNewTracks(IPipe):
         )
 
         # The core processing logic is to run all batches and map the results
-        all_results_df, all_key_prog_dfs = self._process_all_batches(context.key_processor, context.sample_processor, paths, batch_size, context.album_costs)
+        all_results_df, all_key_prog_dfs = self._process_all_batches(context.key_processor, context.main_processor, paths, batch_size, context.album_costs)
         self._results_mapper.map_results_to_context(all_results_df, all_key_prog_dfs, context)
 
         self._logger.info("Completed batch processing of new tracks.", separator=self._separator)
         return context
 
     def _process_all_batches(
-            self, key_processor: KeyFeatureProcessor, sample_processor: SampleFeatureProcessor, paths: List[Path], batch_size: int, album_costs: List[AlbumCostModel]
+            self, key_processor: KeyFeatureProcessor, main_processor: MainFeatureProcessor, paths: List[Path], batch_size: int, album_costs: List[AlbumCostModel]
     ) -> Tuple[pd.DataFrame, List[pd.DataFrame]]:
         """Manages the iteration over all batches and concatenates their results."""
         all_batch_results = []
@@ -83,7 +92,7 @@ class BatchProcessNewTracks(IPipe):
                 separator=self._separator
             )
 
-            batch_df, key_prog_dfs = self._process_single_batch(key_processor, sample_processor, batch_paths, album_costs)
+            batch_df, key_prog_dfs = self._process_single_batch(key_processor, main_processor, batch_paths, album_costs)
             all_batch_results.append(batch_df)
             all_key_progression_dfs.extend(key_prog_dfs)
 
@@ -92,7 +101,7 @@ class BatchProcessNewTracks(IPipe):
         return final_df, all_key_progression_dfs
 
     def _process_single_batch(
-            self, key_processor: KeyFeatureProcessor, sample_processor: SampleFeatureProcessor, batch_paths: List[Path], album_costs: List[AlbumCostModel]
+            self, key_processor: KeyFeatureProcessor, main_processor: MainFeatureProcessor, batch_paths: List[Path], album_costs: List[AlbumCostModel]
     ) -> Tuple[pd.DataFrame, List[pd.DataFrame]]:
         """
         Handles a single batch by calling a sequence of specialized processors and builders.
@@ -105,10 +114,13 @@ class BatchProcessNewTracks(IPipe):
         meta_with_keys_df = meta_df.merge(key_df, left_index=True, right_on='original_index',
                                           how='left').drop(columns=['original_index'])
 
-        calculated_features_df = sample_processor.process_batch(meta_with_keys_df)
+        calculated_features_df = main_processor.process_batch(meta_with_keys_df, self._all_features)
+
+        audio_uuid_col = Header.UUID.value
+        calculated_features_df_no_dupes = calculated_features_df.drop(columns=[audio_uuid_col])
 
         final_batch_df = pd.concat(
-            [meta_with_keys_df.reset_index(drop=True), calculated_features_df.reset_index(drop=True)],
+            [meta_with_keys_df.reset_index(drop=True), calculated_features_df_no_dupes.reset_index(drop=True)],
             axis=1
         )
 

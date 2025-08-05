@@ -17,8 +17,8 @@ from track_analysis.components.track_analysis.features.audio_calculation.feature
 from track_analysis.components.track_analysis.features.audio_calculation.mappers.results_mapper import ResultsMapper
 from track_analysis.components.track_analysis.features.audio_calculation.processors.key_feature_processor import \
     KeyFeatureProcessor
-from track_analysis.components.track_analysis.features.audio_calculation.processors.sample_feature_processor import \
-    SampleFeatureProcessor
+from track_analysis.components.track_analysis.features.audio_calculation.processors.main_feature_processor import \
+    MainFeatureProcessor
 from track_analysis.components.track_analysis.features.audio_calculation.utils.cacheing.max_rate_cache import \
     MaxRateCache
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
@@ -46,6 +46,7 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.make_csv import MakeCSV
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.preprocess_data import \
     PreprocessData
+from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.redo_headers import RedoHeaders
 # from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.redo_headers import RedoHeaders
 from track_analysis.components.track_analysis.features.data_generation.pipeline.pipes.remove_invalid_cached_entries import \
     RemoveInvalidCachedEntries
@@ -56,7 +57,6 @@ from track_analysis.components.track_analysis.features.tag_extractor import TagE
 @dataclasses.dataclass(frozen=True)
 class PipelineConfiguration:
     num_workers: int
-    num_workers_refill: int
     hop_length: int
     n_fft: int
 
@@ -75,7 +75,6 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._key_extractor = key_extractor
         self._string_utils = string_utils
         self._num_workers: int = configuration.num_workers
-        self._num_workers_refill: int = configuration.num_workers_refill
 
         self._metadata_provider: MetadataDFBuilder = MetadataDFBuilder(tag_extractor)
         self._results_mapper: ResultsMapper = ResultsMapper(FEATURE_TO_HEADER_MAPPING)
@@ -93,7 +92,7 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
                     len(context.filtered_audio_file_paths) <= 0
                     and len(context.invalid_cached_paths) <= 0
                     and len(context.missing_headers.keys()) <= 0
-                    and len(context.refill_headers.keys()) <= 0
+                    and len(context.headers_to_refill) <= 0
             )
 
         self._add_step(GetAlbumCosts())
@@ -121,6 +120,6 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._add_step(EnergyLevelCalculatorPipe(self._logger))
         self._add_step(RemoveInvalidCachedEntries(self._logger))
         # self._add_step(HandleRowsWithMissingData(self._logger, self._audio_file_handler))
-        # self._add_step(RedoHeaders(self._logger, self._audio_file_handler, self._num_workers_refill))
+        self._add_step(RedoHeaders(self._logger))
         self._add_step(PreprocessData(self._logger, self._string_utils))
         self._add_step(MakeCSV(self._logger))

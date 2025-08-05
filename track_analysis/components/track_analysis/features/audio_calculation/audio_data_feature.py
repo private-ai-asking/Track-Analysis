@@ -11,7 +11,6 @@ class AudioDataFeature(Enum):
     BIT_DEPTH = 65
     BIT_RATE = 68
     NUM_CHANNELS = 66
-    FILE_FORMAT = 67
     DATA_RATE = 70
     MAX_DATA_RATE = 71
     DATA_EFFICIENCY = 72

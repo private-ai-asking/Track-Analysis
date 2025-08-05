@@ -19,13 +19,10 @@ class FilterCache(IPipe):
         df: pd.DataFrame = data.loaded_audio_info_cache
 
         missing_data, missing_count = self._get_missing_headers(df, data.missing_headers_to_fill)
-        refill_data, refill_count = self._get_refill_headers(df, data.headers_to_refill)
 
         self._logger.info(f"Found {missing_count} rows with missing data!", separator=self._separator)
-        self._logger.info(f"Found {refill_count} rows with refill data!", separator=self._separator)
 
         data.missing_headers = missing_data
-        data.refill_headers = refill_data
 
         return data
 
@@ -45,24 +42,3 @@ class FilterCache(IPipe):
                     missing_count += len(uuids)
 
         return missing_data, missing_count
-
-    @staticmethod
-    def _get_refill_headers(df: pd.DataFrame, headers_to_refill: List[Header]) -> Tuple[Dict[Header, List[str]], int]:
-        refill_data = {}
-        refill_count = 0
-        headers_set = set(headers_to_refill)
-
-        if Header.MFCC in headers_set:
-            uuids = df[Header.UUID.value].tolist()
-            refill_data[Header.MFCC] = uuids
-            refill_count += len(uuids)
-            headers_set.discard(Header.MFCC)
-
-        for col in df.columns:
-            header = Header(col)
-            if header in headers_set:
-                uuids = df[Header.UUID.value].tolist()
-                refill_data[header] = uuids
-                refill_count += len(uuids)
-
-        return refill_data, refill_count

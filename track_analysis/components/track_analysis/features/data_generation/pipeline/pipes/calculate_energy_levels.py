@@ -8,13 +8,14 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline.
 class EnergyLevelCalculatorPipe(IPipe):
     def __init__(self, logger: HoornLogger):
         self._logger = logger
+        self._separator = "BuildCSV.EnergyLevelCalculatorPipe"
 
     def flow(self, context: LibraryDataGenerationPipelineContext) -> LibraryDataGenerationPipelineContext:
         if context.generated_audio_info.empty:
-            self._logger.debug("Skipping energy level calculation, no new audio info.")
+            self._logger.debug("Skipping energy level calculation, no new audio info.", separator=self._separator)
             return context
 
-        self._logger.info("Applying final energy level calculation...")
+        self._logger.info("Applying final energy level calculation...", separator=self._separator)
         context.generated_audio_info = context.energy_calculator.calculate_ratings_for_df(
             context.generated_audio_info, Header.Energy_Level
         )

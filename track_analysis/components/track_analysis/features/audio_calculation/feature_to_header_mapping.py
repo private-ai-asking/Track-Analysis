@@ -11,7 +11,6 @@ FEATURE_TO_HEADER_MAPPING = {
     AudioDataFeature.DURATION: Header.Duration,
     AudioDataFeature.SAMPLE_RATE_KHZ: Header.Sample_Rate,
     AudioDataFeature.BIT_DEPTH: Header.Bit_Depth,
-    AudioDataFeature.FILE_FORMAT: Header.Format,
     AudioDataFeature.BIT_RATE: Header.Bitrate,
     AudioDataFeature.BPM: Header.BPM,
 
@@ -56,3 +55,5 @@ FEATURE_TO_HEADER_MAPPING = {
     AudioDataFeature.ONSET_ENV_MEAN_HI_HAT: Header.Onset_Env_Mean_Hi_Hat,
     AudioDataFeature.ONSET_RATE_HI_HAT: Header.Onset_Rate_Hi_Hat,
 }
+
+HEADER_TO_FEATURE_MAPPING = {v: k for k, v in FEATURE_TO_HEADER_MAPPING.items()}

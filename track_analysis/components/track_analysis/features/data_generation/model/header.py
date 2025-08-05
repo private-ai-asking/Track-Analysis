@@ -36,7 +36,6 @@ class Header(Enum):
     Max_Data_Per_Second = "Max Data Per Second (Kilobits)"
     Actual_Data_Rate = "Actual Data Rate (Kilobits)"
     Efficiency = "Data Efficiency"
-    Format = "Audio Format"
     Integrated_LUFS = "Integrated LUFS"
     True_Peak = "True Peak (dBPT)"
     Mean_RMS = "Mean RMS (dBFS)"
