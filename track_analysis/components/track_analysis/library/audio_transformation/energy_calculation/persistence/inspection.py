@@ -38,22 +38,40 @@ class DefaultInspectionDataPersistence:
     def _create_data_dict(model: EnergyModel, config: EnergyModelConfig) -> dict:
         """Creates the human-readable inspection JSON dictionary."""
         feature_names = config.get_feature_names()
+        num_components = model.number_of_pca_components
+
+        # Pre-slice the relevant PCA data
+        component_loadings = model.pca.components_[:num_components]
+        variance_ratios = model.pca.explained_variance_ratio_[:num_components]
+
+        # Create a list where each item is a dictionary detailing one component
+        principal_components = [
+            {
+                "component": f"PC{i + 1}",
+                "explained_variance_ratio": round(variance_ratios[i], 5),
+                "loadings": {
+                    name: round(loading, 5)
+                    for name, loading in zip(feature_names, component_loadings[i])
+                }
+            }
+            for i in range(num_components)
+        ]
+
         return {
             "metadata": {
                 "model_name": config.name,
                 "model_version": config.version,
                 "cache_created_utc": datetime.now(UTC).isoformat(),
-                "data_hash": model.data_hash
+                "data_hash": model.data_hash,
+                "number_pca_components": num_components,
+                "cumulative_variance": model.cumulative_variance,
             },
             "training": {
                 "training_set_shape": model.features_shape.to_dict(),
                 "feature_names": feature_names,
             },
-            "pca": {
-                "pca_loadings": dict(zip(feature_names, model.pca.components_[0])),
-                "explained_variance_ratio": float(model.pca.explained_variance_ratio_[0]),
-            },
-            "quantile_anchors_pc1": {
+            "principal_components": principal_components,
+            "composite_score_quantile_anchors": {
                 "low": model.spline.x[0],
                 "medium": model.spline.x[1],
                 "high": model.spline.x[2]

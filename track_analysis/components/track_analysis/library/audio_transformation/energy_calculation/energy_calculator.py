@@ -7,7 +7,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
     AudioDataFeature
 
 
-class EnergyCalculator(ABC):
+class EnergyAlgorithm(ABC):
     """
     An interface for using a pre-existing energy model to calculate ratings.
     Implementations are expected to be initialized with a valid EnergyModel.

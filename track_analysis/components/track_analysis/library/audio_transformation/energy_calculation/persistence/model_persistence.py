@@ -70,7 +70,9 @@ class DefaultModelPersistence:
                 feature_names=config.get_feature_names(),
                 spline_y_points=params['y_points'],
                 data_hash=inspection_data["metadata"]["data_hash"],
-                features_shape=TrainingShape.from_dict(inspection_data["training"]["training_set_shape"])
+                features_shape=TrainingShape.from_dict(inspection_data["training"]["training_set_shape"]),
+                number_of_pca_components=inspection_data["metadata"]["number_pca_components"],
+                cumulative_variance=inspection_data["metadata"]["cumulative_variance"],
             )
         except Exception as e:
             self._logger.error(f"Failed to load model artifacts for '{config.name}' @ '{config.version}': {e}", separator=self._separator)

@@ -40,7 +40,8 @@ _OLD_CONFIG = EnergyModelConfig(
         Header.Spectral_Flatness_Mean,   # How "noise-like" versus "tonal" the sound is.
         Header.Spectral_Flux_Mean,       # Rate of change in the timbre over time.
     ],
-    use_mfcc=False
+    use_mfcc=False,
+    cumulative_pca_variance_threshold=0.0
 )
 
 _CURRENT_CONFIG = EnergyModelConfig(
@@ -76,11 +77,14 @@ _CURRENT_CONFIG = EnergyModelConfig(
         Header.Spectral_Rolloff_Mean,    # The spectral rolloff for the track. Indicates the center frequency for a spectrogram bin, ensuring that at least a certain percentage (default is 85%) of the energy is contained in that bin and the bins below it.
         Header.Spectral_Rolloff_Std,     # The standard deviation for the spectral rolloff.
         Header.Zero_Crossing_Rate_Mean,  # Another measure of brightness/noisiness.
-        Header.Spectral_Flatness_Mean,   # How "noise-like" versus "tonal" the sound is.
+        Header.Spectral_Flatness_Mean,   # How "noise-like" versus "tonal" the sound is. -- Do not use because it skews the model.
         Header.Spectral_Flux_Mean,       # Rate of change in the timbre over time.
         Header.Harmonicity,              # A rate between 0-1 how harmonic a track is.
+        Header.Spectral_Flux_Std,
+        Header.Spectral_Centroid_Std
     ],
-    use_mfcc=True
+    use_mfcc=True,
+    cumulative_pca_variance_threshold=0.85
 )
 
 DEFAULT_ENERGY_MODEL_CONFIG = _CURRENT_CONFIG

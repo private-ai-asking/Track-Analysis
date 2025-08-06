@@ -6,7 +6,7 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_calculator import \
-    EnergyCalculator
+    EnergyAlgorithm
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
     AudioDataFeature
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature_provider import \
@@ -20,7 +20,7 @@ class EnergyProvider(AudioDataFeatureProvider):
     Calculates the energy level of a track by delegating to a configured EnergyCalculator.
     """
 
-    def __init__(self, energy_calculator: EnergyCalculator, logger: HoornLogger):
+    def __init__(self, energy_calculator: EnergyAlgorithm, logger: HoornLogger):
         self._energy_calculator = energy_calculator
         self._feature_to_header_mapping: Dict[str, str] = {
             feature.name: header.value

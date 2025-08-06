@@ -10,7 +10,7 @@ from track_analysis.components.track_analysis.features.data_generation.helpers.e
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.configuration.default import \
     DEFAULT_ENERGY_MODEL_CONFIG
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_calculator import \
-    EnergyCalculator
+    EnergyAlgorithm
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_factory import \
     EnergyFactory, Implementation
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.lifecycle.energy_lifecycle_manager import \
@@ -43,7 +43,7 @@ class EnergyLoader:
 
         return main_df
 
-    def get_calculator(self, main_data_frame: pd.DataFrame, mfcc_data_frame: pd.DataFrame) -> EnergyCalculator:
+    def get_calculator(self, main_data_frame: pd.DataFrame, mfcc_data_frame: pd.DataFrame) -> EnergyAlgorithm:
         manager = self._energy_factory.create_lifecycle_manager(Implementation.Default)
         if not manager:
             raise RuntimeError("Failed to create the EnergyModelLifecycleManager.")

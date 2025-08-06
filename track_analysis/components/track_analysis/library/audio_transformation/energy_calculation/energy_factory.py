@@ -3,9 +3,9 @@ from enum import Enum
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.default_calculator import \
-    DefaultEnergyCalculator
+    DefaultEnergyAlgorithm
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_calculator import \
-    EnergyCalculator
+    EnergyAlgorithm
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.lifecycle.energy_lifecycle_manager import \
     EnergyModelLifecycleManager
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.lifecycle.default_energy_model_lifecycle_manager import \
@@ -18,10 +18,10 @@ from track_analysis.components.track_analysis.library.audio_transformation.energ
     DefaultInspectionDataPersistence
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.persistence.model_persistence import \
     DefaultModelPersistence
-from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.prediction.default_predictor import \
-    DefaultAudioEnergyPredictor
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.preprocessing.energy_preparer import \
     EnergyDataPreparer
+from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.processing.energy_model_processor import \
+    EnergyModelProcessor
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.training.trainer import \
     DefaultEnergyModelTrainer
 
@@ -35,24 +35,24 @@ class EnergyFactory:
     def __init__(self, logger: HoornLogger):
         self._logger = logger
         self._separator = self.__class__.__name__
+        self._energy_preparer: EnergyDataPreparer = EnergyDataPreparer(self._logger)
+        self._energy_calculator: EnergyModelProcessor = EnergyModelProcessor()
 
     def create_lifecycle_manager(self, impl: Implementation) -> EnergyModelLifecycleManager | None:
         """Creates an instance of a model lifecycle manager."""
         if impl == Implementation.Default:
             inspection_persistence = DefaultInspectionDataPersistence(self._logger)
             persistence = DefaultModelPersistence(self._logger, CACHE_DIRECTORY, inspection_persistence)
-            trainer = DefaultEnergyModelTrainer(self._logger, persistence)
+            trainer = DefaultEnergyModelTrainer(self._logger, persistence, self._energy_calculator)
             validator = DefaultEnergyModelValidator(self._logger)
-            energy_preparer = EnergyDataPreparer(self._logger)
-
             return DefaultEnergyModelLifecycleManager(
-                self._logger, trainer, persistence, validator, energy_preparer
+                self._logger, trainer, persistence, validator, self._energy_preparer
             )
 
         self._logger.warning(f"Lifecycle Manager for '{impl.name}' not implemented.", separator=self._separator)
         return None
 
-    def create_calculator(self, impl: Implementation, model: EnergyModel) -> EnergyCalculator | None:
+    def create_calculator(self, impl: Implementation, model: EnergyModel) -> EnergyAlgorithm | None:
         """
         Creates an instance of an energy calculator for a specific model.
 
@@ -61,11 +61,10 @@ class EnergyFactory:
             model: The trained EnergyModel that the calculator will use for predictions.
         """
         if impl == Implementation.Default:
-            predictor = DefaultAudioEnergyPredictor(self._logger)
             energy_preparer = EnergyDataPreparer(self._logger)
 
-            return DefaultEnergyCalculator(
-                self._logger, predictor, energy_preparer, model
+            return DefaultEnergyAlgorithm(
+                self._logger, self._energy_calculator, energy_preparer, model
             )
 
         self._logger.warning(f"Calculator for '{impl.name}' not implemented.", separator=self._separator)

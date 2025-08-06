@@ -30,3 +30,5 @@ class EnergyModel(NamedTuple):
     spline_y_points: List[float]
     data_hash: str
     features_shape: TrainingShape
+    number_of_pca_components: int
+    cumulative_variance: float

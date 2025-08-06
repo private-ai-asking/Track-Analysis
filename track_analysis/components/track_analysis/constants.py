@@ -21,7 +21,7 @@ EXPENSIVE_CACHE_DIRECTORY: Path = Path(r"G:/")
 BENCHMARK_DIRECTORY: Path = Path(r"X:\Track Analysis\track_analysis\benchmarks")
 
 ENERGY_CALCULATION_REGENERATE_LIBRARY_GROWTH_PERC: float = 0.1
-CURRENT_ENERGY_TRAINING_VERSION_TO_USE: int = 0 # Every training (including the first one increments.) Switch to -1 when starting a new feature set.
+CURRENT_ENERGY_TRAINING_VERSION_TO_USE: int = -1 # Every training (including the first one increments.) Switch to -1 when starting a new feature set.
 
 DEBUG: bool = False
 VERBOSE: bool = False

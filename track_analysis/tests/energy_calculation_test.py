@@ -8,7 +8,7 @@ from track_analysis.components.md_common_python.py_common.testing import TestInt
 from track_analysis.components.track_analysis.features.data_generation.helpers.energy_loader import EnergyLoader
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_calculator import \
-    EnergyCalculator
+    EnergyAlgorithm
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.feature_to_header_mapping import \
     FEATURE_TO_HEADER_MAPPING
 
@@ -48,15 +48,11 @@ class EnergyCalculationTest(TestInterface):
         # Invert the mapping for easy lookup in the test method
         self._header_to_feature_map = {v.value: k for k, v in FEATURE_TO_HEADER_MAPPING.items()}
 
-    def _calculate_and_format_energy(self, row_df: pd.DataFrame) -> str:
+    def _calculate_and_format_energy(self, row_df: pd.DataFrame, calculators: Dict[str, EnergyAlgorithm]) -> str:
         """
         Iterates through the available calculators, computes the energy rating,
         and returns a formatted string of the results.
         """
-        calculators: Dict[str, EnergyCalculator] = {
-            "Gemini   ": self._energy_loader.get_calculator(self._main_df, self._mfcc_df)
-        }
-
         energy_strings: List[str] = []
         for header, extractor in calculators.items():
             if not extractor:
@@ -73,11 +69,15 @@ class EnergyCalculationTest(TestInterface):
         mask = df[Header.Audio_Path.value].isin(TO_CHECK)
         filtered_df = df[mask]
 
+        calculators: Dict[str, EnergyAlgorithm] = {
+            "Gemini   ": self._energy_loader.get_calculator(self._main_df, self._mfcc_df)
+        }
+
         for index, row in filtered_df.iterrows():
             single_row_df = filtered_df.loc[[index]]
 
             # Calculate and format the energy ratings
-            energy_string = self._calculate_and_format_energy(single_row_df)
+            energy_string = self._calculate_and_format_energy(single_row_df, calculators)
 
             # Log the results
             self._logger.info(

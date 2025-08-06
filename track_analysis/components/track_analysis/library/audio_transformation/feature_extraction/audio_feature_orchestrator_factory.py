@@ -3,7 +3,7 @@ from typing import Dict
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_calculator import \
-    EnergyCalculator
+    EnergyAlgorithm
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.model.energy_model_config import \
     EnergyModelConfig
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature_provider_orchestrator import \
@@ -88,7 +88,7 @@ class AudioFeatureOrchestratorFactory:
 
     def create_audio_feature_orchestrator(self,
                                           max_rate_cache: MaxRateCache,
-                                          energy_calculator: EnergyCalculator,
+                                          energy_calculator: EnergyAlgorithm,
                                           existing_tempo_cache: Dict[Path, float] | None = None,
                                           hop_length: int = 512,
                                           n_fft: int = 2048,

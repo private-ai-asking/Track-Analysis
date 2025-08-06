@@ -10,6 +10,7 @@ class EnergyModelConfig:
     feature_columns: List[Header | str]
     use_mfcc: bool = True
     version: int = 0
+    cumulative_pca_variance_threshold: float = 0.85
 
     def get_feature_names(self) -> List[str]:
         feature_names: List[str] = []
