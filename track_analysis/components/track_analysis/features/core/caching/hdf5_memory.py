@@ -3,6 +3,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Union, List, Callable
 
+from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.features.core.caching.cache_manager import HDF5CacheManager
 
 
@@ -14,6 +15,9 @@ class HDF5Memory:
     def __init__(self, cache_path: Union[str, Path]):
         """Initializes the memory object and its underlying cache manager."""
         self._cache_manager = HDF5CacheManager(cache_path)
+
+    def set_logger(self, logger: HoornLogger):
+        self._cache_manager.set_logger(logger)
 
     def cache(self, identifier_arg: str, ignore: List[str] = None) -> Callable:
         """

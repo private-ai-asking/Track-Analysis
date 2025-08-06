@@ -26,6 +26,7 @@ from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRAR
 from track_analysis.components.track_analysis.features.audio_calculation.utils.cacheing.max_rate_cache import \
     MaxRateCache
 from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
+from track_analysis.components.track_analysis.features.core.caching.cached_operations.shared import MEMORY
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import \
     BuildLibraryDataCSVPipeline, PipelineConfiguration
@@ -96,6 +97,8 @@ def _run_with_profiling(func: Callable[[], T], category: str) -> T:
 
 class App:
     def __init__(self, logger: HoornLogger):
+        MEMORY.set_logger(logger)
+
         self._library_data_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
         self._mfcc_data_path: Path = OUTPUT_DIRECTORY.joinpath("mfcc.csv")
         scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles.csv")
