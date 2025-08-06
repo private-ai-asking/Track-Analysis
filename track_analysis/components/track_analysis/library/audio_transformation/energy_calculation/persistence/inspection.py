@@ -41,6 +41,7 @@ class DefaultInspectionDataPersistence:
         return {
             "metadata": {
                 "model_name": config.name,
+                "model_version": config.version,
                 "cache_created_utc": datetime.now(UTC).isoformat(),
                 "data_hash": model.data_hash
             },

@@ -83,9 +83,13 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
                     and len(context.headers_to_refill) <= 0
             )
 
+        def __exit_if_at_energy_loading(context: LibraryDataGenerationPipelineContext) -> bool:
+            return context.end_at_energy_calculation_loading
+
         self._add_step(GetAlbumCosts())
         self._add_step(LoadCache(self._logger))
         self._add_step(LoadEnergyCalculator(self._logger))
+        self._add_exit_check(__exit_if_at_energy_loading)
         self._add_step(CreateProcessors(
             logger=self._logger,
             num_workers=self._num_workers,

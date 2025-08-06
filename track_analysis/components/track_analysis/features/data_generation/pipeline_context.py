@@ -24,6 +24,7 @@ class LibraryDataGenerationPipelineContext(pydantic.BaseModel):
     mfcc_data_output_file_path: Path
 
     use_threads: bool = True
+    end_at_energy_calculation_loading: bool = False
     max_new_tracks_per_run: Optional[int] = 50
     missing_headers_to_fill: List[Header] = []
     headers_to_refill: List[Header] = []

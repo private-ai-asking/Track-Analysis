@@ -3,7 +3,7 @@ from typing import Union
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_lifecycle_manager import \
+from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.lifecycle.energy_lifecycle_manager import \
     EnergyModelLifecycleManager
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.model.energy_model import \
     EnergyModel
@@ -64,6 +64,9 @@ class DefaultEnergyModelLifecycleManager(EnergyModelLifecycleManager):
         return model
 
     def validate_model(self, model: EnergyModel | None, data_or_hash: Union[pd.DataFrame, str]) -> bool:
+        if model is None:
+            return False
+
         if not isinstance(data_or_hash, str):
             features_df = data_or_hash[model.feature_names].dropna()
             data_hash = get_dataframe_hash(features_df)

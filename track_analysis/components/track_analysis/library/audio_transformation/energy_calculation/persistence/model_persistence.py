@@ -1,4 +1,6 @@
+import dataclasses
 import json
+import os
 from pathlib import Path
 
 import joblib
@@ -13,6 +15,14 @@ from track_analysis.components.track_analysis.library.audio_transformation.energ
     DefaultInspectionDataPersistence
 
 
+@dataclasses.dataclass(frozen=True)
+class ModelPaths:
+    scaler_path: Path
+    pca_path: Path
+    spline_path: Path
+    inspection_path: Path
+
+
 class DefaultModelPersistence:
     """Handles persistence of binary model artifacts (scaler, PCA) and spline parameters."""
 
@@ -22,25 +32,36 @@ class DefaultModelPersistence:
         self._root_cache_dir = root_cache_dir / "energy_model"
         self._inspection_persistence = inspection_persistence
 
-    def load(self, config: EnergyModelConfig) -> EnergyModel | None:
-        model_cache_dir = self._root_cache_dir / config.name
-        scaler_path = model_cache_dir / "energy_scaler.joblib"
-        pca_path = model_cache_dir / "energy_pca.joblib"
-        spline_path = model_cache_dir / "energy_spline_params.json"
-        inspection_path = model_cache_dir / "energy_model_inspection.json"
+    def _get_model_cache_dir(self, config: EnergyModelConfig) -> Path:
+        return self._root_cache_dir / f"{config.name}-{config.version}"
 
-        if not all(p.exists() for p in [scaler_path, pca_path, spline_path, inspection_path]):
+    def _get_model_paths(self, config: EnergyModelConfig, make_dirs: bool = True) -> ModelPaths:
+        model_root = self._get_model_cache_dir(config)
+
+        if make_dirs:
+            os.makedirs(model_root, exist_ok=True)
+
+        return ModelPaths(
+            scaler_path=model_root / "energy_scaler.joblib",
+            pca_path=model_root / "energy_pca.joblib",
+            spline_path=model_root / "energy_spline_params.json",
+            inspection_path=model_root / "energy_model_inspection.json",
+        )
+
+    def load(self, config: EnergyModelConfig) -> EnergyModel | None:
+        model_paths: ModelPaths = self._get_model_paths(config, make_dirs=False)
+
+        if not all(p.exists() for p in [model_paths.scaler_path, model_paths.pca_path, model_paths.spline_path, model_paths.inspection_path]):
             return None
 
-        # Delegate loading the inspection file to get metadata
-        inspection_data = self._inspection_persistence.load(inspection_path)
+        inspection_data = self._inspection_persistence.load(model_paths.inspection_path)
         if not inspection_data:
             return None
 
         try:
-            scaler = joblib.load(scaler_path)
-            pca = joblib.load(pca_path)
-            with open(spline_path, 'r') as f:
+            scaler = joblib.load(model_paths.scaler_path)
+            pca = joblib.load(model_paths.pca_path)
+            with open(model_paths.spline_path, 'r') as f:
                 params = json.load(f)
             spline = CubicSpline(params['x_points'], params['y_points'])
 
@@ -52,29 +73,22 @@ class DefaultModelPersistence:
                 features_shape=TrainingShape.from_dict(inspection_data["training"]["training_set_shape"])
             )
         except Exception as e:
-            self._logger.error(f"Failed to load model artifacts for '{config.name}': {e}", separator=self._separator)
+            self._logger.error(f"Failed to load model artifacts for '{config.name}' @ '{config.version}': {e}", separator=self._separator)
             return None
 
     def save(self, model: EnergyModel, config: EnergyModelConfig) -> None:
-        model_cache_dir = self._root_cache_dir / config.name
-        model_cache_dir.mkdir(parents=True, exist_ok=True)
-        scaler_path = model_cache_dir / "energy_scaler.joblib"
-        pca_path = model_cache_dir / "energy_pca.joblib"
-        spline_path = model_cache_dir / "energy_spline_params.json"
-        inspection_path = model_cache_dir / "energy_model_inspection.json"
+        model_paths: ModelPaths = self._get_model_paths(config)
 
         try:
-            # Handle binary artifacts
-            joblib.dump(model.scaler, scaler_path)
-            joblib.dump(model.pca, pca_path)
+            joblib.dump(model.scaler, model_paths.scaler_path)
+            joblib.dump(model.pca, model_paths.pca_path)
             spline_params = {'x_points': model.spline.x.tolist(), 'y_points': model.spline_y_points}
-            with open(spline_path, 'w') as f:
+            with open(model_paths.spline_path, 'w') as f:
                 json.dump(spline_params, f, indent=4)
 
-            # Delegate saving the inspection file
-            self._inspection_persistence.save(inspection_path, model, config)
+            self._inspection_persistence.save(model_paths.inspection_path, model, config)
 
-            self._logger.info(f"Energy model '{config.name}' saved to cache.", separator=self._separator)
+            self._logger.info(f"Energy model '{config.name}' @ 'v{config.version}' saved to cache.", separator=self._separator)
 
         except Exception as e:
-            self._logger.error(f"Failed to save model '{config.name}' to cache: {e}", separator=self._separator)
+            self._logger.error(f"Failed to save model '{config.name}' @ 'v{config.version}' to cache: {e}", separator=self._separator)

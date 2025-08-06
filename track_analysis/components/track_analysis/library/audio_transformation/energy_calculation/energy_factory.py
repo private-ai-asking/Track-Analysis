@@ -6,7 +6,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.energ
     DefaultEnergyCalculator
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_calculator import \
     EnergyCalculator
-from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_lifecycle_manager import \
+from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.lifecycle.energy_lifecycle_manager import \
     EnergyModelLifecycleManager
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.lifecycle.default_energy_model_lifecycle_manager import \
     DefaultEnergyModelLifecycleManager
