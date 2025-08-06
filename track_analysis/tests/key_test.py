@@ -3,11 +3,11 @@ from typing import Optional
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.testing import TestInterface
-from track_analysis.components.track_analysis.features.key_extraction.core.config.key_progression_config import \
+from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.core.config.key_progression_config import \
     KeyProgressionConfig
-from track_analysis.components.track_analysis.features.key_extraction.core.definitions.definition_templates import \
+from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.core.definitions.definition_templates import \
     TemplateMode
-from track_analysis.components.track_analysis.features.key_extraction.key_progression_analyzer import \
+from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.key_progression_analyzer import \
     KeyProgressionAnalyzer
 
 

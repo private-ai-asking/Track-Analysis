@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Union, Tuple, List
+from typing import Optional, Tuple, List
 
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
@@ -7,7 +7,7 @@ from numpy.lib.stride_tricks import sliding_window_view
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.testing import TestInterface
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
-from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler, AudioStreamsInfoModel
+from track_analysis.components.track_analysis.legacy.audio_file_handler import AudioFileHandler, AudioStreamsInfoModel
 
 
 class ShortTimeRMSTest(TestInterface):

@@ -5,13 +5,13 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.testing import TestInterface
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.default.configuration.default import \
-    DEFAULT_ENERGY_MODEL_CONFIG
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_calculator import \
-    EnergyCalculator
-from track_analysis.components.track_analysis.features.data_generation.energy_calculation.energy_factory import \
-    EnergyFactory, Implementation
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
+from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.configuration.default import \
+    DEFAULT_ENERGY_MODEL_CONFIG
+from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_calculator import \
+    EnergyCalculator
+from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_factory import \
+    Implementation, EnergyFactory
 
 TO_CHECK = [
     r"W:\media\music\[02] organized\[01] hq\OST\Path of Exile (Original Game Soundtrack)\29 Chamber of Innocence.flac",

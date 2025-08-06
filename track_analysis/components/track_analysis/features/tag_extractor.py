@@ -5,7 +5,6 @@ import mutagen
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.data_generation.model.album_cost import AlbumCostModel
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 

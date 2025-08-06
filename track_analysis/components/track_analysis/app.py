@@ -13,6 +13,7 @@ from track_analysis.components.md_common_python.py_common.command_handling impor
 from track_analysis.components.md_common_python.py_common.component_registration import ComponentRegistration
 from track_analysis.components.md_common_python.py_common.handlers import FileHandler
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.md_common_python.py_common.misc import DirectoryTreeConfig, DirectoryTreeGenerator
 from track_analysis.components.md_common_python.py_common.testing import TestCoordinator
 from track_analysis.components.md_common_python.py_common.testing.test_coordinator import TestConfiguration
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
@@ -23,19 +24,19 @@ from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRAR
     DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START, CACHE_DIRECTORY, CLEAR_CACHE, \
     DOWNLOAD_CSV_FILE, TEST_SAMPLE_SIZE, PROFILE_DATA_LOADING, EMBED_BATCH_SIZE, NUM_WORKERS_CPU_HEAVY, \
     MAX_NEW_TRACKS_PER_RUN, EXPENSIVE_CACHE_DIRECTORY
-from track_analysis.components.track_analysis.features.audio_calculation.utils.cacheing.max_rate_cache import \
+from track_analysis.components.track_analysis.shared.caching.max_rate_cache import \
     MaxRateCache
-from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
-from track_analysis.components.track_analysis.features.core.caching.cached_operations.shared import MEMORY
+from track_analysis.components.track_analysis.legacy.audio_file_handler import AudioFileHandler
+from track_analysis.components.track_analysis.shared_objects import MEMORY
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
-from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import \
+from track_analysis.components.track_analysis.features.data_generation.build_csv_pipeline import \
     BuildLibraryDataCSVPipeline, PipelineConfiguration
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
+from track_analysis.components.track_analysis.features.data_generation.pipeline_context import \
     LibraryDataGenerationPipelineContext
-from track_analysis.components.track_analysis.features.data_generation.util.key_extractor import KeyExtractor
-from track_analysis.components.track_analysis.features.key_extraction.core.definitions.definition_templates import \
+from track_analysis.components.track_analysis.features.data_generation.helpers.key_extractor import KeyExtractor
+from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.core.definitions.definition_templates import \
     TemplateMode
-from track_analysis.components.track_analysis.features.key_extraction.profile_generation.profile_generator import \
+from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.profile_generation.profile_generator import \
     ProfileGenerator
 from track_analysis.components.track_analysis.features.scrobbling.embedding.default_candidate_retriever import \
     DefaultCandidateRetriever
@@ -245,6 +246,7 @@ class App:
         cmd.add_command(["download_and_md", "damd"], "Combines downloading and setting metadata.", self._download_and_assign_metadata)
         cmd.add_command(["add_album_to_downloads", "aatd"], "Adds an album to the downloads.csv file.", self._metadata_api.add_album_to_downloads)
         cmd.add_command(["log_hdf5_stats", "lhs"], "Logs interesting statistics for the hdf5 cache.", self._log_hdf5_stats)
+        cmd.add_command(["save_directory_tree", "sdt"], "Saves the directory tree to a file.", self._save_directory_tree)
 
         # noinspection PyBroadException
         try:
@@ -255,6 +257,15 @@ class App:
                 f"Something went terribly wrong, causing the application to nearly crash. Restarting.\n{tb}"
             )
             self.run()
+
+    @staticmethod
+    def _save_directory_tree():
+        config: DirectoryTreeConfig = DirectoryTreeConfig()
+        generator: DirectoryTreeGenerator = DirectoryTreeGenerator(config)
+
+        root_path: Path = Path(r"X:\Track Analysis\track_analysis\components\track_analysis")
+        output_path = root_path / "directory_tree.txt"
+        generator.generate(root_path, output_path)
 
     @staticmethod
     def _log_hdf5_stats():

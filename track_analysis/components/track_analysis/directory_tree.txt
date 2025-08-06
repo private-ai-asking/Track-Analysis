@@ -1,0 +1,307 @@
+track_analysis/
+├── features/
+│   ├── data_generation/
+│   │   ├── builders/
+│   │   │   ├── key_data_frames_builder.py
+│   │   │   ├── key_progression_df_builder.py
+│   │   │   ├── main_audio_info_df_builder.py
+│   │   │   ├── metadata_df_builder.py
+│   │   │   └── mfcc_df_builder.py
+│   │   ├── helpers/
+│   │   │   └── key_extractor.py
+│   │   ├── mappers/
+│   │   │   └── results_mapper.py
+│   │   ├── model/
+│   │   │   ├── album_cost.py
+│   │   │   └── header.py
+│   │   ├── pipes/
+│   │   │   ├── batch_process_new_tracks.py
+│   │   │   ├── calculate_energy_levels.py
+│   │   │   ├── filter_cache.py
+│   │   │   ├── filter_files.py
+│   │   │   ├── get_album_costs.py
+│   │   │   ├── get_audio_files.py
+│   │   │   ├── get_invalid_cache.py
+│   │   │   ├── handle_rows_with_missing_data.py
+│   │   │   ├── load_cache.py
+│   │   │   ├── load_energy_calculator.py
+│   │   │   ├── load_processors.py
+│   │   │   ├── make_csv.py
+│   │   │   ├── preprocess_data.py
+│   │   │   ├── redo_headers.py
+│   │   │   └── remove_invalid_cached_entries.py
+│   │   ├── processors/
+│   │   │   ├── key_feature_processor.py
+│   │   │   └── main_feature_processor.py
+│   │   ├── build_csv_pipeline.py
+│   │   └── pipeline_context.py
+│   ├── scrobbling/
+│   │   ├── algorithm/
+│   │   │   ├── pipes/
+│   │   │   │   ├── compute_histogram_thresholds.py
+│   │   │   │   ├── extract_unique_entries.py
+│   │   │   │   ├── filter_exact_matches.py
+│   │   │   │   ├── filter_manual_override.py
+│   │   │   │   ├── form_gold_standard.py
+│   │   │   │   ├── nearest_neighbour_search.py
+│   │   │   │   ├── report_uncertain_keys.py
+│   │   │   │   ├── status_report.py
+│   │   │   │   ├── store_in_cache.py
+│   │   │   │   └── validate_manual_override.py
+│   │   │   ├── algorithm_context.py
+│   │   │   └── cache_builder_pipeline.py
+│   │   ├── embedding/
+│   │   │   ├── evaluation/
+│   │   │   │   ├── best_candidate_selector.py
+│   │   │   │   ├── candidate_filter_interface.py
+│   │   │   │   ├── confidence_assigner.py
+│   │   │   │   ├── decision_evaluator.py
+│   │   │   │   └── field_threshold_evaluator.py
+│   │   │   ├── candidate_retriever_interface.py
+│   │   │   ├── default_candidate_retriever.py
+│   │   │   ├── embedding_builder.py
+│   │   │   └── embedding_searcher.py
+│   │   ├── model/
+│   │   │   ├── candidate_model.py
+│   │   │   └── scrabble_cache_algorithm_parameters.py
+│   │   ├── utils/
+│   │   │   ├── cache_helper.py
+│   │   │   ├── scrobble_data_loader.py
+│   │   │   └── scrobble_utility.py
+│   │   ├── get_unmatched_library_tracks.py
+│   │   ├── parameter_tester.py
+│   │   ├── scrobble_cache_builder.py
+│   │   ├── scrobble_linker_service.py
+│   │   ├── scrobble_matcher.py
+│   │   └── uncertain_keys_processor.py
+│   ├── track_downloading/
+│   │   ├── api/
+│   │   │   ├── genre_api_interface.py
+│   │   │   ├── metadata_api.py
+│   │   │   ├── music_brainz_api_helper.py
+│   │   │   ├── music_brainz_genre_api.py
+│   │   │   ├── music_download_interface.py
+│   │   │   └── ytdlp_music_downloader.py
+│   │   ├── model/
+│   │   │   ├── download_model.py
+│   │   │   ├── genre_model.py
+│   │   │   ├── recording_model.py
+│   │   │   ├── release_model.py
+│   │   │   └── track_model.py
+│   │   ├── pipeline/
+│   │   │   ├── pipes/
+│   │   │   │   ├── convert_tracks.py
+│   │   │   │   ├── download_tracks.py
+│   │   │   │   └── gather_tracks.py
+│   │   │   ├── download_pipeline.py
+│   │   │   └── download_pipeline_context.py
+│   │   └── utils/
+│   │       ├── clear_metadata.py
+│   │       ├── construct_standardized_genres.py
+│   │       ├── genre_algorithm.py
+│   │       ├── library_file_handler.py
+│   │       ├── metadata_manipulator.py
+│   │       ├── metadata_populater.py
+│   │       ├── missing_metadata_finder.py
+│   │       └── music_brainz_result_interpreter.py
+│   └── tag_extractor.py
+├── legacy/
+│   └── audio_file_handler.py
+├── library/
+│   └── audio_transformation/
+│       ├── energy_calculation/
+│       │   ├── configuration/
+│       │   │   ├── configuration_resolver.py
+│       │   │   └── default.py
+│       │   ├── lifecycle/
+│       │   │   └── default_energy_model_lifecycle_manager.py
+│       │   ├── model/
+│       │   │   ├── energy_model.py
+│       │   │   └── energy_model_config.py
+│       │   ├── persistence/
+│       │   │   ├── energy_model_validator.py
+│       │   │   ├── inspection.py
+│       │   │   └── model_persistence.py
+│       │   ├── prediction/
+│       │   │   ├── dataframe_prediction_pipeline.py
+│       │   │   ├── default_predictor.py
+│       │   │   └── row_prediction_pipeline.py
+│       │   ├── preprocessing/
+│       │   │   └── energy_preparer.py
+│       │   ├── training/
+│       │   │   └── trainer.py
+│       │   ├── default_calculator.py
+│       │   ├── energy_calculator.py
+│       │   ├── energy_factory.py
+│       │   ├── energy_lifecycle_manager.py
+│       │   └── utils.py
+│       ├── feature_extraction/
+│       │   ├── provider_dependency_management/
+│       │   │   ├── dependency_resolver.py
+│       │   │   └── execution_planner.py
+│       │   ├── providers/
+│       │   │   ├── calculated/
+│       │   │   │   ├── basic/
+│       │   │   │   │   └── data_efficiency_provider.py
+│       │   │   │   ├── loudness/
+│       │   │   │   │   ├── calculator/
+│       │   │   │   │   │   └── rms.py
+│       │   │   │   │   ├── intermediary/
+│       │   │   │   │   │   ├── loudness_analysis_result.py
+│       │   │   │   │   │   └── loudness_analyzer.py
+│       │   │   │   │   ├── rms/
+│       │   │   │   │   │   ├── iqr_rms.py
+│       │   │   │   │   │   ├── max_rms.py
+│       │   │   │   │   │   ├── mean_rms.py
+│       │   │   │   │   │   └── percentile_rms.py
+│       │   │   │   │   ├── crest_factor.py
+│       │   │   │   │   ├── integrated_lufs.py
+│       │   │   │   │   ├── loudness_range.py
+│       │   │   │   │   └── true_peak.py
+│       │   │   │   ├── rhythm/
+│       │   │   │   │   ├── calculator/
+│       │   │   │   │   │   ├── multi_band_onset.py
+│       │   │   │   │   │   ├── onset_envelope.py
+│       │   │   │   │   │   └── zero_crossing.py
+│       │   │   │   │   ├── onset/
+│       │   │   │   │   │   ├── multi_band_onset.py
+│       │   │   │   │   │   ├── onset_env_mean.py
+│       │   │   │   │   │   ├── onset_envelope.py
+│       │   │   │   │   │   ├── onset_peaks.py
+│       │   │   │   │   │   └── onset_rate.py
+│       │   │   │   │   ├── dynamic_tempo.py
+│       │   │   │   │   ├── tempo_provider.py
+│       │   │   │   │   ├── tempo_variation.py
+│       │   │   │   │   └── zcr.py
+│       │   │   │   ├── separation/
+│       │   │   │   │   ├── calculator/
+│       │   │   │   │   │   └── harmonic.py
+│       │   │   │   │   └── hpss.py
+│       │   │   │   └── spectral/
+│       │   │   │       ├── calculator/
+│       │   │   │       │   ├── harmonicity.py
+│       │   │   │       │   ├── magnitude_spectogram.py
+│       │   │   │       │   ├── mfcc.py
+│       │   │   │       │   ├── spectral_contrast.py
+│       │   │   │       │   ├── spectral_flatness.py
+│       │   │   │       │   ├── spectral_peak.py
+│       │   │   │       │   └── spectral_rolloff.py
+│       │   │   │       ├── centroid.py
+│       │   │   │       ├── centroid_and_flux.py
+│       │   │   │       ├── contrast.py
+│       │   │   │       ├── flatness.py
+│       │   │   │       ├── flux.py
+│       │   │   │       ├── harmonicity.py
+│       │   │   │       ├── magnitude.py
+│       │   │   │       ├── mfcc.py
+│       │   │   │       └── rolloff.py
+│       │   │   ├── helpers/
+│       │   │   │   ├── mfcc_helper.py
+│       │   │   │   ├── rms_helper.py
+│       │   │   │   └── spectral_helper.py
+│       │   │   └── raw/
+│       │   │       ├── audio_sample_provider.py
+│       │   │       └── raw_audio_info_provider.py
+│       │   ├── audio_data_feature.py
+│       │   ├── audio_data_feature_provider.py
+│       │   ├── audio_data_feature_provider_orchestrator.py
+│       │   ├── audio_feature_orchestrator_factory.py
+│       │   └── feature_to_header_mapping.py
+│       └── key_extraction/
+│           ├── calculator/
+│           │   ├── frequency_to_midi.py
+│           │   ├── metrical_hierarcy_construction.py
+│           │   ├── midi_to_pitch.py
+│           │   ├── pitch_class_cleaner.py
+│           │   └── pitch_class_normalizer.py
+│           ├── core/
+│           │   ├── config/
+│           │   │   └── key_progression_config.py
+│           │   ├── definitions/
+│           │   │   ├── definition_order_of_fifths.py
+│           │   │   ├── definition_penalties.py
+│           │   │   └── definition_templates.py
+│           │   ├── exceptions/
+│           │   │   └── lookup_exceptions.py
+│           │   ├── lookup/
+│           │   │   └── tonic_lookup.py
+│           │   ├── parsing/
+│           │   │   └── parse_label.py
+│           │   ├── state/
+│           │   │   ├── state_info.py
+│           │   │   └── state_info_extractor.py
+│           │   └── templates/
+│           │       ├── key_template_builder.py
+│           │       └── template_getter.py
+│           ├── extractors/
+│           │   ├── global_key_extractor.py
+│           │   └── local_key_extractor.py
+│           ├── feature/
+│           │   ├── base/
+│           │   │   └── feature_transformer.py
+│           │   ├── lof/
+│           │   │   └── lof_feature_transformer.py
+│           │   ├── vector/
+│           │   │   └── feature_vector_extractor.py
+│           │   └── visualization/
+│           │       ├── model/
+│           │       │   └── config.py
+│           │       ├── renderers/
+│           │       │   ├── bar_renderer.py
+│           │       │   ├── base_renderer.py
+│           │       │   ├── heatmap_renderer.py
+│           │       │   ├── pianoroll_renderer.py
+│           │       │   ├── spectogram_renderer.py
+│           │       │   └── waveform_renderer.py
+│           │       ├── util/
+│           │       │   ├── layout_manager.py
+│           │       │   ├── time_axis_calculator.py
+│           │       │   └── window_manager.py
+│           │       └── chroma_visualizer.py
+│           ├── penalties/
+│           │   ├── mode_penalty_calculator.py
+│           │   ├── penalty_matrix_builder.py
+│           │   └── tonic_penalty_calculator.py
+│           ├── preprocessing/
+│           │   ├── note_extraction/
+│           │   │   ├── notes/
+│           │   │   │   └── note_event_builder.py
+│           │   │   └── note_extractor.py
+│           │   ├── profiling/
+│           │   │   └── segment_profiler.py
+│           │   └── segmentation/
+│           │       ├── model/
+│           │       │   └── segmentation_result.py
+│           │       ├── audio_segmenter.py
+│           │       ├── metrical_hierarchy_constructor.py
+│           │       └── segment_slicer.py
+│           ├── profile_generation/
+│           │   ├── model/
+│           │   │   └── key_profile.py
+│           │   ├── key_profile_merger.py
+│           │   ├── key_profile_transposer.py
+│           │   ├── profile_generator.py
+│           │   └── single_track_profiler.py
+│           ├── utils/
+│           │   └── convert_to_db.py
+│           └── key_progression_analyzer.py
+├── shared/
+│   ├── caching/
+│   │   ├── cache_manager.py
+│   │   ├── hdf5_memory.py
+│   │   └── max_rate_cache.py
+│   ├── exceptions/
+│   │   └── ffprobe_error.py
+│   └── ffprobe_client.py
+├── utils/
+│   ├── audio_format_converter.py
+│   ├── file_utils.py
+│   ├── log_utils.py
+│   └── memory_utils.py
+├── app.py
+├── component_signature.json
+├── constants.py
+├── directory_tree.txt
+├── main.py
+├── registration.json
+└── shared_objects.py
