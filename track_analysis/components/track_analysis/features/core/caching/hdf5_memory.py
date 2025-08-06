@@ -19,6 +19,9 @@ class HDF5Memory:
     def set_logger(self, logger: HoornLogger):
         self._cache_manager.set_logger(logger)
 
+    def log_stats(self, top_n: int = 5):
+        self._cache_manager.log_statistics(top_n=top_n)
+
     def cache(self, identifier_arg: str, ignore: List[str] = None) -> Callable:
         """
         A decorator factory that caches the output of a function in the HDF5 file.

@@ -244,6 +244,7 @@ class App:
         cmd.add_command(["link_scrobbles-profile", "ls-p"], "Links the scrobbles to the library data but profiles the performance also.", self._link_scrobbles, arguments=[True])
         cmd.add_command(["download_and_md", "damd"], "Combines downloading and setting metadata.", self._download_and_assign_metadata)
         cmd.add_command(["add_album_to_downloads", "aatd"], "Adds an album to the downloads.csv file.", self._metadata_api.add_album_to_downloads)
+        cmd.add_command(["log_hdf5_stats", "lhs"], "Logs interesting statistics for the hdf5 cache.", self._log_hdf5_stats)
 
         # noinspection PyBroadException
         try:
@@ -254,6 +255,10 @@ class App:
                 f"Something went terribly wrong, causing the application to nearly crash. Restarting.\n{tb}"
             )
             self.run()
+
+    @staticmethod
+    def _log_hdf5_stats():
+        MEMORY.log_stats(top_n=5)
 
     def _profile_creation_test(self):
         corpus_path = Path(r"X:\Track Analysis\data\training\corpus.csv")
