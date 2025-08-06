@@ -2,10 +2,16 @@ from pathlib import Path
 from typing import Dict
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_calculator import \
+    EnergyCalculator
+from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.model.energy_model_config import \
+    EnergyModelConfig
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature_provider_orchestrator import \
     AudioDataFeatureProviderOrchestrator
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.basic.data_efficiency_provider import \
     DataEfficiencyProvider
+from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.energy.energy_provider import \
+    EnergyProvider
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.loudness.crest_factor import \
     CrestFactorProvider
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.loudness.integrated_lufs import \
@@ -82,6 +88,7 @@ class AudioFeatureOrchestratorFactory:
 
     def create_audio_feature_orchestrator(self,
                                           max_rate_cache: MaxRateCache,
+                                          energy_calculator: EnergyCalculator,
                                           existing_tempo_cache: Dict[Path, float] | None = None,
                                           hop_length: int = 512,
                                           n_fft: int = 2048,
@@ -112,7 +119,8 @@ class AudioFeatureOrchestratorFactory:
             DynamicTempoProvider(self._logger, hop_length=hop_length),
             AudioSampleProvider(self._logger), RawAudioInfoProvider(self._logger),
             TempoProvider(beat_detector, hop_length=hop_length),
-            DataEfficiencyProvider(file_utils, max_rate_cache)
+            DataEfficiencyProvider(file_utils, max_rate_cache),
+            EnergyProvider(energy_calculator, self._logger),
         ]
 
         return AudioDataFeatureProviderOrchestrator(all_calculators, self._logger)

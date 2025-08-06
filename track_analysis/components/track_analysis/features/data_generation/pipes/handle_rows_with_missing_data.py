@@ -52,10 +52,6 @@ class FillMissingHeadersPipe(IPipe):
         self._logger.info(f"Found {len(headers_to_fill)} headers with missing data.", separator=self._SEPARATOR)
 
         # --- 1. Handle Special Cases First ---
-        if Header.Energy_Level in headers_to_fill:
-            self._handle_energy_level_fill(data)
-            headers_to_fill.remove(Header.Energy_Level)
-
         key_headers = {Header.Start_Key, Header.End_Key}
         if key_headers.intersection(headers_to_fill):
             self._handle_segment_keys_fill(data)
@@ -103,14 +99,6 @@ class FillMissingHeadersPipe(IPipe):
 
         self._logger.info("Successfully filled standard headers and updated the cache.", separator=self._SEPARATOR)
         return data
-
-    def _handle_energy_level_fill(self, data: LibraryDataGenerationPipelineContext):
-        """Fills missing Energy Level values."""
-        self._logger.info("Filling missing Energy Level...", separator=self._SEPARATOR)
-        data.loaded_audio_info_cache = data.energy_calculator.calculate_ratings_for_df(
-            data.loaded_audio_info_cache, Header.Energy_Level
-        )
-        self._logger.info("Finished filling Energy Level.", separator=self._SEPARATOR)
 
     def _load_key_segments_df(self, key_csv_path: Path, uuids: set) -> pd.DataFrame | None:
         """Loads and filters the key progression CSV, returning None if not found or empty."""

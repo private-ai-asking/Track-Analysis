@@ -13,6 +13,8 @@ from track_analysis.components.track_analysis.features.data_generation.model.alb
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_calculator import \
     EnergyCalculator
+from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.model.energy_model_config import \
+    EnergyModelConfig
 
 
 class LibraryDataGenerationPipelineContext(pydantic.BaseModel):

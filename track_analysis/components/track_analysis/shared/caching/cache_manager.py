@@ -99,19 +99,8 @@ class HDF5CacheManager:
             # Step 1: Prepare all data and metadata before touching the file.
             payload = pickle.dumps(data)
             params_json = json.dumps(params, sort_keys=True)
+            dset = self._file.create_dataset(item_path, data=np.frombuffer(payload, dtype='uint8'))
 
-            # Decompose the path into its parent and the final dataset name.
-            path_obj = Path(item_path)
-            parent_group_path = str(path_obj.parent)
-            dataset_name = path_obj.name
-
-            # Step 2: Get a handle to the parent group, creating it if it doesn't exist.
-            parent_group = self._file.require_group(parent_group_path)
-
-            # Step 3: Create the new dataset RELATIVE to the parent group handle.
-            dset = parent_group.create_dataset(dataset_name, data=np.frombuffer(payload, dtype='uint8'))
-
-            # Step 4: Set attributes and flush.
             dset.attrs['timestamp'] = time.time()
             dset.attrs['params_json'] = params_json
             self._file.flush()

@@ -1,12 +1,12 @@
-import pprint
-from typing import List
+from typing import List, Dict, Any, Optional
 
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.data_generation.model.header import Header
-from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.model.energy_model_config import \
-    EnergyModelConfig
+from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
+    AudioDataFeature
+from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.feature_to_header_mapping import \
+    FEATURE_TO_HEADER_MAPPING
 
 
 class EnergyDataPreparer:
@@ -14,72 +14,47 @@ class EnergyDataPreparer:
     Handles the preparation of data for energy model training and prediction.
     Specifically, it manages the merging of core features with MFCC data.
     """
-    def __init__(self, mfcc_data: pd.DataFrame, logger: HoornLogger):
-        self._mfcc_data = mfcc_data
+    def __init__(self, logger: HoornLogger):
         self._logger = logger
         self._separator = self.__class__.__name__
+        self._header_to_feature_map = {v.value: k for k, v in FEATURE_TO_HEADER_MAPPING.items()}
 
-    def prepare_for_training(self,
-                             training_data: pd.DataFrame,
-                             config: EnergyModelConfig) -> pd.DataFrame:
-        """
-        Prepares the final training data by merging MFCCs if specified in the config.
-        """
-        final_training_data = training_data.copy()
+    def _get_standard_feature(self, feature_name: str, feature_data: Dict[AudioDataFeature, Any]) -> Optional[Any]:
+        """Retrieves a standard feature's value from the data dictionary."""
+        feature_enum = self._header_to_feature_map.get(feature_name)
+        return feature_data.get(feature_enum) if feature_enum else None
 
-        if config.use_mfcc:
-            mfcc_cols_to_join = [f for f in config.get_feature_names() if f.startswith('mfcc_')]
-            final_training_data = self._merge_with_mfcc_data(
-                main_df=final_training_data,
-                columns_to_join=mfcc_cols_to_join
-            )
+    @staticmethod
+    def _get_mfcc_feature(feature_name: str, feature_data: Dict[AudioDataFeature, Any]) -> Optional[float]:
+        """Extracts a single MFCC value from its corresponding feature array."""
+        try:
+            mfcc_index = int(feature_name.split('_')[-1])
+            feature_enum = AudioDataFeature.MFCC_MEANS if 'mean' in feature_name else AudioDataFeature.MFCC_STDS
 
-        return final_training_data
+            if feature_enum in feature_data and mfcc_index < len(feature_data[feature_enum]):
+                return feature_data[feature_enum][mfcc_index]
+        except (ValueError, IndexError):
+            return None
+        return None
 
-    def prepare_for_prediction(self,
-                               df_to_process: pd.DataFrame,
+    @staticmethod
+    def prepare_for_prediction(df_to_process: pd.DataFrame,
                                model_features: List[str]) -> pd.DataFrame:
         """
-        Prepares data for prediction based on the required features of a loaded model.
+        Prepares data for prediction by selecting required features and handling missing values.
         """
-        mfcc_columns_to_join = [f for f in model_features if f.startswith("mfcc_")]
-        if not mfcc_columns_to_join:
-            return df_to_process.copy()
+        prepared_df = df_to_process[model_features]
 
-        prepared_df = self._merge_with_mfcc_data(
-            main_df=df_to_process,
-            columns_to_join=mfcc_columns_to_join
-        )
+        if prepared_df.isnull().values.any():
+            missing = prepared_df.columns[prepared_df.isnull().any()].tolist()
+            raise ValueError(f"Incomplete feature data after preparation. Missing: {missing}")
 
-        columns_to_return = model_features + [Header.UUID.value]
+        return prepared_df
 
-        final_columns = list(dict.fromkeys(columns_to_return))
-
-        return prepared_df[final_columns]
-
-    def _merge_with_mfcc_data(self, main_df: pd.DataFrame, columns_to_join: List[str]) -> pd.DataFrame:
-        """Merges a dataframe with the stored MFCC data on the UUID index."""
-        if self._mfcc_data is None or self._mfcc_data.empty:
-            raise ValueError("MFCC data was not provided or is empty.")
-
-        mfcc_df_indexed = self._mfcc_data.set_index(Header.UUID.value)
-
-        available_mfcc_columns = [col for col in columns_to_join if col in mfcc_df_indexed.columns]
-        missing_columns = set(columns_to_join) - set(available_mfcc_columns)
-
+    @staticmethod
+    def prepare_for_training(training_data: pd.DataFrame, config) -> pd.DataFrame:
+        feature_names = config.get_feature_names()
+        missing_columns = [col for col in feature_names if col not in training_data.columns]
         if missing_columns:
-            self._logger.warning(
-                f"Missing MFCC columns: {pprint.pformat(missing_columns)}. "
-                "These features will be treated as NaN.",
-                separator=self._separator
-            )
-
-        mfcc_df_filtered = mfcc_df_indexed.loc[:, available_mfcc_columns]
-
-        main_df_indexed = main_df.set_index(Header.UUID.value)
-        merged_df = main_df_indexed.join(mfcc_df_filtered, how='left')
-
-        for col in missing_columns:
-            merged_df[col] = pd.NA
-
-        return merged_df.reset_index()
+            raise ValueError(f"The provided training_data is missing required columns: {missing_columns}")
+        return training_data[feature_names].dropna()

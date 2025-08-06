@@ -17,8 +17,6 @@ from track_analysis.components.track_analysis.features.data_generation.pipeline_
     LibraryDataGenerationPipelineContext
 from track_analysis.components.track_analysis.features.data_generation.pipes.batch_process_new_tracks import \
     BatchProcessNewTracks
-from track_analysis.components.track_analysis.features.data_generation.pipes.calculate_energy_levels import \
-    EnergyLevelCalculatorPipe
 from track_analysis.components.track_analysis.features.data_generation.pipes.filter_cache import FilterCache
 from track_analysis.components.track_analysis.features.data_generation.pipes.filter_files import FilterFiles
 from track_analysis.components.track_analysis.features.data_generation.pipes.get_album_costs import \
@@ -107,7 +105,6 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
             results_mapper=self._results_mapper,
             metadata_builder=self._metadata_provider,
         ))
-        self._add_step(EnergyLevelCalculatorPipe(self._logger))
         self._add_step(RemoveInvalidCachedEntries(self._logger))
         self._add_step(FillMissingHeadersPipe(self._logger))
         self._add_step(RedoHeaders(self._logger))

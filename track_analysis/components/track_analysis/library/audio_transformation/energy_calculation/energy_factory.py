@@ -1,11 +1,7 @@
 from enum import Enum
 
-import pandas as pd
-
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
-from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.configuration.configuration_resolver import \
-    DefaultEnergyConfigResolver
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.default_calculator import \
     DefaultEnergyCalculator
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_calculator import \
@@ -36,9 +32,8 @@ class Implementation(Enum):
 
 class EnergyFactory:
     """Creates components for the energy feature calculation process."""
-    def __init__(self, logger: HoornLogger, mfcc_data: pd.DataFrame = pd.DataFrame()):
+    def __init__(self, logger: HoornLogger):
         self._logger = logger
-        self._mfcc_data = mfcc_data
         self._separator = self.__class__.__name__
 
     def create_lifecycle_manager(self, impl: Implementation) -> EnergyModelLifecycleManager | None:
@@ -48,11 +43,10 @@ class EnergyFactory:
             persistence = DefaultModelPersistence(self._logger, CACHE_DIRECTORY, inspection_persistence)
             trainer = DefaultEnergyModelTrainer(self._logger, persistence)
             validator = DefaultEnergyModelValidator(self._logger)
-            energy_preparer = EnergyDataPreparer(self._mfcc_data, self._logger)
-            config_resolver = DefaultEnergyConfigResolver(self._mfcc_data)
+            energy_preparer = EnergyDataPreparer(self._logger)
 
             return DefaultEnergyModelLifecycleManager(
-                self._logger, trainer, persistence, validator, energy_preparer, config_resolver
+                self._logger, trainer, persistence, validator, energy_preparer
             )
 
         self._logger.warning(f"Lifecycle Manager for '{impl.name}' not implemented.", separator=self._separator)
@@ -68,7 +62,7 @@ class EnergyFactory:
         """
         if impl == Implementation.Default:
             predictor = DefaultAudioEnergyPredictor(self._logger)
-            energy_preparer = EnergyDataPreparer(self._mfcc_data, self._logger)
+            energy_preparer = EnergyDataPreparer(self._logger)
 
             return DefaultEnergyCalculator(
                 self._logger, predictor, energy_preparer, model

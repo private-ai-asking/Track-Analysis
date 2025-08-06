@@ -1,6 +1,14 @@
+import dataclasses
+
+import pandas as pd
+
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.track_analysis.constants import ENERGY_CALCULATION_REGENERATE_TRACK_INTERVAL
+from track_analysis.components.track_analysis.features.data_generation.helpers.energy_training_config_factory import \
+    TrainingConfigFactory
+from track_analysis.components.track_analysis.features.data_generation.helpers.energy_training_data_builder import \
+    TrainingDataBuilder
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline_context import \
     LibraryDataGenerationPipelineContext
@@ -12,6 +20,8 @@ from track_analysis.components.track_analysis.library.audio_transformation.energ
     EnergyModelLifecycleManager
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.model.energy_model import \
     EnergyModel
+from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.model.energy_model_config import \
+    EnergyModelConfig
 
 
 class LoadEnergyCalculator(IPipe):
@@ -28,19 +38,33 @@ class LoadEnergyCalculator(IPipe):
         """Orchestrates the model selection and calculator creation."""
         self._logger.trace("Determining which energy model to use...", separator=self._separator)
 
-        factory = EnergyFactory(self._logger, data.loaded_mfcc_info_cache)
+        factory = EnergyFactory(self._logger)
         manager = factory.create_lifecycle_manager(Implementation.Default)
         if not manager:
             raise RuntimeError("Failed to create the EnergyModelLifecycleManager.")
 
-        loaded_model = manager.load_model(DEFAULT_ENERGY_MODEL_CONFIG)
-        is_model_valid = manager.validate_model(loaded_model, data.loaded_audio_info_cache)
+        data_builder = TrainingDataBuilder()
+        config_factory = TrainingConfigFactory()
+
+        base_config = DEFAULT_ENERGY_MODEL_CONFIG
+
+        main_df = data_builder.build(
+            main_df=data.loaded_audio_info_cache,
+            mfcc_df=data.loaded_mfcc_info_cache,
+            use_mfcc=base_config.use_mfcc
+        )
+
+        # 2. Create the final configuration using the factory
+        final_config = config_factory.create(base_config, main_df)
+
+        loaded_model = manager.load_model(final_config)
+        is_model_valid = manager.validate_model(loaded_model, main_df)
 
         if is_model_valid:
-            self._logger.info(f"Cached model is still valid, using: '{DEFAULT_ENERGY_MODEL_CONFIG.name}'", separator=self._separator)
+            self._logger.info(f"Cached model is still valid, using: '{final_config.name}'", separator=self._separator)
             model_to_use = loaded_model
         else:
-            model_to_use = self._handle_invalid_or_missing_model(manager, loaded_model, data)
+            model_to_use = self._handle_invalid_or_missing_model(manager, loaded_model, data, final_config, main_df)
 
         self._attach_calculator_to_context(factory, model_to_use, data)
 
@@ -50,17 +74,19 @@ class LoadEnergyCalculator(IPipe):
             self,
             manager: EnergyModelLifecycleManager,
             loaded_model: EnergyModel | None,
-            data: LibraryDataGenerationPipelineContext
+            data: LibraryDataGenerationPipelineContext,
+            config: EnergyModelConfig,
+            df: pd.DataFrame
     ) -> EnergyModel:
-        """Decides whether to retrain or use a stale model when the current one is invalid or missing."""
+        """Decides whether to retrain or use a stale model."""
         self._logger.info("Cached model is invalid or missing, deciding what to do next.", separator=self._separator)
 
         if not loaded_model:
             self._logger.info("No existing model found. Training a new one.", separator=self._separator)
-            return self._train_new_model(manager, data)
+            return self._train_new_model(manager, data, df, config)
 
         if self._should_retrain_model(loaded_model, data.loaded_audio_info_cache.shape[0]):
-            return self._train_new_model(manager, data)
+            return self._train_new_model(manager, data, df, config)
         else:
             self._logger.info("Using stale model: new track count is below retraining threshold.", separator=self._separator)
             return loaded_model
@@ -77,9 +103,9 @@ class LoadEnergyCalculator(IPipe):
         return should_retrain
 
     @staticmethod
-    def _train_new_model(manager: EnergyModelLifecycleManager, data: LibraryDataGenerationPipelineContext) -> EnergyModel:
+    def _train_new_model(manager: EnergyModelLifecycleManager, data: LibraryDataGenerationPipelineContext, df: pd.DataFrame, config: EnergyModelConfig) -> EnergyModel:
         """Handles the logic for training a new model and updating the context."""
-        model = manager.train_and_persist_model(DEFAULT_ENERGY_MODEL_CONFIG, data.loaded_audio_info_cache)
+        model = manager.train_and_persist_model(config, df)
 
         if Header.Energy_Level not in data.headers_to_refill:
             data.headers_to_refill.append(Header.Energy_Level)

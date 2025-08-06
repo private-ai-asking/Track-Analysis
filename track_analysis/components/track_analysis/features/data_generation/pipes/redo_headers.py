@@ -22,10 +22,6 @@ class RedoHeaders(IPipe):
         self._logger.trace("Successfully initialized pipe.", separator=self._SEPARATOR)
 
     def flow(self, data: LibraryDataGenerationPipelineContext) -> LibraryDataGenerationPipelineContext:
-        if Header.Energy_Level in data.headers_to_refill:
-            self._handle_energy_level_refill(data)
-            data.headers_to_refill.remove(Header.Energy_Level)
-
         if not data.headers_to_refill:
             self._logger.debug("No headers to refill.", separator=self._SEPARATOR)
             return data
@@ -64,7 +60,3 @@ class RedoHeaders(IPipe):
 
         self._logger.info("Successfully refilled headers and updated the cache.", separator=self._SEPARATOR)
         return data
-
-    def _handle_energy_level_refill(self, data: LibraryDataGenerationPipelineContext):
-        self._logger.info("Refilling energy levels...", separator=self._SEPARATOR)
-        data.loaded_audio_info_cache = data.energy_calculator.calculate_ratings_for_df(data.loaded_audio_info_cache, Header.Energy_Level)

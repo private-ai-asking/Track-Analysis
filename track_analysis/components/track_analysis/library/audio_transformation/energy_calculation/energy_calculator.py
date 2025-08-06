@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
+from typing import List
 
 import pandas as pd
 
-from track_analysis.components.track_analysis.features.data_generation.model.header import Header
+from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
+    AudioDataFeature
 
 
 class EnergyCalculator(ABC):
@@ -11,29 +13,23 @@ class EnergyCalculator(ABC):
     Implementations are expected to be initialized with a valid EnergyModel.
     """
 
+    # TODO - Resolve this. The energy calculator should not be aware of audio data features.
     @abstractmethod
-    def calculate_energy_for_row(self, row: pd.Series) -> float:
+    def get_dependencies(self) -> List[AudioDataFeature]:
+        """
+        Exposes the model's required features as AudioDataFeature enums.
+        This is the single source of truth for the provider's dependencies.
+        """
+
+    @abstractmethod
+    def calculate_energy_for_row(self, row_df: pd.DataFrame) -> float:
         """
         Calculates the energy score for a single track's data.
 
         Args:
-            row: A pandas Series containing the audio features for one track.
+            row_df: The row df.
 
         Returns:
             The calculated energy score as a float.
-        """
-        ...
-
-    @abstractmethod
-    def calculate_ratings_for_df(self, df_to_process: pd.DataFrame, target_column: Header) -> pd.DataFrame:
-        """
-        Calculates energy ratings for a DataFrame using the configured model.
-
-        Args:
-            df_to_process: The pandas DataFrame containing the rows to process.
-            target_column: The Header enum for the column to add/update with the ratings.
-
-        Returns:
-            A new DataFrame with the calculated energy ratings.
         """
         ...

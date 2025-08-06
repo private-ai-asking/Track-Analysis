@@ -38,7 +38,10 @@ class CreateProcessors(IPipe):
         self._logger.trace("Creating processors.", separator=self._separator)
 
         audio_feature_orchestrator_factory = AudioFeatureOrchestratorFactory(self._logger)
-        orchestrator = audio_feature_orchestrator_factory.create_audio_feature_orchestrator(hop_length=self._hop_length, n_fft=self._n_fft, max_rate_cache=self._max_rate_cache, existing_tempo_cache=self._get_existing_tempo_cache(data.loaded_audio_info_cache))
+        orchestrator = audio_feature_orchestrator_factory.create_audio_feature_orchestrator(
+            hop_length=self._hop_length, n_fft=self._n_fft, max_rate_cache=self._max_rate_cache, existing_tempo_cache=self._get_existing_tempo_cache(data.loaded_audio_info_cache),
+            energy_calculator=data.energy_calculator
+        )
         main_processor: MainFeatureProcessor = MainFeatureProcessor(
             orchestrator, self._logger,
             max_io_workers=data.max_new_tracks_per_run,

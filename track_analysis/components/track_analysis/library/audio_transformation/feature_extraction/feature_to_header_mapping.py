@@ -13,6 +13,7 @@ FEATURE_TO_HEADER_MAPPING = {
     AudioDataFeature.BIT_DEPTH: Header.Bit_Depth,
     AudioDataFeature.BIT_RATE: Header.Bitrate,
     AudioDataFeature.BPM: Header.BPM,
+    AudioDataFeature.ENERGY_LEVEL: Header.Energy_Level,
 
     # Loudness Features
     AudioDataFeature.INTEGRATED_LUFS: Header.Integrated_LUFS,
