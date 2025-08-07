@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Optional
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.constants import MFCC_LABEL_PREFIX_TO_AUDIO_DATA_FEATURE
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
     AudioDataFeature
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.feature_to_header_mapping import \
@@ -28,13 +29,24 @@ class EnergyDataPreparer:
     def _get_mfcc_feature(feature_name: str, feature_data: Dict[AudioDataFeature, Any]) -> Optional[float]:
         """Extracts a single MFCC value from its corresponding feature array."""
         try:
-            mfcc_index = int(feature_name.split('_')[-1])
-            feature_enum = AudioDataFeature.MFCC_MEANS if 'mean' in feature_name else AudioDataFeature.MFCC_STDS
+            parts = feature_name.rsplit('_', 1)
+            if len(parts) != 2:
+                return None
 
-            if feature_enum in feature_data and mfcc_index < len(feature_data[feature_enum]):
-                return feature_data[feature_enum][mfcc_index]
+            prefix, index_str = parts
+            feature_prefix = prefix + '_'
+            mfcc_index = int(index_str)
+
+            feature_enum = MFCC_LABEL_PREFIX_TO_AUDIO_DATA_FEATURE.get(feature_prefix)
+
+            if feature_enum and feature_enum in feature_data:
+                data_array = feature_data[feature_enum]
+                if mfcc_index < len(data_array):
+                    return data_array[mfcc_index]
+
         except (ValueError, IndexError):
             return None
+
         return None
 
     @staticmethod

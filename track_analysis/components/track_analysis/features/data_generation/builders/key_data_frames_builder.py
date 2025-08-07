@@ -18,7 +18,6 @@ class KeyDataFramesBuilder:
         main_key_records, key_progression_dfs = [], []
 
         for res in key_results:
-            # This logic is moved directly from KeyFeatureProcessor._build_key_dataframes
             uuid = meta_df.iloc[res.index][Header.UUID.value]
 
             progression_df_for_track = pd.DataFrame([

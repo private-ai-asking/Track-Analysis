@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+from track_analysis.components.track_analysis.constants import MFFC_LABEL_PREFIXES, MFCCType
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import AudioDataFeature
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 
@@ -28,11 +29,11 @@ class MfccDFBuilder:
         acceleration_stds_stacked = np.vstack(full_df[acceleration_stds_col])
 
         for i in range(mfcc_means_stacked.shape[1]):
-            mfcc_data[f"mfcc_mean_{i}"] = mfcc_means_stacked[:, i]
-            mfcc_data[f"mfcc_std_{i}"] = mfcc_stds_stacked[:, i]
-            mfcc_data[f"velocity_mean_{i}"] = velocity_means_stacked[:, i]
-            mfcc_data[f"velocity_std_{i}"] = velocity_stds_stacked[:, i]
-            mfcc_data[f"acceleration_mean_{i}"] = acceleration_means_stacked[:, i]
-            mfcc_data[f"acceleration_std_{i}"] = acceleration_stds_stacked[:, i]
+            mfcc_data[f"{MFFC_LABEL_PREFIXES[MFCCType.MEANS]}{i}"] = mfcc_means_stacked[:, i]
+            mfcc_data[f"{MFFC_LABEL_PREFIXES[MFCCType.STDS]}{i}"] = mfcc_stds_stacked[:, i]
+            mfcc_data[f"{MFFC_LABEL_PREFIXES[MFCCType.VELOCITY_MEANS]}{i}"] = velocity_means_stacked[:, i]
+            mfcc_data[f"{MFFC_LABEL_PREFIXES[MFCCType.VELOCITY_STDS]}{i}"] = velocity_stds_stacked[:, i]
+            mfcc_data[f"{MFFC_LABEL_PREFIXES[MFCCType.ACCELERATION_MEANS]}{i}"] = acceleration_means_stacked[:, i]
+            mfcc_data[f"{MFFC_LABEL_PREFIXES[MFCCType.ACCELERATION_STDS]}{i}"] = acceleration_stds_stacked[:, i]
 
         return pd.DataFrame(mfcc_data)

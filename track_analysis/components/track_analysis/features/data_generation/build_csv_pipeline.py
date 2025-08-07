@@ -8,6 +8,7 @@ from track_analysis.components.track_analysis.features.data_generation.builders.
     KeyDataFramesBuilder
 from track_analysis.components.track_analysis.features.data_generation.builders.metadata_df_builder import \
     MetadataDFBuilder
+from track_analysis.components.track_analysis.features.data_generation.helpers.cache_updater import CacheUpdater
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.feature_to_header_mapping import \
     FEATURE_TO_HEADER_MAPPING
 from track_analysis.components.track_analysis.features.data_generation.mappers.results_mapper import ResultsMapper
@@ -67,6 +68,7 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._metadata_provider: MetadataDFBuilder = MetadataDFBuilder(tag_extractor)
         self._results_mapper: ResultsMapper = ResultsMapper(FEATURE_TO_HEADER_MAPPING)
         self._key_data_builder: KeyDataFramesBuilder = KeyDataFramesBuilder()
+        self._cache_updater: CacheUpdater = CacheUpdater(self._logger)
 
         self._hop_length = configuration.hop_length
         self._n_fft = configuration.n_fft
@@ -110,7 +112,7 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
             metadata_builder=self._metadata_provider,
         ))
         self._add_step(RemoveInvalidCachedEntries(self._logger))
-        self._add_step(FillMissingHeadersPipe(self._logger))
-        self._add_step(RedoHeaders(self._logger))
+        self._add_step(FillMissingHeadersPipe(self._logger, self._results_mapper, self._cache_updater))
+        self._add_step(RedoHeaders(self._logger, self._results_mapper, self._key_data_builder, self._cache_updater))
         self._add_step(PreprocessData(self._logger, self._string_utils))
         self._add_step(MakeCSV(self._logger))

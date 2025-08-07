@@ -1,11 +1,12 @@
 import dataclasses
 from pathlib import Path
-from typing import Tuple
 
 import numpy as np
 
+from track_analysis.components.track_analysis.constants import NUMBER_OF_MFCCS
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.spectral.calculator.mfcc import \
     MfccExtractor
+
 
 @dataclasses.dataclass(frozen=True)
 class MFCCResult:
@@ -24,7 +25,7 @@ class MFCCHelper:
                   audio_path: Path,
                   audio: np.ndarray,
                   sample_rate: int) -> MFCCResult:
-        mffccs = self._mfcc_extractor.extract_mfccs(file_path=audio_path, start_sample=0, end_sample=len(audio), sample_rate=sample_rate, n_mfcc=20, audio=audio)
+        mffccs = self._mfcc_extractor.extract_mfccs(file_path=audio_path, start_sample=0, end_sample=len(audio), sample_rate=sample_rate, n_mfcc=NUMBER_OF_MFCCS, audio=audio)
         deltas = self._mfcc_extractor.extract_deltas(file_path=audio_path, start_sample=0, end_sample=len(audio), sample_rate=sample_rate, order=1, axis=-1, mffccs=mffccs)
         delta2s = self._mfcc_extractor.extract_deltas(file_path=audio_path, start_sample=0, end_sample=len(audio), sample_rate=sample_rate, order=2, axis=-1, mffccs=mffccs)
 

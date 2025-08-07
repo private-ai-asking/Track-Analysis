@@ -2,61 +2,90 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.feature_to_header_mapping import \
-    HEADER_TO_FEATURE_MAPPING, FEATURE_TO_HEADER_MAPPING
+from track_analysis.components.track_analysis.features.data_generation.builders.key_data_frames_builder import \
+    KeyDataFramesBuilder
+from track_analysis.components.track_analysis.features.data_generation.helpers.cache_updater import CacheUpdater
+from track_analysis.components.track_analysis.features.data_generation.mappers.results_mapper import ResultsMapper
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline_context import \
     LibraryDataGenerationPipelineContext
+from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
+    MFCC_FEATURES
+from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.feature_to_header_mapping import \
+    HEADER_TO_FEATURE_MAPPING
 
 
 class RedoHeaders(IPipe):
     """
-    Orchestrator class that delegates header processing to specialized processor classes.
+    Orchestrator class that re-calculates specified features and merges them
+    back into the cached data using a dedicated updater.
     """
 
     _SEPARATOR = "BuildCSV.RedoHeaders"
 
-    def __init__(self, logger: HoornLogger):
-        self._logger = logger
+    def __init__(self, logger: HoornLogger, results_mapper: ResultsMapper, key_builder: KeyDataFramesBuilder, cache_updater: CacheUpdater):
+        """
+        Initializes the pipe.
 
+        Args:
+            logger (HoornLogger): The logger instance for logging messages.
+            results_mapper (ResultsMapper): The mapper to structure raw feature data.
+            key_builder (KeyDataFramesBuilder): The builder for key-related DataFrames.
+            cache_updater (CacheUpdater): The centralized handler for updating cached DataFrames.
+        """
+        self._logger = logger
+        self._results_mapper = results_mapper
+        self._key_builder = key_builder
+        self._cache_updater = cache_updater
         self._logger.trace("Successfully initialized pipe.", separator=self._SEPARATOR)
 
-    def flow(self, data: LibraryDataGenerationPipelineContext) -> LibraryDataGenerationPipelineContext:
-        if not data.headers_to_refill:
+    def flow(self, context: LibraryDataGenerationPipelineContext) -> LibraryDataGenerationPipelineContext:
+        if not context.headers_to_refill:
             self._logger.debug("No headers to refill.", separator=self._SEPARATOR)
-            return data
+            return context
 
-        self._logger.info(f"Refilling {len(data.headers_to_refill)} headers.", separator=self._SEPARATOR)
+        self._logger.info(f"Refilling {len(context.headers_to_refill)} headers.", separator=self._SEPARATOR)
 
-        features_to_request = [HEADER_TO_FEATURE_MAPPING[header] for header in data.headers_to_refill]
-        header_cols_to_update = [h.value for h in data.headers_to_refill]
-        audio_unique_identifier_col = Header.UUID.value
+        # === 1. Prepare for Processing ===
+        audio_uuid_col = Header.UUID.value
+        df_to_process = context.loaded_audio_info_cache
+        key_prog_dfs = []
 
-        original_df = data.loaded_audio_info_cache
-        df_to_process = original_df
-        refilled_features_df = data.main_processor.process_batch(df_to_process, features_to_request)
+        features_to_request = [
+            HEADER_TO_FEATURE_MAPPING[header]
+            for header in context.headers_to_refill if header in HEADER_TO_FEATURE_MAPPING
+        ]
 
-        rename_map = {
-            feature.name: header.value
-            for feature, header in FEATURE_TO_HEADER_MAPPING.items()
-        }
+        # Special handling for Key features, which affects other calculations
+        key_related_headers = {Header.Key, Header.Start_Key, Header.End_Key}
+        if key_related_headers.intersection(set(context.headers_to_refill)):
+            self._logger.info("Recalculating Key-related features (Key, Start Key, End Key).", separator=self._SEPARATOR)
+            raw_key_results = context.key_processor.extract_raw_keys(df_to_process)
+            key_df, key_prog_dfs = self._key_builder.build(raw_key_results, df_to_process)
 
-        refilled_features_df.rename(columns=rename_map, inplace=True)
+            df_to_process = df_to_process.merge(
+                key_df, left_index=True, right_on='original_index', how='left'
+            ).drop(columns=['original_index'])
 
-        for col in header_cols_to_update:
-            if col in original_df.columns and col in refilled_features_df.columns:
-                original_df[col] = pd.to_numeric(original_df[col], errors='coerce')
-                refilled_features_df[col] = pd.to_numeric(refilled_features_df[col], errors='coerce')
+        if Header.MFCC in context.headers_to_refill:
+            features_to_request.extend(MFCC_FEATURES)
 
-        original_df[audio_unique_identifier_col] = original_df[audio_unique_identifier_col].astype(str).str.strip()
-        refilled_features_df[audio_unique_identifier_col] = refilled_features_df[audio_unique_identifier_col].astype(str).str.strip()
+        # === 2. Process Features and Map Results ===
+        calculated_features_df = context.main_processor.process_batch(df_to_process, features_to_request)
 
-        original_df_indexed = original_df.set_index(audio_unique_identifier_col)
-        refilled_features_df_indexed = refilled_features_df.set_index(audio_unique_identifier_col)
+        # Create the "full" DataFrame that ResultsMapper expects
+        full_results_df = pd.concat([
+            df_to_process.reset_index(drop=True),
+            calculated_features_df.drop(columns=[audio_uuid_col], errors='ignore').reset_index(drop=True)
+        ], axis=1)
 
-        original_df_indexed.update(refilled_features_df_indexed[header_cols_to_update])
+        # Directly call the build() method to get structured data
+        updated_data = self._results_mapper.build(full_results_df, key_prog_dfs)
 
-        data.loaded_audio_info_cache = original_df_indexed.reset_index()
+        # === 3. Merge Updates into Cached DataFrames using the dedicated updater ===
+        self._cache_updater.update_main_info(context, updated_data.main_audio_info, audio_uuid_col)
+        self._cache_updater.update_mfcc(context, updated_data.mfcc_audio_info, audio_uuid_col)
+        self._cache_updater.update_key_progression(context, updated_data.key_progression_audio_info, audio_uuid_col)
 
         self._logger.info("Successfully refilled headers and updated the cache.", separator=self._SEPARATOR)
-        return data
+        return context

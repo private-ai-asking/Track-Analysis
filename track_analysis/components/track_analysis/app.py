@@ -375,8 +375,32 @@ class App:
             mfcc_data_output_file_path=self._mfcc_data_path,
             use_threads=True,
             max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN,
-            missing_headers_to_fill=[],
-            headers_to_refill=[], # Header.Energy_Level
+            missing_headers_to_fill=[
+                Header.Onset_Rate_Variation,
+                Header.High_Ratio,
+                Header.Mid_Ratio,
+                Header.Low_Mid_Ratio,
+                Header.Bass_Ratio,
+                Header.Sub_Bass_Ratio,
+                Header.Spectral_Bandwidth_STD,
+                Header.Spectral_Bandwidth_Mean,
+                Header.Zero_Crossing_Rate_STD,
+                Header.Spectral_Entropy,
+                Header.Spectral_Kurtosis,
+                Header.Spectral_Skewness,
+                Header.Spectral_Contrast_STD,
+                Header.Spectral_Flatness_STD,
+                Header.Spectral_Flux_Std,
+                Header.Spectral_Centroid_Std,
+                Header.Chroma_Entropy,
+                Header.HPR,
+                Header.Rhythmic_Regularity,
+                Header.Beat_Strength,
+                Header.Integrated_LUFS_Range,
+                Header.Integrated_LUFS_STD,
+                Header.Integrated_LUFS_Mean
+            ],
+            headers_to_refill=[Header.MFCC], # Header.Energy_Level
             end_at_energy_calculation_loading=False
         )
 
