@@ -42,9 +42,7 @@ class CreateProcessors(IPipe):
         )
         main_processor: MainFeatureProcessor = MainFeatureProcessor(
             orchestrator, self._logger,
-            max_io_workers=data.max_new_tracks_per_run,
-            cpu_workers=self._num_workers,
-            adjustment_interval=25
+            cpu_workers=self._num_workers
         )
 
         data.main_processor = main_processor

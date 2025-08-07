@@ -32,7 +32,6 @@ class BatchProcessNewTracks(IPipe):
         self._logger = logger
         self._separator = "BuildCSV.BatchProcessNewTracks"
 
-        # High-level components this orchestrator manages
         self._metadata_builder = metadata_builder
         self._results_mapper = results_mapper
 
@@ -70,7 +69,7 @@ class BatchProcessNewTracks(IPipe):
 
         new_data: MappedAudioData = self._results_mapper.build(all_results_df)
         self._assign_data_to_context(new_data, context)
-        
+
         self._logger.info(f"Completed processing of {len(paths)} new tracks.", separator=self._separator)
         return context
 

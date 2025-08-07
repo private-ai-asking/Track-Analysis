@@ -371,7 +371,7 @@ class App:
 
         # output_path.unlink(missing_ok=True)
 
-        pipeline_config: PipelineConfiguration = PipelineConfiguration(NUM_WORKERS_CPU_HEAVY-10, 512, 2048)
+        pipeline_config: PipelineConfiguration = PipelineConfiguration(num_workers=NUM_WORKERS_CPU_HEAVY-10, hop_length=512, n_fft=2048)
 
         pipeline = BuildLibraryDataCSVPipeline(
             logger=self._logger,
