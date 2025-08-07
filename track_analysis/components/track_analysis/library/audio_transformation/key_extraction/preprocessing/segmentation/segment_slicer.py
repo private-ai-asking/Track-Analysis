@@ -37,13 +37,14 @@ class SegmentSlicer:
         """
         self._validate_inputs(audio, sample_rate, event_times)
 
-        onset_strength_envelope = self._onset_extractor.extract(
+        onset_strength_envelope = self._onset_extractor.extract_envelope(
             file_path=audio_path,
             start_sample=0,
             end_sample=percussive.shape[0],
             sample_rate=sample_rate,
             hop_length=hop_length_samples,
             audio=percussive,
+            unique_string="segment-slicer-percussive"
         )
 
         boundaries = self._filter_boundaries(event_times[0], strong_times)

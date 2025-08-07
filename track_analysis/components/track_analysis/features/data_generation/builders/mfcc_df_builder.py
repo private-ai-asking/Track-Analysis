@@ -9,16 +9,30 @@ class MfccDFBuilder:
     def build(self, full_df: pd.DataFrame) -> pd.DataFrame:
         """Builds the MFCC DataFrame from the raw results."""
         mfcc_means_col, mfcc_stds_col = AudioDataFeature.MFCC_MEANS.name, AudioDataFeature.MFCC_STDS.name
+        velocity_means_col, velocity_stds_col = AudioDataFeature.MFCC_VELOCITIES_MEANS.name, AudioDataFeature.MFCC_VELOCITIES_STDS.name
+        acceleration_means_col, acceleration_stds_col = AudioDataFeature.MFCC_ACCELERATIONS_MEANS.name, AudioDataFeature.MFCC_ACCELERATIONS_STDS.name
 
-        if full_df.empty or mfcc_means_col not in full_df.columns or mfcc_stds_col not in full_df.columns:
+        if full_df.empty:
             return pd.DataFrame()
+
+        for col in [mfcc_means_col, mfcc_stds_col, velocity_means_col, velocity_stds_col, acceleration_means_col, acceleration_stds_col]:
+            if col not in full_df.columns:
+                return pd.DataFrame()
 
         mfcc_data = {Header.UUID.value: full_df[Header.UUID.value]}
         mfcc_means_stacked = np.vstack(full_df[mfcc_means_col])
         mfcc_stds_stacked = np.vstack(full_df[mfcc_stds_col])
+        velocity_means_stacked = np.vstack(full_df[velocity_means_col])
+        velocity_stds_stacked = np.vstack(full_df[velocity_stds_col])
+        acceleration_means_stacked = np.vstack(full_df[acceleration_means_col])
+        acceleration_stds_stacked = np.vstack(full_df[acceleration_stds_col])
 
         for i in range(mfcc_means_stacked.shape[1]):
             mfcc_data[f"mfcc_mean_{i}"] = mfcc_means_stacked[:, i]
             mfcc_data[f"mfcc_std_{i}"] = mfcc_stds_stacked[:, i]
+            mfcc_data[f"velocity_mean_{i}"] = velocity_means_stacked[:, i]
+            mfcc_data[f"velocity_std_{i}"] = velocity_stds_stacked[:, i]
+            mfcc_data[f"acceleration_mean_{i}"] = acceleration_means_stacked[:, i]
+            mfcc_data[f"acceleration_std_{i}"] = acceleration_stds_stacked[:, i]
 
         return pd.DataFrame(mfcc_data)

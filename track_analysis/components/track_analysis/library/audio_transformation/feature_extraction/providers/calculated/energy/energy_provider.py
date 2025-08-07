@@ -45,6 +45,7 @@ class EnergyProvider(AudioDataFeatureProvider):
         Passes the dependency data directly to the energy calculator without transformation.
         """
         transformed_data = self._transform_data_into_df(data)
+
         energy_level = self._energy_calculator.calculate_energy_for_row(transformed_data)
 
         return {
@@ -53,17 +54,22 @@ class EnergyProvider(AudioDataFeatureProvider):
 
     def _transform_data_into_df(self, data: Dict[AudioDataFeature, Any]) -> pd.DataFrame:
         # TODO - Remove storage detail dependency
-        mfcc_data = {
+        base_data = {
             self._feature_to_header_mapping[k.name]: v
             for k, v in data.items()
             if k.name in self._feature_to_header_mapping
         }
+
+        if "mfcc" not in [dep.name for dep in self._energy_calculator.get_dependencies()]:
+            return pd.DataFrame(base_data, index=[0])
 
         mfcc_means_array = np.array(data[AudioDataFeature.MFCC_MEANS])
         mfcc_stds_array = np.array(data[AudioDataFeature.MFCC_STDS])
 
         mfcc_means_stacked = mfcc_means_array.reshape(1, -1)
         mfcc_stds_stacked = mfcc_stds_array.reshape(1, -1)
+
+        mfcc_data = base_data.copy()
 
         for i in range(mfcc_means_stacked.shape[1]):
             mfcc_data[f"mfcc_mean_{i}"] = mfcc_means_stacked[:, i]

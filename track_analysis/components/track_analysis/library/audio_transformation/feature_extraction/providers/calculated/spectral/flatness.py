@@ -20,8 +20,8 @@ class SpectralFlatnessProvider(AudioDataFeatureProvider):
         return [AudioDataFeature.AUDIO_PATH, AudioDataFeature.SAMPLE_RATE_HZ, AudioDataFeature.AUDIO_SAMPLES]
 
     @property
-    def output_features(self) -> AudioDataFeature:
-        return AudioDataFeature.SPECTRAL_FLATNESS_MEAN
+    def output_features(self) -> List[AudioDataFeature]:
+        return [AudioDataFeature.SPECTRAL_FLATNESS_MEAN, AudioDataFeature.SPECTRAL_FLATNESS_STD]
 
     def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
         samples = data[AudioDataFeature.AUDIO_SAMPLES]
@@ -35,5 +35,6 @@ class SpectralFlatnessProvider(AudioDataFeatureProvider):
         }
         flatness = self._flatness_extractor.extract(**common_args)
         return {
-            AudioDataFeature.SPECTRAL_FLATNESS_MEAN: float(flatness.mean())
+            AudioDataFeature.SPECTRAL_FLATNESS_MEAN: float(flatness.mean()),
+            AudioDataFeature.SPECTRAL_FLATNESS_STD: float(flatness.std()),
         }

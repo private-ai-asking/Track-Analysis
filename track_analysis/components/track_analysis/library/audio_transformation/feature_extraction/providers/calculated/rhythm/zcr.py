@@ -20,8 +20,8 @@ class ZCRProvider(AudioDataFeatureProvider):
         return [AudioDataFeature.AUDIO_PATH, AudioDataFeature.SAMPLE_RATE_HZ, AudioDataFeature.AUDIO_SAMPLES]
 
     @property
-    def output_features(self) -> AudioDataFeature:
-        return AudioDataFeature.ZCR_MEAN
+    def output_features(self) -> List[AudioDataFeature]:
+        return [AudioDataFeature.ZCR_MEAN, AudioDataFeature.ZCR_STD]
 
     def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
         samples = data[AudioDataFeature.AUDIO_SAMPLES]
@@ -34,4 +34,7 @@ class ZCRProvider(AudioDataFeatureProvider):
             "hop_length": self._hop_length
         }
         zcr = self._zcr_extractor.extract(**common_args)
-        return {AudioDataFeature.ZCR_MEAN: float(zcr.mean())}
+        return {
+            AudioDataFeature.ZCR_MEAN: float(zcr.mean()),
+            AudioDataFeature.ZCR_STD: float(zcr.std()),
+        }

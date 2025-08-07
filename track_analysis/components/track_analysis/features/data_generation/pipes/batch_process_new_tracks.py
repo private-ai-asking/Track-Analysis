@@ -45,7 +45,11 @@ class BatchProcessNewTracks(IPipe):
         self._results_mapper = results_mapper
 
         to_calculate: List[AudioDataFeature] = list(FEATURE_TO_HEADER_MAPPING.keys())
-        to_calculate.extend([AudioDataFeature.MFCC_MEANS, AudioDataFeature.MFCC_STDS])
+        to_calculate.extend([
+            AudioDataFeature.MFCC_MEANS, AudioDataFeature.MFCC_STDS,
+            AudioDataFeature.MFCC_VELOCITIES_MEANS, AudioDataFeature.MFCC_VELOCITIES_STDS,
+            AudioDataFeature.MFCC_ACCELERATIONS_MEANS, AudioDataFeature.MFCC_ACCELERATIONS_STDS
+        ])
 
         self._all_features: List[AudioDataFeature] = to_calculate
 

@@ -20,8 +20,8 @@ class SpectralContrastProvider(AudioDataFeatureProvider):
         return [AudioDataFeature.AUDIO_PATH, AudioDataFeature.SAMPLE_RATE_HZ, AudioDataFeature.AUDIO_SAMPLES]
 
     @property
-    def output_features(self) -> AudioDataFeature:
-        return AudioDataFeature.SPECTRAL_CONTRAST_MEAN
+    def output_features(self) -> List[AudioDataFeature]:
+        return [AudioDataFeature.SPECTRAL_CONTRAST_MEAN, AudioDataFeature.SPECTRAL_CONTRAST_STD]
 
     def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
         samples = data[AudioDataFeature.AUDIO_SAMPLES]
@@ -35,5 +35,6 @@ class SpectralContrastProvider(AudioDataFeatureProvider):
         }
         contrast = self._contrast_extractor.extract(**common_args)
         return {
-            AudioDataFeature.SPECTRAL_CONTRAST_MEAN: float(contrast.mean())
+            AudioDataFeature.SPECTRAL_CONTRAST_MEAN: float(contrast.mean()),
+            AudioDataFeature.SPECTRAL_CONTRAST_STD: float(contrast.std()),
         }

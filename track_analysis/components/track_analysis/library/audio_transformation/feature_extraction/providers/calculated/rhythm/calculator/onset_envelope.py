@@ -1,6 +1,8 @@
 from pathlib import Path
 import numpy as np
 import librosa
+from librosa.beat import tempo
+from librosa.onset import onset_detect
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.shared_objects import MEMORY
@@ -14,6 +16,7 @@ def compute_onset_strengths(
         end_sample:    int,
         sample_rate:   int,
         hop_length:    int,
+        unique_string: str,
         audio:         np.ndarray = None,
 ) -> np.ndarray:
     """
@@ -48,6 +51,7 @@ def compute_onset_peaks(
         end_sample:    int,
         sample_rate:   int,
         hop_length:    int,
+        unique_string: str,
         audio:         np.ndarray = None,
 ) -> np.ndarray:
     """
@@ -62,9 +66,10 @@ def compute_onset_peaks(
         sample_rate=sample_rate,
         hop_length=hop_length,
         audio=audio,
+        unique_string=unique_string,
     )
     # detect peaks
-    peaks = librosa.onset.onset_detect(
+    peaks = onset_detect(
         onset_envelope=env,
         sr=sample_rate,
         hop_length=hop_length
@@ -95,7 +100,7 @@ def compute_dynamic_tempo(
         hop_length=hop_length,
         audio=audio,
     )
-    return librosa.feature.tempo(
+    return tempo(
         onset_envelope=env,
         sr=sample_rate,
         hop_length=hop_length,
@@ -108,13 +113,14 @@ class OnsetStrengthExtractor:
         self._logger    = logger
         self._separator = self.__class__.__name__
 
-    def extract(
+    def extract_envelope(
             self,
             file_path:     Path,
             start_sample:  int,
             end_sample:    int,
             sample_rate:   int,
             hop_length:    int,
+            unique_string: str,
             audio:         np.ndarray = None,
     ) -> np.ndarray:
         """
@@ -131,6 +137,7 @@ class OnsetStrengthExtractor:
             sample_rate=sample_rate,
             hop_length=hop_length,
             audio=audio,
+            unique_string=unique_string,
         )
 
     def extract_peaks(
@@ -140,6 +147,7 @@ class OnsetStrengthExtractor:
             end_sample:    int,
             sample_rate:   int,
             hop_length:    int,
+            unique_string: str,
             audio:         np.ndarray = None,
     ) -> np.ndarray:
         """
@@ -155,6 +163,7 @@ class OnsetStrengthExtractor:
             end_sample=end_sample,
             sample_rate=sample_rate,
             hop_length=hop_length,
+            unique_string=unique_string,
             audio=audio,
         )
 

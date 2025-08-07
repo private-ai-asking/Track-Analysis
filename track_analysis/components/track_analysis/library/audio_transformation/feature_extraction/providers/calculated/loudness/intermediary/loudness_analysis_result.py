@@ -1,14 +1,16 @@
 from dataclasses import dataclass
+from typing import List
 
-from pyebur128 import R128State
+import numpy as np
 
 
 @dataclass(frozen=True)
 class LoudnessAnalysisResult:
     """Holds the results of the core loudness analysis pass."""
-    r128_i: R128State
-    r128_lra: R128State
-    r128_tp: R128State
+    lufs_i: float
+    lra: float
+    true_peak: List[float]
     peak: float
     rms_all: float
     channels: int
+    shortterm_lufs: np.ndarray

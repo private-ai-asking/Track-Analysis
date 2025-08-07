@@ -24,15 +24,19 @@ class MfccProvider(AudioDataFeatureProvider):
 
     @property
     def output_features(self) -> List[AudioDataFeature]:
-        return [AudioDataFeature.MFCC_MEANS, AudioDataFeature.MFCC_STDS]
+        return [AudioDataFeature.MFCC_MEANS, AudioDataFeature.MFCC_STDS, AudioDataFeature.MFCC_VELOCITIES_MEANS, AudioDataFeature.MFCC_VELOCITIES_STDS, AudioDataFeature.MFCC_ACCELERATIONS_MEANS, AudioDataFeature.MFCC_ACCELERATIONS_STDS]
 
     def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, np.ndarray]:
-        mfcc_means, mfcc_stds = self._mfcc_helper.get_mffcs(
+        results = self._mfcc_helper.get_mffcs(
             audio_path=data[AudioDataFeature.AUDIO_PATH],
             sample_rate=data[AudioDataFeature.SAMPLE_RATE_HZ],
             audio=data[AudioDataFeature.AUDIO_SAMPLES]
         )
         return {
-            AudioDataFeature.MFCC_MEANS: mfcc_means,
-            AudioDataFeature.MFCC_STDS: mfcc_stds,
+            AudioDataFeature.MFCC_MEANS: results.means,
+            AudioDataFeature.MFCC_STDS: results.stds,
+            AudioDataFeature.MFCC_VELOCITIES_MEANS: results.delta_means,
+            AudioDataFeature.MFCC_VELOCITIES_STDS: results.delta_stds,
+            AudioDataFeature.MFCC_ACCELERATIONS_MEANS: results.delta2_means,
+            AudioDataFeature.MFCC_ACCELERATIONS_STDS: results.delta2_stds,
         }

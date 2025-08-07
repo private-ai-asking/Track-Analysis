@@ -87,4 +87,4 @@ _CURRENT_CONFIG = EnergyModelConfig(
     cumulative_pca_variance_threshold=0.85
 )
 
-DEFAULT_ENERGY_MODEL_CONFIG = _CURRENT_CONFIG
+DEFAULT_ENERGY_MODEL_CONFIG = _OLD_CONFIG

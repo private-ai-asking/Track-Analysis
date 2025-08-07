@@ -26,24 +26,7 @@ def _compute_spectral_peaks(
     - Cache key: (file_path, start_sample, end_sample, sample_rate, min_frq, max_frq, hop_length, n_fft)
     - `spectral_data` is ignored in the cache key but used if provided.
     """
-    # Acquire spectrogram segment: either provided or recompute from file
-    if spectral_data is None:
-        # memmap file and compute magnitude spectrogram for segment
-        length = end_sample - start_sample
-        audio = np.memmap(
-            str(file_path), dtype="float32", mode="r",
-            offset=start_sample * 4,
-            shape=(length,)
-        )
-        spectrogram = np.abs(
-            librosa.stft(
-                audio,
-                n_fft=n_fft,
-                hop_length=hop_length
-            )
-        )
-    else:
-        spectrogram = spectral_data
+    spectrogram = spectral_data
 
     # Extract pitches and magnitudes
     pitches, magnitudes = librosa.piptrack(

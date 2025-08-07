@@ -376,8 +376,8 @@ class App:
             use_threads=True,
             max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN,
             missing_headers_to_fill=[],
-            headers_to_refill=[Header.Energy_Level],
-            end_at_energy_calculation_loading=True
+            headers_to_refill=[], # Header.Energy_Level
+            end_at_energy_calculation_loading=False
         )
 
         # output_path.unlink(missing_ok=True)

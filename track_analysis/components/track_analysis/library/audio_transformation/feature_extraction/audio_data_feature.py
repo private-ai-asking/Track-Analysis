@@ -1,83 +1,123 @@
-from enum import Enum
+from enum import Enum, auto
 
-# goes to 72
 class AudioDataFeature(Enum):
-    # BASE FEATURES
-    AUDIO_PATH = 0
-    AUDIO_SAMPLES = 1
-    SAMPLE_RATE_HZ = 2
-    DURATION = 63
-    SAMPLE_RATE_KHZ = 64
-    BIT_DEPTH = 65
-    BIT_RATE = 68
-    NUM_CHANNELS = 66
-    DATA_RATE = 70
-    MAX_DATA_RATE = 71
-    DATA_EFFICIENCY = 72
+    """
+    Enumeration for audio features, organized logically from raw file properties
+    to intermediate data and finally to calculated descriptive features.
+    Values are assigned automatically to ensure uniqueness and sequential order.
+    """
 
-    BPM = 12
-    UUID = 46
+    # //--- 1. Core File & Signal Properties ---//
+    # Basic metadata and properties directly from the audio file.
+    UUID = auto()
+    AUDIO_PATH = auto()
+    AUDIO_SAMPLES = auto()
+    SAMPLE_RATE_HZ = auto()
+    SAMPLE_RATE_KHZ = auto()
+    DURATION = auto()
+    BIT_DEPTH = auto()
+    BIT_RATE = auto()
+    NUM_CHANNELS = auto()
+    DATA_RATE = auto()
+    MAX_DATA_RATE = auto()
+    DATA_EFFICIENCY = auto()
+    EXISTING_TEMPO_CACHE = auto()
 
-    # INTERMEDIATE FEATURES
-    HARMONIC_AUDIO = 13
-    PERCUSSIVE_AUDIO = 14
-    HARMONIC_MAGNITUDE_SPECTROGRAM = 15
-    ONSET_ENVELOPE = 16
-    ONSET_PEAKS = 17
-    MULTI_BAND_ONSET_ENVELOPES = 18
-    MULTI_BAND_ONSET_PEAKS = 19
-    DYNAMIC_TEMPO = 20
-    SPECTRAL_FLUX_ARRAY = 45
-    SPECTRAL_CENTROID_ARRAY = 44
-    LOUDNESS_ANALYSIS_RESULT = 51
-    EXISTING_TEMPO_CACHE = 69
+    # //--- 2. Intermediate Time-Series Data ---//
+    # Raw or processed data arrays that are typically inputs for final feature calculation.
+    HARMONIC_AUDIO = auto()
+    PERCUSSIVE_AUDIO = auto()
+    HARMONIC_MAGNITUDE_SPECTROGRAM = auto()
+    ONSET_ENVELOPE = auto()
+    PERCUSSIVE_ONSET_ENVELOPE = auto()
+    ONSET_PEAKS = auto()
+    PERCUSSIVE_ONSET_PEAKS = auto()
+    MULTI_BAND_ONSET_ENVELOPES = auto()
+    MULTI_BAND_ONSET_PEAKS = auto()
+    BEAT_FRAMES = auto()
+    SPECTRAL_FLUX_ARRAY = auto()
+    SPECTRAL_CENTROID_ARRAY = auto()
+    LOUDNESS_ANALYSIS_RESULT = auto()
+    MULTI_BAND_ENERGY = auto()
+    FFT_FREQUENCIES = auto()
+    CHROMAGRAM = auto()
 
-    # LOUDNESS
-    INTEGRATED_LUFS = 52
-    CREST_FACTOR = 53
-    LOUDNESS_RANGE_LU = 54
-    TRUE_PEAK = 55
-    RMS_IQR = 56
-    RMS_MEAN = 57
-    RMS_MAX = 58
-    RMS_PERC = 59
+    # //--- 3. Rhythmic Features ---//
+    # Features describing tempo, beats, and transient events.
+    BPM = auto()
+    DYNAMIC_TEMPO = auto()
+    TEMPO_VARIATION = auto()
+    BEAT_STRENGTH = auto()
+    RHYTHMIC_REGULARITY = auto()
+    ONSET_RATE_GLOBAL = auto()
+    ONSET_ENV_MEAN_GLOBAL = auto()
+    ONSET_RATE_KICK = auto()
+    ONSET_ENV_MEAN_KICK = auto()
+    ONSET_RATE_SNARE = auto()
+    ONSET_ENV_MEAN_SNARE = auto()
+    ONSET_RATE_LOW_MID = auto()
+    ONSET_ENV_MEAN_LOW_MID = auto()
+    ONSET_RATE_HI_HAT = auto()
+    ONSET_ENV_MEAN_HI_HAT = auto()
+    ONSET_RATE_VARIATION = auto()
 
-    # FINAL SPECTRAL FEATURES
-    SPECTRAL_CENTROID_MEAN = 21
-    SPECTRAL_CENTROID_MAX = 22
-    SPECTRAL_CENTROID_STD = 61
-    SPECTRAL_FLUX_MEAN = 23
-    SPECTRAL_FLUX_MAX = 24
-    SPECTRAL_FLUX_STD = 62
-    SPECTRAL_ROLLOFF_MEAN = 25
-    SPECTRAL_ROLLOFF_STD = 26
-    SPECTRAL_FLATNESS_MEAN = 27
-    SPECTRAL_CONTRAST_MEAN = 28
-    HARMONICITY = 29
-    ZCR_MEAN = 30
+    # //--- 4. Spectral Features ---//
+    # Features describing the frequency content and timbre of the audio.
+    SPECTRAL_CENTROID_MEAN = auto()
+    SPECTRAL_CENTROID_STD = auto()
+    SPECTRAL_CENTROID_MAX = auto()
+    SPECTRAL_FLUX_MEAN = auto()
+    SPECTRAL_FLUX_STD = auto()
+    SPECTRAL_FLUX_MAX = auto()
+    SPECTRAL_ROLLOFF_MEAN = auto()
+    SPECTRAL_ROLLOFF_STD = auto()
+    SPECTRAL_FLATNESS_MEAN = auto()
+    SPECTRAL_FLATNESS_STD = auto()
+    SPECTRAL_CONTRAST_MEAN = auto()
+    SPECTRAL_CONTRAST_STD = auto()
+    SPECTRAL_SKEWNESS = auto()
+    SPECTRAL_KURTOSIS = auto()
+    SPECTRAL_ENTROPY = auto()
+    SPECTRAL_BANDWIDTH_MEAN = auto()
+    SPECTRAL_BANDWIDTH_STD = auto()
+    HARMONICITY = auto()
+    HPR = auto()
+    ZCR_MEAN = auto()
+    ZCR_STD = auto()
+    BASS_ENERGY_RATIO = auto()
+    SUB_BASS_ENERGY_RATIO = auto()
+    LOW_MID_ENERGY_RATIO = auto()
+    MID_ENERGY_RATIO = auto()
+    HIGH_ENERGY_RATIO = auto()
 
-    # FINAL RHYTHMIC FEATURES
-    ONSET_ENV_MEAN_GLOBAL = 31
-    ONSET_RATE_GLOBAL = 32
-    TEMPO_VARIATION = 33
-    ONSET_ENV_MEAN_KICK = 34
-    ONSET_RATE_KICK = 35
-    ONSET_ENV_MEAN_SNARE = 36
-    ONSET_RATE_SNARE = 37
-    ONSET_ENV_MEAN_LOW_MID = 38
-    ONSET_RATE_LOW_MID = 39
-    ONSET_ENV_MEAN_HI_HAT = 40
-    ONSET_RATE_HI_HAT = 41
+    # //--- 5. Loudness Features ---//
+    # Features describing the perceived volume and dynamic range.
+    INTEGRATED_LUFS = auto()
+    INTEGRATED_LUFS_MEAN = auto()
+    INTEGRATED_LUFS_STD = auto()
+    INTEGRATED_LUFS_RANGE = auto()
+    LOUDNESS_RANGE_LU = auto()
+    TRUE_PEAK = auto()
+    CREST_FACTOR = auto()
+    RMS_MEAN = auto()
+    RMS_MAX = auto()
+    RMS_IQR = auto()
+    RMS_PERC = auto()
+    ENERGY_LEVEL = auto()
 
-    # MFCC FEATURES
-    MFCC_MEANS = 42
-    MFCC_STDS = 43
+    # //--- 6. MFCC (Mel-Frequency Cepstral Coefficients) Features ---//
+    # Standard features for timbre and speech/music recognition.
+    MFCC_MEANS = auto()
+    MFCC_STDS = auto()
+    MFCC_VELOCITIES_MEANS = auto()
+    MFCC_VELOCITIES_STDS = auto()
+    MFCC_ACCELERATIONS_MEANS = auto()
+    MFCC_ACCELERATIONS_STDS = auto()
 
-    # KEYS
-    PRINCIPAL_KEY = 47
-    START_KEY = 48
-    END_KEY = 49
-    KEY_PROGRESSION = 50
-
-    # MISC
-    ENERGY_LEVEL = 60
+    # //--- 7. Tonal & Harmonic Features ---//
+    # Features related to musical key, chords, and pitch content.
+    PRINCIPAL_KEY = auto()
+    START_KEY = auto()
+    END_KEY = auto()
+    KEY_PROGRESSION = auto()
+    CHROMA_ENTROPY = auto()

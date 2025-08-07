@@ -1,7 +1,6 @@
 import traceback
 from typing import List
 
-import numpy as np
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
@@ -78,8 +77,9 @@ class DefaultEnergyAlgorithm(EnergyAlgorithm):
             )
             return float('nan')
         except Exception as e:
+            tb = traceback.format_exc()
             self._logger.error(
-                f"An unexpected error occurred during energy calculation: {e}",
+                f"An unexpected error occurred during energy calculation: {e}\n{tb}",
                 separator=self._separator
             )
             return float('nan')

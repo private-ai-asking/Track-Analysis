@@ -22,15 +22,44 @@ class OnsetEnvelopeProvider(AudioDataFeatureProvider):
         return AudioDataFeature.ONSET_ENVELOPE
 
     def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        envelope = self._onset_extractor.extract(
+        envelope = self._onset_extractor.extract_envelope(
             file_path=data[AudioDataFeature.AUDIO_PATH],
             sample_rate=data[AudioDataFeature.SAMPLE_RATE_HZ],
             start_sample=0,
             end_sample=len(data[AudioDataFeature.AUDIO_SAMPLES]),
             hop_length=self._hop_length,
-            audio=data[AudioDataFeature.AUDIO_SAMPLES]
+            audio=data[AudioDataFeature.AUDIO_SAMPLES],
+            unique_string="onset-envelope-full-audio"
         )
 
         return {
             AudioDataFeature.ONSET_ENVELOPE: envelope,
+        }
+
+class PercussiveOnsetEnvelopeProvider(AudioDataFeatureProvider):
+    def __init__(self, logger: HoornLogger, hop_length: int = 512):
+        self._hop_length = hop_length
+        self._onset_extractor: OnsetStrengthExtractor = OnsetStrengthExtractor(logger)
+
+    @property
+    def dependencies(self) -> List[AudioDataFeature]:
+        return [AudioDataFeature.AUDIO_PATH, AudioDataFeature.SAMPLE_RATE_HZ, AudioDataFeature.PERCUSSIVE_AUDIO, AudioDataFeature.AUDIO_SAMPLES]
+
+    @property
+    def output_features(self) -> AudioDataFeature | List[AudioDataFeature]:
+        return AudioDataFeature.PERCUSSIVE_ONSET_ENVELOPE
+
+    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        envelope = self._onset_extractor.extract_envelope(
+            file_path=data[AudioDataFeature.AUDIO_PATH],
+            sample_rate=data[AudioDataFeature.SAMPLE_RATE_HZ],
+            start_sample=0,
+            end_sample=len(data[AudioDataFeature.PERCUSSIVE_AUDIO]),
+            hop_length=self._hop_length,
+            audio=data[AudioDataFeature.AUDIO_SAMPLES],
+            unique_string="onset-envelope-percussive"
+        )
+
+        return {
+            AudioDataFeature.PERCUSSIVE_ONSET_ENVELOPE: envelope,
         }
