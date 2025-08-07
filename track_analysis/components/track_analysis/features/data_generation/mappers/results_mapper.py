@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 from typing import Dict
 
 import pandas as pd
-from sklearn.utils import deprecated
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.features.data_generation.builders.key_progression_df_builder import \
@@ -11,8 +10,6 @@ from track_analysis.components.track_analysis.features.data_generation.builders.
     MainAudioInfoDFBuilder
 from track_analysis.components.track_analysis.features.data_generation.builders.mfcc_df_builder import MfccDFBuilder
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
-from track_analysis.components.track_analysis.features.data_generation.pipeline_context import \
-    LibraryDataGenerationPipelineContext
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
     AudioDataFeature
 
@@ -56,20 +53,7 @@ class ResultsMapper:
             key_progression_audio_info=self._key_progression_builder.build(full_df)
         )
 
-    @deprecated("This method is deprecated and will be removed in a future release.")
-    def map_results_to_context(
-            self, full_df: pd.DataFrame, context: LibraryDataGenerationPipelineContext
-    ) -> None:
-        mapped_data = self.build(full_df)
-
-        context.generated_audio_info = mapped_data.main_audio_info
-        context.generated_mfcc_audio_info = mapped_data.mfcc_audio_info
-        context.generated_key_progression_audio_info = mapped_data.key_progression_audio_info
-
     @staticmethod
-    def set_empty_context(context: LibraryDataGenerationPipelineContext):
-        """Sets empty DataFrames on the context for a clean state."""
-        empty_data = MappedAudioData.create_empty()
-        context.generated_audio_info = empty_data.main_audio_info
-        context.generated_mfcc_audio_info = empty_data.mfcc_audio_info
-        context.generated_key_progression_audio_info = empty_data.key_progression_audio_info
+    def create_empty_mapping() -> MappedAudioData:
+        """Creates an empty audio mapping. Useful for resetting context."""
+        return MappedAudioData()

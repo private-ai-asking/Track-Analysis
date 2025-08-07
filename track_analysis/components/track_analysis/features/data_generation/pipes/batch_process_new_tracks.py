@@ -6,7 +6,8 @@ from track_analysis.components.md_common_python.py_common.logging import HoornLo
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
 from track_analysis.components.track_analysis.features.data_generation.builders.metadata_df_builder import \
     MetadataDFBuilder
-from track_analysis.components.track_analysis.features.data_generation.mappers.results_mapper import ResultsMapper
+from track_analysis.components.track_analysis.features.data_generation.mappers.results_mapper import ResultsMapper, \
+    MappedAudioData
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline_context import \
     LibraryDataGenerationPipelineContext
@@ -53,7 +54,8 @@ class BatchProcessNewTracks(IPipe):
 
         if not paths:
             self._logger.debug("No new tracks to process.", separator=self._separator)
-            self._results_mapper.set_empty_context(context)
+            empty_data = self._results_mapper.create_empty_mapping()
+            self._assign_data_to_context(empty_data, context)
             return context
 
         self._logger.info(f"Processing {len(paths)} new tracks.", separator=self._separator)
@@ -66,7 +68,14 @@ class BatchProcessNewTracks(IPipe):
             axis=1
         )
 
-        self._results_mapper.map_results_to_context(all_results_df, context)
-
+        new_data: MappedAudioData = self._results_mapper.build(all_results_df)
+        self._assign_data_to_context(new_data, context)
+        
         self._logger.info(f"Completed processing of {len(paths)} new tracks.", separator=self._separator)
         return context
+
+    @staticmethod
+    def _assign_data_to_context(data: MappedAudioData, context: LibraryDataGenerationPipelineContext):
+        context.generated_audio_info = data.main_audio_info
+        context.mfcc_audio_info = data.mfcc_audio_info
+        context.key_progression_audio_info = data.key_progression_audio_info
