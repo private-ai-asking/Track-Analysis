@@ -8,7 +8,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
     BeatDetector
 
 
-class BeatFramesProvider(AudioDataFeatureProvider):
+class BeatFramesAndTimesProvider(AudioDataFeatureProvider):
     """
     Provides the frame indices of detected beats using the BeatDetector.
     """
@@ -27,11 +27,11 @@ class BeatFramesProvider(AudioDataFeatureProvider):
         ]
 
     @property
-    def output_features(self) -> AudioDataFeature:
-        return AudioDataFeature.BEAT_FRAMES
+    def output_features(self) -> List[AudioDataFeature]:
+        return [AudioDataFeature.BEAT_FRAMES, AudioDataFeature.BEAT_TIMES]
 
     def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        frames, _ = self._beat_detector.get_beat_frames_and_times(
+        frames, times = self._beat_detector.get_beat_frames_and_times(
             audio_path=data[AudioDataFeature.AUDIO_PATH],
             audio=data[AudioDataFeature.AUDIO_SAMPLES],
             sample_rate=data[AudioDataFeature.SAMPLE_RATE_HZ],
@@ -39,4 +39,7 @@ class BeatFramesProvider(AudioDataFeatureProvider):
             hop_length=self._hop_length,
             tempo=data.get(AudioDataFeature.BPM)
         )
-        return {AudioDataFeature.BEAT_FRAMES: frames}
+        return {
+            AudioDataFeature.BEAT_FRAMES: frames
+            ,AudioDataFeature.BEAT_TIMES: times
+        }

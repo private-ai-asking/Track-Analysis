@@ -1,9 +1,10 @@
-from typing import Dict, List
+from dataclasses import dataclass, field
+from typing import Dict
 
 import pandas as pd
 from sklearn.utils import deprecated
 
-from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import AudioDataFeature
+from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.features.data_generation.builders.key_progression_df_builder import \
     KeyProgressionDFBuilder
 from track_analysis.components.track_analysis.features.data_generation.builders.main_audio_info_df_builder import \
@@ -12,8 +13,9 @@ from track_analysis.components.track_analysis.features.data_generation.builders.
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline_context import \
     LibraryDataGenerationPipelineContext
+from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
+    AudioDataFeature
 
-from dataclasses import dataclass, field
 
 @dataclass
 class MappedAudioData:
@@ -29,19 +31,18 @@ class MappedAudioData:
 
 
 class ResultsMapper:
-    def __init__(self, feature_to_header_map: Dict[AudioDataFeature, Header]):
+    def __init__(self, logger: HoornLogger, feature_to_header_map: Dict[AudioDataFeature, Header]):
         self._main_info_builder = MainAudioInfoDFBuilder(feature_to_header_map)
         self._mfcc_builder = MfccDFBuilder()
-        self._key_progression_builder = KeyProgressionDFBuilder()
+        self._key_progression_builder = KeyProgressionDFBuilder(logger)
 
-    def build(self, full_df: pd.DataFrame, key_prog_dfs: List[pd.DataFrame]) -> MappedAudioData:
+    def build(self, full_df: pd.DataFrame) -> MappedAudioData:
         """
         Builds structured DataFrames from raw feature data and returns them.
         This is the primary, reusable method.
 
         Args:
             full_df: DataFrame containing metadata and all calculated features.
-            key_prog_dfs: A list of DataFrames for key progression data.
 
         Returns:
             A MappedAudioData object containing the structured DataFrames.
@@ -52,14 +53,14 @@ class ResultsMapper:
         return MappedAudioData(
             main_audio_info=self._main_info_builder.build(full_df),
             mfcc_audio_info=self._mfcc_builder.build(full_df),
-            key_progression_audio_info=self._key_progression_builder.build(key_prog_dfs)
+            key_progression_audio_info=self._key_progression_builder.build(full_df)
         )
 
     @deprecated("This method is deprecated and will be removed in a future release.")
     def map_results_to_context(
-            self, full_df: pd.DataFrame, key_prog_dfs: List[pd.DataFrame], context: LibraryDataGenerationPipelineContext
+            self, full_df: pd.DataFrame, context: LibraryDataGenerationPipelineContext
     ) -> None:
-        mapped_data = self.build(full_df, key_prog_dfs)
+        mapped_data = self.build(full_df)
 
         context.generated_audio_info = mapped_data.main_audio_info
         context.generated_mfcc_audio_info = mapped_data.mfcc_audio_info

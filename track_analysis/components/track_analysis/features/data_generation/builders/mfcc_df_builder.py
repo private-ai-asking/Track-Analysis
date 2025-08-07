@@ -28,12 +28,30 @@ class MfccDFBuilder:
         acceleration_means_stacked = np.vstack(full_df[acceleration_means_col])
         acceleration_stds_stacked = np.vstack(full_df[acceleration_stds_col])
 
-        for i in range(mfcc_means_stacked.shape[1]):
-            mfcc_data[f"{MFFC_LABEL_PREFIXES[MFCCType.MEANS]}{i}"] = mfcc_means_stacked[:, i]
-            mfcc_data[f"{MFFC_LABEL_PREFIXES[MFCCType.STDS]}{i}"] = mfcc_stds_stacked[:, i]
-            mfcc_data[f"{MFFC_LABEL_PREFIXES[MFCCType.VELOCITY_MEANS]}{i}"] = velocity_means_stacked[:, i]
-            mfcc_data[f"{MFFC_LABEL_PREFIXES[MFCCType.VELOCITY_STDS]}{i}"] = velocity_stds_stacked[:, i]
-            mfcc_data[f"{MFFC_LABEL_PREFIXES[MFCCType.ACCELERATION_MEANS]}{i}"] = acceleration_means_stacked[:, i]
-            mfcc_data[f"{MFFC_LABEL_PREFIXES[MFCCType.ACCELERATION_STDS]}{i}"] = acceleration_stds_stacked[:, i]
+        num_coeffs = mfcc_means_stacked.shape[1]
 
-        return pd.DataFrame(mfcc_data)
+        uuid_col = [Header.UUID.value]
+        mean_cols = [f"{MFFC_LABEL_PREFIXES[MFCCType.MEANS]}{i}" for i in range(num_coeffs)]
+        std_cols = [f"{MFFC_LABEL_PREFIXES[MFCCType.STDS]}{i}" for i in range(num_coeffs)]
+        vel_mean_cols = [f"{MFFC_LABEL_PREFIXES[MFCCType.VELOCITY_MEANS]}{i}" for i in range(num_coeffs)]
+        vel_std_cols = [f"{MFFC_LABEL_PREFIXES[MFCCType.VELOCITY_STDS]}{i}" for i in range(num_coeffs)]
+        accel_mean_cols = [f"{MFFC_LABEL_PREFIXES[MFCCType.ACCELERATION_MEANS]}{i}" for i in range(num_coeffs)]
+        accel_std_cols = [f"{MFFC_LABEL_PREFIXES[MFCCType.ACCELERATION_STDS]}{i}" for i in range(num_coeffs)]
+
+        # Define the final, sensible order
+        final_order = (uuid_col + mean_cols + std_cols +
+                       vel_mean_cols + vel_std_cols +
+                       accel_mean_cols + accel_std_cols)
+
+        # Populate the data dictionary
+        for i in range(num_coeffs):
+            mfcc_data[mean_cols[i]] = mfcc_means_stacked[:, i]
+            mfcc_data[std_cols[i]] = mfcc_stds_stacked[:, i]
+            mfcc_data[vel_mean_cols[i]] = velocity_means_stacked[:, i]
+            mfcc_data[vel_std_cols[i]] = velocity_stds_stacked[:, i]
+            mfcc_data[accel_mean_cols[i]] = acceleration_means_stacked[:, i]
+            mfcc_data[accel_std_cols[i]] = acceleration_stds_stacked[:, i]
+
+        # Create the DataFrame and enforce the desired column order
+        result_df = pd.DataFrame(mfcc_data)
+        return result_df[final_order]

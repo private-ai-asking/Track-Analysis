@@ -1,13 +1,15 @@
+import pprint
 from dataclasses import dataclass
 from typing import List
 
 import numpy as np
-import pprint
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import VERBOSE
-from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.preprocessing.note_extraction.notes.note_event_builder import NoteEvent
-from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.preprocessing.segmentation.model.segmentation_result import SegmentationResult
+from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.preprocessing.note_extraction.note_event_builder import \
+    NoteEvent
+from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.preprocessing.segmentation.audio_segmenter import \
+    RawSegment
 
 
 @dataclass(frozen=True)
@@ -24,10 +26,8 @@ class SegmentNote:
 
 
 @dataclass(frozen=True)
-class Segment:
-    segment_start_seconds: float
-    segment_end_seconds: float
-    segment_duration_seconds: float
+class ProfiledSegment:
+    raw_segment: RawSegment
     segment_notes: List[SegmentNote]
 
     @property
@@ -48,24 +48,21 @@ class SegmentProfiler:
 
     def profile_segments(
             self,
-            segmentation_results: SegmentationResult,
+            raw_segments: List[RawSegment],
             note_events: List[NoteEvent],
             preview_n: int = 3,
             preview_x: int = 5
-    ) -> List[Segment]:
+    ) -> List[ProfiledSegment]:
         """
         For each segment, collect notes that intersect it and profile energy.
         Optionally preview a subset of segments and notes.
         """
-        segments_out: List[Segment] = []
+        segments_out: List[ProfiledSegment] = []
 
-        for seg_idx, (seg_samples, seg_start, seg_dur) in enumerate(
-                zip(
-                    segmentation_results.segments,
-                    segmentation_results.start_times,
-                    segmentation_results.durations
-                )
-        ):
+        for seg_idx, raw_segment in enumerate(raw_segments):
+            seg_start = raw_segment.segment_start_seconds
+            seg_dur = raw_segment.segment_duration_seconds
+
             seg_end = seg_start + seg_dur
             notes: List[SegmentNote] = []
 
@@ -106,10 +103,8 @@ class SegmentProfiler:
                 )
 
             segments_out.append(
-                Segment(
-                    segment_start_seconds=seg_start,
-                    segment_end_seconds=seg_end,
-                    segment_duration_seconds=seg_dur,
+                ProfiledSegment(
+                    raw_segment=raw_segment,
                     segment_notes=notes
                 )
             )
@@ -139,7 +134,7 @@ class SegmentProfiler:
 
     def _preview_debug(
             self,
-            segments: List[Segment],
+            segments: List[ProfiledSegment],
             n_segments: int,
             x_notes: int
     ) -> None:
@@ -178,7 +173,7 @@ class SegmentProfiler:
 
             preview.append({
                 'segment_index': i,
-                'segment_window': (seg.segment_start_seconds, seg.segment_end_seconds),
+                'segment_window': (seg.raw_segment.segment_start_seconds, seg.raw_segment.segment_end_seconds),
                 'total_notes': cnt_notes,
                 'unique_pitch_classes': cnt_unique,
                 'sampled_notes': notes
@@ -186,3 +181,5 @@ class SegmentProfiler:
 
         out = pprint.pformat(preview, sort_dicts=False)
         self._logger.debug(f"Segment preview:\n{out}", separator=self._separator)
+
+# TODO - see if we can cache here

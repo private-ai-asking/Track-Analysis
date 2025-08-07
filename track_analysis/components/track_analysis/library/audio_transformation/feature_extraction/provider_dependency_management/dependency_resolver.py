@@ -1,4 +1,4 @@
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Tuple
 
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import AudioDataFeature
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature_provider import (
@@ -16,21 +16,37 @@ class DependencyResolver:
         self._feature_map = self._build_feature_to_provider_map()
         self._planner = ExecutionPlanner(all_providers)
 
-    def get_execution_plan(
+    def resolve(
             self, features_to_calculate: List[AudioDataFeature]
-    ) -> List[AudioDataFeatureProvider]:
+    ) -> Tuple[List[AudioDataFeatureProvider], Set[AudioDataFeature]]:
         """
-        Determines the full set of required providers and returns them in a valid
-        topological order.
-        """
-        required_providers = self._get_required_providers(features_to_calculate)
-        return self._planner.generate_plan(required_providers)
+        Resolves the full dependency graph for a feature list.
 
-    def get_required_base_features(
-            self, providers: List[AudioDataFeatureProvider]
-    ) -> Set[AudioDataFeature]:
-        """Public method to expose the base feature requirement for a given plan."""
-        return self._planner.get_required_base_features(providers)
+        Returns a tuple containing:
+        1. An ordered execution plan (list of providers).
+        2. A complete set of required base features.
+        """
+        # 1. Find all features needed for the calculation (including dependencies).
+        all_required_features = self._resolve_all_dependencies(features_to_calculate)
+
+        # 2. Determine which required features are "base features" (they have no provider).
+        #    This is the crucial step that was missing.
+        required_base_features = {
+            feature for feature in all_required_features
+            if feature not in self._feature_map
+        }
+
+        # 3. Get the list of providers needed to create the derivable features.
+        required_providers = list({
+            self._feature_map[feature]
+            for feature in all_required_features
+            if feature in self._feature_map
+        })
+
+        # 4. Create the final, ordered execution plan from the providers.
+        execution_plan = self._planner.generate_plan(required_providers)
+
+        return execution_plan, required_base_features
 
     # --- Private Helper Methods ---
 

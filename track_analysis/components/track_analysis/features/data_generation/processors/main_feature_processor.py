@@ -102,17 +102,17 @@ class MainFeatureProcessor:
             idx, row = row_info_tuple
             initial_data = {AudioDataFeature.AUDIO_PATH: Path(row[Header.Audio_Path.value])}
 
-            calculated_features = self._orchestrator.process_track(idx, initial_data, requested_features)
+            retrieved_features = self._orchestrator.process_track(idx, initial_data, requested_features)
 
             time_after_process = time.perf_counter()
             wait_time = time_after_acquire - time_before_acquire
             process_time = time_after_process - time_after_acquire
 
             audio_unique_identifier_col = Header.UUID.value
-            calculated_features[audio_unique_identifier_col] = row[audio_unique_identifier_col]
+            retrieved_features[audio_unique_identifier_col] = row[audio_unique_identifier_col]
 
             return {
-                "result": {k.name if isinstance(k, Enum) else k: v for k, v in calculated_features.items()},
+                "result": {k.name if isinstance(k, Enum) else k: v for k, v in retrieved_features.items()},
                 "timing": {"wait_time": wait_time, "process_time": process_time}
             }
         finally:

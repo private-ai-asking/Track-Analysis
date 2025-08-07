@@ -4,8 +4,6 @@ from track_analysis.components.md_common_python.py_common.handlers import FileHa
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import AbPipeline
 from track_analysis.components.md_common_python.py_common.utils import StringUtils
-from track_analysis.components.track_analysis.features.data_generation.builders.key_data_frames_builder import \
-    KeyDataFramesBuilder
 from track_analysis.components.track_analysis.features.data_generation.builders.metadata_df_builder import \
     MetadataDFBuilder
 from track_analysis.components.track_analysis.features.data_generation.helpers.cache_updater import CacheUpdater
@@ -39,7 +37,6 @@ from track_analysis.components.track_analysis.features.data_generation.pipes.pre
 from track_analysis.components.track_analysis.features.data_generation.pipes.redo_headers import RedoHeaders
 from track_analysis.components.track_analysis.features.data_generation.pipes.remove_invalid_cached_entries import \
     RemoveInvalidCachedEntries
-from track_analysis.components.track_analysis.features.data_generation.helpers.key_extractor import KeyExtractor
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 
 
@@ -56,19 +53,16 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
                  filehandler: FileHandler,
                  tag_extractor: TagExtractor,
                  string_utils: StringUtils,
-                 key_extractor: KeyExtractor,
                  max_rate_cache: MaxRateCache,
                  configuration: PipelineConfiguration):
         self._logger = logger
         self._filehandler = filehandler
-        self._key_extractor = key_extractor
         self._string_utils = string_utils
         self._num_workers: int = configuration.num_workers
 
         self._metadata_provider: MetadataDFBuilder = MetadataDFBuilder(tag_extractor)
-        self._results_mapper: ResultsMapper = ResultsMapper(FEATURE_TO_HEADER_MAPPING)
-        self._key_data_builder: KeyDataFramesBuilder = KeyDataFramesBuilder()
-        self._cache_updater: CacheUpdater = CacheUpdater(self._logger)
+        self._results_mapper: ResultsMapper = ResultsMapper(logger, FEATURE_TO_HEADER_MAPPING)
+        self._cache_updater: CacheUpdater = CacheUpdater(self._logger, self._results_mapper)
 
         self._hop_length = configuration.hop_length
         self._n_fft = configuration.n_fft
@@ -98,7 +92,6 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
             hop_length=self._hop_length,
             n_fft=self._n_fft,
             max_rate_cache=self._max_rate_cache,
-            key_extractor=self._key_extractor,
         ))
         self._add_step(FilterCache(self._logger))
         self._add_step(GetAudioFiles(self._logger, self._filehandler))
@@ -107,12 +100,11 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._add_exit_check(__exit_if_no_files_to_process)
         self._add_step(BatchProcessNewTracks(
             logger=self._logger,
-            key_data_builder=self._key_data_builder,
             results_mapper=self._results_mapper,
             metadata_builder=self._metadata_provider,
         ))
         self._add_step(RemoveInvalidCachedEntries(self._logger))
-        self._add_step(FillMissingHeadersPipe(self._logger, self._results_mapper, self._cache_updater))
-        self._add_step(RedoHeaders(self._logger, self._results_mapper, self._key_data_builder, self._cache_updater))
+        self._add_step(FillMissingHeadersPipe(self._logger,self._cache_updater))
+        self._add_step(RedoHeaders(self._logger, self._cache_updater))
         self._add_step(PreprocessData(self._logger, self._string_utils))
         self._add_step(MakeCSV(self._logger))

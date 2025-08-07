@@ -21,18 +21,17 @@ class AudioDataFeatureProviderOrchestrator:
 
     # --- Execution Methods ---
 
+    @staticmethod
     def _validate_initial_data(
-            self,
             initial_data: Dict[AudioDataFeature, Any],
-            execution_plan: List[AudioDataFeatureProvider],
+            required_base_features: Set[AudioDataFeature],
     ) -> None:
-        """Ensures all necessary base features for a specific plan are present."""
-        required_base_features = self._resolver.get_required_base_features(execution_plan)
+        """Ensures all necessary base features are present in the initial data."""
         missing_deps = required_base_features - initial_data.keys()
         if missing_deps:
             raise ValueError(
                 f"Missing required initial features for this calculation: "
-                f"{[dep.name for dep in missing_deps]}"
+                f"{sorted([dep.name for dep in missing_deps])}"
             )
 
     def _execute_plan(
@@ -103,15 +102,17 @@ class AudioDataFeatureProviderOrchestrator:
         self._logger.debug(f"Processing track: {track_idx}", separator=self._separator)
 
         self._logger.trace(f"Processing track [{track_idx}]... getting execution plan.", separator=self._separator)
-        execution_plan = self._resolver.get_execution_plan(features_to_calculate)
+        # Call the new resolve method to get BOTH the plan and base features at once.
+        execution_plan, required_base_features = self._resolver.resolve(features_to_calculate)
 
         self._logger.trace(f"Processing track [{track_idx}]... validating initial data.", separator=self._separator)
-        self._validate_initial_data(initial_data, execution_plan)
+        # Pass the results directly to the validation and execution methods.
+        self._validate_initial_data(initial_data, required_base_features)
 
         self._logger.trace(f"Processing track [{track_idx}]... executing plan.", separator=self._separator)
         all_results = self._execute_plan(initial_data, execution_plan)
 
-        # Filter the final dictionary to return only what the user asked for, plus initial data.
+
         final_results = initial_data.copy()
         for feature in features_to_calculate:
             if feature in all_results:

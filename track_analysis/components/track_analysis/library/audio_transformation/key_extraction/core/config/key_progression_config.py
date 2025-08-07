@@ -20,10 +20,8 @@ class KeyProgressionConfig:
     # Audio/segmentation parameters:
     hop_length: int = 512
     subdivisions_per_beat: int = 2
-    segment_beat_level: int = 3
-
-    # Where to cache any intermediate files:
-    cache_dir: Path = CACHE_DIRECTORY
+    min_segment_beat_level: int = 3
+    beats_per_segment: int = 8
 
     def __post_init__(self):
         if self.mode_modulation_penalty is None:

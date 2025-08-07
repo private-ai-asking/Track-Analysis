@@ -99,7 +99,6 @@ def _compute_global_loudness(
         for ch in range(0, channels)
     ]
 
-
     return lufs_i, lra, true_peak, peak, rms_all, channels
 
 

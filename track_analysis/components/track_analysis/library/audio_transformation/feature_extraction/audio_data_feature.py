@@ -37,12 +37,24 @@ class AudioDataFeature(Enum):
     MULTI_BAND_ONSET_ENVELOPES = auto()
     MULTI_BAND_ONSET_PEAKS = auto()
     BEAT_FRAMES = auto()
+    BEAT_TIMES = auto()
     SPECTRAL_FLUX_ARRAY = auto()
     SPECTRAL_CENTROID_ARRAY = auto()
     LOUDNESS_ANALYSIS_RESULT = auto()
     MULTI_BAND_ENERGY = auto()
     FFT_FREQUENCIES = auto()
     CHROMAGRAM = auto()
+    TRACK_FEATURE_VECTOR = auto()
+    TRACK_SEGMENTS_RAW = auto()
+    TRACK_SEGMENTS_PROFILED = auto()
+    TRACK_NOTE_EVENTS = auto()
+    TRACK_CLEANED_BINARY_MASK = auto()
+    TRACK_MIDI_MAP = auto()
+    TRACK_NORMALIZED_PITCH_CLASSES_MASK = auto()
+    TRACK_PITCH_CLASSES = auto()
+    SPECTRAL_PITCH_ARRAY = auto()
+    SPECTRAL_MAGNITUDES_ARRAY = auto()
+    TRACK_CLEANED_CHROMA_MASK = auto()
 
     # //--- 3. Rhythmic Features ---//
     # Features describing tempo, beats, and transient events.
@@ -124,8 +136,13 @@ class AudioDataFeature(Enum):
     KEY_PROGRESSION = auto()
     CHROMA_ENTROPY = auto()
 
-MFCC_FEATURES: List[AudioDataFeature] = [
+MFCC_UNIQUE_FILE_FEATURES: List[AudioDataFeature] = [
     AudioDataFeature.MFCC_MEANS, AudioDataFeature.MFCC_STDS,
     AudioDataFeature.MFCC_VELOCITIES_MEANS, AudioDataFeature.MFCC_VELOCITIES_STDS,
     AudioDataFeature.MFCC_ACCELERATIONS_MEANS, AudioDataFeature.MFCC_ACCELERATIONS_STDS
 ]
+
+KEY_PROGRESSION_UNIQUE_FILE_FEATURES: List[AudioDataFeature] = [
+    AudioDataFeature.KEY_PROGRESSION,
+]
+

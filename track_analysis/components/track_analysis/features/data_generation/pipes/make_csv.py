@@ -38,9 +38,9 @@ class MakeCSV(IPipe):
         if df1_dupes or df2_dupes:
             raise ValueError("Duplicate columns found. Halting execution. Check logs for details.")
 
-        main_df_write = pd.concat([context.generated_audio_info, context.loaded_audio_info_cache], ignore_index=True, sort=True)
-        mfcc_df_write = pd.concat([context.generated_mfcc_audio_info, context.loaded_mfcc_info_cache], ignore_index=True, sort=True)
-        key_progression_df_to_write = pd.concat([context.generated_key_progression_audio_info, context.loaded_key_progression_cache], ignore_index=True, sort=True)
+        main_df_write = pd.concat([context.generated_audio_info, context.loaded_audio_info_cache], ignore_index=True, sort=False)
+        mfcc_df_write = pd.concat([context.generated_mfcc_audio_info, context.loaded_mfcc_info_cache], ignore_index=True, sort=False)
+        key_progression_df_to_write = pd.concat([context.generated_key_progression_audio_info, context.loaded_key_progression_cache], ignore_index=True, sort=False)
 
         # Keep only columns defined in Header enum for main df
         allowed_columns = [h.value for h in Header]

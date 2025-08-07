@@ -111,4 +111,5 @@ class Header(Enum):
 
     # //--- Internal & Special Use ---//
     # Reserved for internal application logic.
-    MFCC = "Not used... Special for CSV flow"
+    MFCC = "Not used... Special for CSV flow (mfccs)"
+    Key_Progression = "Not used... Special for CSV flow (key)"

@@ -85,13 +85,17 @@ def _convert_back(file_path: Path, cleaned_binary: np.ndarray, original_normaliz
     return cleaned_binary * original_normalized
 
 class NormalizedPitchClassesCleaner:
-    def __init__(self, logger: HoornLogger):
+    def __init__(self, logger: HoornLogger, n_fft: int = 2048, hop_length: int = 512):
         self._logger = logger
         self._separator = self.__class__.__name__
+
+        self._n_fft = n_fft
+        self._hop_length = hop_length
+
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
-    def clean(self, file_path: Path, normalized: np.ndarray, raw_audio_samples: np.ndarray, n_fft: int, hop_length: int, sample_rate: int) -> Tuple[np.ndarray, np.ndarray]:
-        envelope_db = _compute_rms_envelope(file_path, raw_audio_samples, n_fft, hop_length)
+    def clean(self, file_path: Path, normalized: np.ndarray, raw_audio_samples: np.ndarray, sample_rate: int) -> Tuple[np.ndarray, np.ndarray]:
+        envelope_db = _compute_rms_envelope(file_path, raw_audio_samples, self._n_fft, self._hop_length)
 
         cleaned_pass1 = _first_clean_pass(file_path, envelope_db, normalized)
         perc_changed_pass1 = _get_perc_diff(file_path, normalized, cleaned_pass1)
@@ -113,7 +117,7 @@ class NormalizedPitchClassesCleaner:
         self._logger.debug(f"Cleaning (4th pass) changed {perc_changed_pass4:.4f}% frames in comparison to third pass!", separator=self._separator)
         self._logger.debug(f"Cleaned (4th pass):\n{pprint.pformat(cleaned_pass4)}", separator=self._separator)
 
-        cleaned_pass5_binary = _fifth_clean_pass(file_path, cleaned_pass4, sample_rate, hop_length)
+        cleaned_pass5_binary = _fifth_clean_pass(file_path, cleaned_pass4, sample_rate, self._hop_length)
         perc_changed_pass5 = _get_perc_diff(file_path, cleaned_pass4, cleaned_pass5_binary)
         self._logger.debug(f"Cleaning (5th pass) changed {perc_changed_pass5:.4f}% frames in comparison to fourth pass!", separator=self._separator)
         self._logger.debug(f"Cleaned (5th pass):\n{pprint.pformat(cleaned_pass5_binary)}", separator=self._separator)

@@ -17,6 +17,9 @@ FEATURE_TO_HEADER_MAPPING = {
     # //--- High-Level Musical Descriptors ---//
     AudioDataFeature.BPM: Header.BPM,
     AudioDataFeature.ENERGY_LEVEL: Header.Energy_Level,
+    AudioDataFeature.PRINCIPAL_KEY: Header.Key,
+    AudioDataFeature.START_KEY: Header.Start_Key,
+    AudioDataFeature.END_KEY: Header.End_Key,
 
     # //--- Loudness & Dynamic Range Features ---//
     AudioDataFeature.INTEGRATED_LUFS: Header.Integrated_LUFS,

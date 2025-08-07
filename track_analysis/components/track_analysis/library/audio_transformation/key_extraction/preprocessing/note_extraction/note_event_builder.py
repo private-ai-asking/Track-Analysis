@@ -23,16 +23,16 @@ class NoteEvent:
 
 
 class NoteEventBuilder:
-    def __init__(self, logger: HoornLogger):
+    def __init__(self, logger: HoornLogger, hop_length: int = 512):
         self._logger = logger
         self._separator = self.__class__.__name__
+        self._hop_length = hop_length
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
     def build_note_events(
             self,
             cleaned_mask:   np.ndarray,
             midi_map:       np.ndarray,
-            hop_length:     int,
             sr:             int
     ) -> List[NoteEvent]:
         """
@@ -42,7 +42,7 @@ class NoteEventBuilder:
         events: List[NoteEvent] = []
         n_pc, T = cleaned_mask.shape
         midi_to_pc = np.arange(128) % 12
-        frame_duration = hop_length / sr
+        frame_duration = self._hop_length / sr
 
         for pc in range(n_pc):
             mask = cleaned_mask[pc, :]
@@ -144,3 +144,5 @@ class NoteEventBuilder:
         formatted = pprint.pformat(summary)
         self._logger.debug(f"NoteEvent summary per pitch class:\n{formatted}",
                            separator=self._separator)
+
+# TODO - see if we can cache here

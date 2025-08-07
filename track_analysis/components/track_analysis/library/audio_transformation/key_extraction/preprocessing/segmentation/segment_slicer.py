@@ -1,12 +1,9 @@
-from pathlib import Path
 from typing import List, Tuple
 
 import numpy as np
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import VERBOSE
-from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.rhythm.calculator.onset_envelope import \
-    OnsetStrengthExtractor
 from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.preprocessing.segmentation.model.segmentation_result import \
     SegmentationResult
 
@@ -20,32 +17,18 @@ class SegmentSlicer:
     def __init__(self, logger: HoornLogger, separator: str) -> None:
         self._logger = logger
         self._separator = separator
-        self._onset_extractor: OnsetStrengthExtractor = OnsetStrengthExtractor(logger)
 
     def slice_segments(
             self,
             audio: np.ndarray,
-            audio_path: Path,
-            percussive: np.ndarray,
             sample_rate: int,
             event_times: List[float],
             strong_times: List[float],
-            hop_length_samples: int,
     ) -> SegmentationResult:
         """
         Slice the provided audio into segments based on filtered strong time boundaries.
         """
         self._validate_inputs(audio, sample_rate, event_times)
-
-        onset_strength_envelope = self._onset_extractor.extract_envelope(
-            file_path=audio_path,
-            start_sample=0,
-            end_sample=percussive.shape[0],
-            sample_rate=sample_rate,
-            hop_length=hop_length_samples,
-            audio=percussive,
-            unique_string="segment-slicer-percussive"
-        )
 
         boundaries = self._filter_boundaries(event_times[0], strong_times)
         segments, start_times, durations = self._extract_segments(
@@ -53,7 +36,7 @@ class SegmentSlicer:
         )
         self._log(durations)
         return SegmentationResult(
-            segments, start_times, durations, onset_strength_envelope
+            segments, start_times, durations
         )
 
     @staticmethod

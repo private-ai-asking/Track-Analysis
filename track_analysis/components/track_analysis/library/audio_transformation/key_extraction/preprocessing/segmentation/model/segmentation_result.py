@@ -12,4 +12,3 @@ class SegmentationResult:
     segments: List[np.ndarray]
     start_times: List[float]
     durations: List[float]
-    onset_strength_envelope: np.ndarray

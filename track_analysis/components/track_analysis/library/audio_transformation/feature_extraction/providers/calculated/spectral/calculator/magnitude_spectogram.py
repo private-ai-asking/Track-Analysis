@@ -21,16 +21,7 @@ def _compute_magnitude_spectrogram(
     - Cache key: (file_path, start_sample, end_sample, n_fft, hop_length)
     - `audio` is ignored in the cache key but used if provided.
     """
-    # Obtain the audio segment, either via memmap or slicing
-    if audio is None:
-        length = end_sample - start_sample
-        segment = np.memmap(
-            str(file_path), dtype="float32", mode="r",
-            offset=start_sample * 4,
-            shape=(length,)
-        )
-    else:
-        segment = audio[start_sample:end_sample]
+    segment = audio[start_sample:end_sample]
 
     # Compute magnitude spectrogram
     spectrogram = np.abs(

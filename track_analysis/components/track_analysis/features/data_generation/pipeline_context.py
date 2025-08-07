@@ -4,17 +4,12 @@ from typing import List, Optional, Dict
 import pandas as pd
 import pydantic
 
-from track_analysis.components.track_analysis.features.data_generation.processors.key_feature_processor import \
-    KeyFeatureProcessor
-from track_analysis.components.track_analysis.features.data_generation.processors.main_feature_processor import \
-    MainFeatureProcessor
-from track_analysis.components.track_analysis.legacy.audio_file_handler import AudioStreamsInfoModel
 from track_analysis.components.track_analysis.features.data_generation.model.album_cost import AlbumCostModel
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
+from track_analysis.components.track_analysis.features.data_generation.processors.main_feature_processor import \
+    MainFeatureProcessor
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_calculator import \
     EnergyAlgorithm
-from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.model.energy_model_config import \
-    EnergyModelConfig
 
 
 class LibraryDataGenerationPipelineContext(pydantic.BaseModel):
@@ -37,7 +32,6 @@ class LibraryDataGenerationPipelineContext(pydantic.BaseModel):
 
     # Generated Along the Line
     main_processor: MainFeatureProcessor = None
-    key_processor: KeyFeatureProcessor = None
 
     album_costs: Optional[List[AlbumCostModel]] = []
 
@@ -48,7 +42,6 @@ class LibraryDataGenerationPipelineContext(pydantic.BaseModel):
 
     energy_calculator: EnergyAlgorithm = None
 
-    extracted_stream_info: Optional[List[AudioStreamsInfoModel]] = []
     generated_audio_info: Optional[pd.DataFrame] = None
     generated_mfcc_audio_info: Optional[pd.DataFrame] = None
     generated_key_progression_audio_info: Optional[pd.DataFrame] = None

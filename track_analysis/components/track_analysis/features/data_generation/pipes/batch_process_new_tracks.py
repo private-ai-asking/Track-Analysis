@@ -1,27 +1,23 @@
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
-    AudioDataFeature, MFCC_FEATURES
-from track_analysis.components.track_analysis.features.data_generation.builders.key_data_frames_builder import \
-    KeyDataFramesBuilder
 from track_analysis.components.track_analysis.features.data_generation.builders.metadata_df_builder import \
     MetadataDFBuilder
-from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.feature_to_header_mapping import \
-    FEATURE_TO_HEADER_MAPPING
 from track_analysis.components.track_analysis.features.data_generation.mappers.results_mapper import ResultsMapper
-from track_analysis.components.track_analysis.features.data_generation.processors.key_feature_processor import \
-    KeyFeatureProcessor
-from track_analysis.components.track_analysis.features.data_generation.processors.main_feature_processor import \
-    MainFeatureProcessor
 from track_analysis.components.track_analysis.features.data_generation.model.album_cost import AlbumCostModel
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline_context import \
     LibraryDataGenerationPipelineContext
+from track_analysis.components.track_analysis.features.data_generation.processors.main_feature_processor import \
+    MainFeatureProcessor
+from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
+    AudioDataFeature, MFCC_UNIQUE_FILE_FEATURES, KEY_PROGRESSION_UNIQUE_FILE_FEATURES
+from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.feature_to_header_mapping import \
+    FEATURE_TO_HEADER_MAPPING
 
 
 class BatchProcessNewTracks(IPipe):
@@ -34,7 +30,6 @@ class BatchProcessNewTracks(IPipe):
             self,
             logger: HoornLogger,
             metadata_builder: MetadataDFBuilder,
-            key_data_builder: KeyDataFramesBuilder,
             results_mapper: ResultsMapper,
     ):
         self._logger = logger
@@ -42,13 +37,13 @@ class BatchProcessNewTracks(IPipe):
 
         # High-level components this orchestrator manages
         self._metadata_builder = metadata_builder
-        self._key_data_builder = key_data_builder
         self._results_mapper = results_mapper
 
-        to_calculate: List[AudioDataFeature] = list(FEATURE_TO_HEADER_MAPPING.keys())
-        to_calculate.extend(MFCC_FEATURES)
+        to_retrieve: List[AudioDataFeature] = list(FEATURE_TO_HEADER_MAPPING.keys())
+        to_retrieve.extend(MFCC_UNIQUE_FILE_FEATURES)
+        to_retrieve.extend(KEY_PROGRESSION_UNIQUE_FILE_FEATURES)
 
-        self._all_features: List[AudioDataFeature] = to_calculate
+        self._all_features: List[AudioDataFeature] = to_retrieve
 
         self._logger.trace("Initialized batch processor orchestrator.", separator=self._separator)
 
@@ -70,18 +65,17 @@ class BatchProcessNewTracks(IPipe):
         )
 
         # The core processing logic is to run all batches and map the results
-        all_results_df, all_key_prog_dfs = self._process_all_batches(context.key_processor, context.main_processor, paths, batch_size, context.album_costs)
-        self._results_mapper.map_results_to_context(all_results_df, all_key_prog_dfs, context)
+        all_results_df = self._process_all_batches(context.main_processor, paths, batch_size, context.album_costs)
+        self._results_mapper.map_results_to_context(all_results_df, context)
 
         self._logger.info("Completed batch processing of new tracks.", separator=self._separator)
         return context
 
     def _process_all_batches(
-            self, key_processor: KeyFeatureProcessor, main_processor: MainFeatureProcessor, paths: List[Path], batch_size: int, album_costs: List[AlbumCostModel]
-    ) -> Tuple[pd.DataFrame, List[pd.DataFrame]]:
+            self, main_processor: MainFeatureProcessor, paths: List[Path], batch_size: int, album_costs: List[AlbumCostModel]
+    ) -> pd.DataFrame:
         """Manages the iteration over all batches and concatenates their results."""
         all_batch_results = []
-        all_key_progression_dfs = []
         total = len(paths)
 
         for start in range(0, total, batch_size):
@@ -93,36 +87,33 @@ class BatchProcessNewTracks(IPipe):
                 separator=self._separator
             )
 
-            batch_df, key_prog_dfs = self._process_single_batch(key_processor, main_processor, batch_paths, album_costs)
+            batch_df = self._process_single_batch(main_processor, batch_paths, album_costs)
             all_batch_results.append(batch_df)
-            all_key_progression_dfs.extend(key_prog_dfs)
 
         # Concatenate results from all batches into a final DataFrame
         final_df = pd.concat(all_batch_results, ignore_index=True) if all_batch_results else pd.DataFrame()
-        return final_df, all_key_progression_dfs
+        return final_df
 
     def _process_single_batch(
-            self, key_processor: KeyFeatureProcessor, main_processor: MainFeatureProcessor, batch_paths: List[Path], album_costs: List[AlbumCostModel]
-    ) -> Tuple[pd.DataFrame, List[pd.DataFrame]]:
-        """
-        Handles a single batch by calling a sequence of specialized processors and builders.
-        """
+            self, main_processor: MainFeatureProcessor, batch_paths: List[Path], album_costs: List[AlbumCostModel]
+    ) -> pd.DataFrame:
+        # 1. Build the initial metadata DataFrame.
         meta_df = self._metadata_builder.build_metadata_df(batch_paths, album_costs)
 
-        raw_key_results = key_processor.extract_raw_keys(meta_df)
-        key_df, key_prog_dfs = self._key_data_builder.build(raw_key_results, meta_df)
+        # 2. Retrieve features for the batch. The row order MUST be preserved.
+        retrieved_features_df = main_processor.process_batch(meta_df, self._all_features)
 
-        meta_with_keys_df = meta_df.merge(key_df, left_index=True, right_on='original_index',
-                                          how='left').drop(columns=['original_index'])
-
-        calculated_features_df = main_processor.process_batch(meta_with_keys_df, self._all_features)
-
+        # 3. Identify the UUID column, which likely exists in both DataFrames.
         audio_uuid_col = Header.UUID.value
-        calculated_features_df_no_dupes = calculated_features_df.drop(columns=[audio_uuid_col])
 
+        # 4. To prevent a duplicate column, drop the UUID from the features DataFrame before concatenating.
+        features_only_df = retrieved_features_df.drop(columns=[audio_uuid_col])
+
+        # 5. Concatenate the metadata and features side-by-side (axis=1).
+        # .reset_index(drop=True) is a safeguard to ensure the DataFrames align perfectly by row position.
         final_batch_df = pd.concat(
-            [meta_with_keys_df.reset_index(drop=True), calculated_features_df_no_dupes.reset_index(drop=True)],
+            [meta_df.reset_index(drop=True), features_only_df.reset_index(drop=True)],
             axis=1
         )
 
-        return final_batch_df, key_prog_dfs
+        return final_batch_df
