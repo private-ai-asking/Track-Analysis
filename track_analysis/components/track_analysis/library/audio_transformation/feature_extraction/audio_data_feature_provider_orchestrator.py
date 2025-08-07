@@ -97,28 +97,19 @@ class AudioDataFeatureProviderOrchestrator:
         """
         Processes a single track, calculating only the requested metrics and their dependencies.
         """
-        start_time = time.time()
-
-        self._logger.debug(f"Processing track: {track_idx}", separator=self._separator)
-
-        self._logger.trace(f"Processing track [{track_idx}]... getting execution plan.", separator=self._separator)
-        # Call the new resolve method to get BOTH the plan and base features at once.
+        start_time = time.perf_counter()
         execution_plan, required_base_features = self._resolver.resolve(features_to_calculate)
 
-        self._logger.trace(f"Processing track [{track_idx}]... validating initial data.", separator=self._separator)
-        # Pass the results directly to the validation and execution methods.
         self._validate_initial_data(initial_data, required_base_features)
 
-        self._logger.trace(f"Processing track [{track_idx}]... executing plan.", separator=self._separator)
         all_results = self._execute_plan(initial_data, execution_plan)
-
 
         final_results = initial_data.copy()
         for feature in features_to_calculate:
             if feature in all_results:
                 final_results[feature] = all_results[feature]
 
-        end_time = time.time()
+        end_time = time.perf_counter()
         elapsed = end_time - start_time
 
         self._logger.debug(f"Finished processing track {track_idx} in: {self._time_utils.format_time(elapsed, round_digits=2)}.", separator=self._separator)
