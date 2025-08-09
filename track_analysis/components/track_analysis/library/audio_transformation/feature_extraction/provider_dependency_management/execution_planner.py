@@ -1,5 +1,6 @@
 from typing import List, Set, Dict
 
+from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import AudioDataFeature
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature_provider import (
     AudioDataFeatureProvider,
@@ -9,8 +10,10 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
 class ExecutionPlanner:
     """Performs a topological sort on a subset of providers to create an execution plan."""
 
-    def __init__(self, all_providers: List[AudioDataFeatureProvider]):
+    def __init__(self, all_providers: List[AudioDataFeatureProvider], logger: HoornLogger):
         self._feature_map = self._build_feature_to_provider_map(all_providers)
+        self._logger = logger
+        self._separator = self.__class__.__name__
 
     def generate_plan(
             self, providers_to_run: List[AudioDataFeatureProvider]
@@ -22,9 +25,19 @@ class ExecutionPlanner:
         )
         pending = providers_to_run.copy()
 
+        stage_num = 1
+        self._logger.info("--- Feature Execution Plan Analysis ---", separator=self._separator)
+
         while pending:
             ready_to_process = self._find_ready_providers(pending, resolved)
-            if not ready_to_process:
+            if ready_to_process:
+                provider_names = [p.__class__.__name__ for p in ready_to_process]
+                self._logger.info(
+                    f"Stage {stage_num}: Can run {len(ready_to_process)} providers in parallel -> {provider_names}",
+                    separator=self._separator
+                )
+                stage_num += 1
+            else:
                 self._handle_unresolvable_graph(pending)
             self._update_state(ready_to_process, order, pending, resolved)
 

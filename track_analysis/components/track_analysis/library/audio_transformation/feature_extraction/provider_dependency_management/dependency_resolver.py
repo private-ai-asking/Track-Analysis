@@ -1,5 +1,6 @@
 from typing import List, Dict, Set, Tuple
 
+from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import AudioDataFeature
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature_provider import (
     AudioDataFeatureProvider,
@@ -11,10 +12,10 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
 class DependencyResolver:
     """Resolves the full set of required providers and their execution order."""
 
-    def __init__(self, all_providers: List[AudioDataFeatureProvider]):
+    def __init__(self, all_providers: List[AudioDataFeatureProvider], logger: HoornLogger):
         self._all_providers = all_providers
         self._feature_map = self._build_feature_to_provider_map()
-        self._planner = ExecutionPlanner(all_providers)
+        self._planner = ExecutionPlanner(all_providers, logger)
 
     def resolve(
             self, features_to_calculate: List[AudioDataFeature]
