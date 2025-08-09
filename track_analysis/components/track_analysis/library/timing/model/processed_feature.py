@@ -21,9 +21,12 @@ class ProcessedFeature:
         """Calculates final stats after all data is aggregated."""
         if not self.all_timings_ms:
             return
+
+        self.total_time = sum(self.all_timings_ms) / 1000.0
+
+        self.avg_time_ms = (self.total_time / self.call_count * 1000) if self.call_count > 0 else 0
+
         self.min_time_ms = min(self.all_timings_ms)
         self.max_time_ms = max(self.all_timings_ms)
         if len(self.all_timings_ms) > 1:
             self.stdev_ms = np.std(self.all_timings_ms) # type: ignore
-        self.avg_time_ms = (self.total_time / self.call_count * 1000) if self.call_count > 0 else 0
-        self.total_time = sum(self.all_timings_ms)
