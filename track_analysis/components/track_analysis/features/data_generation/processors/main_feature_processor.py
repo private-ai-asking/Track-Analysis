@@ -152,6 +152,26 @@ class MainFeatureProcessor:
         """Logs the final timing analysis report."""
         self._logger.info(f"--- DYNAMIC BATCH COMPLETE ---", separator=self._separator)
         self._logger.info(f"Total Tracks Processed: {len(all_timings)} / {total_tracks}", separator=self._separator)
+
+        if all_timings and total_duration > 0:
+            total_sequential_time = sum(timing.total_time_spent for timing in all_timings)
+            parallelism_speedup_factor = total_sequential_time / total_duration
+
+            self._logger.info(
+                f"Total Sequential Work Time: {self._time_utils.format_time(total_sequential_time)} "
+                f"(if run on a single thread)",
+                separator=self._separator
+            )
+            self._logger.info(
+                f"Total Wall-Clock Time: {self._time_utils.format_time(total_duration)} "
+                f"(with {self._cpu_workers} workers)",
+                separator=self._separator
+            )
+            self._logger.info(
+                f"Parallelism Speedup Factor: {parallelism_speedup_factor:.2f}x ({parallelism_speedup_factor * 100:.2f}%)",
+                separator=self._separator
+            )
+
         self._logger.info(f"Total Time Elapsed: {self._time_utils.format_time(total_duration)}", separator=self._separator)
         if total_duration > 0:
             avg_throughput = len(all_timings) / total_duration
