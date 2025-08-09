@@ -1,13 +1,16 @@
 from typing import List, Tuple
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.library.timing.configuration.timing_analysis_configuration import \
+    TimingAnalysisConfiguration
 from track_analysis.components.track_analysis.library.timing.model.processed_feature import ProcessedFeature
 
 
 class ReportFormatter:
-    def __init__(self, logger: HoornLogger):
+    def __init__(self, logger: HoornLogger, configuration: TimingAnalysisConfiguration):
         self._logger = logger
         self._separator: str = self.__class__.__name__
+        self._configuration: TimingAnalysisConfiguration = configuration
 
     def log_report(
             self, batch_size: int, total_time: float, own_wait: float, own_proc: float,
@@ -20,8 +23,9 @@ class ReportFormatter:
         lines = ["\n--- Timing Analysis Report ---"]
 
         # General Summary
+        plural: bool = batch_size > 1
         avg_run_time = total_time / batch_size if batch_size > 0 else 0
-        lines.append(f"Analyzed {batch_size} run(s). Total time: {total_time:.3f}s. Average per run: {avg_run_time:.3f}s.")
+        lines.append(f"Analyzed {batch_size} {self._configuration.timing_data_name_plural if plural else self._configuration.timing_data_name}. Total time: {total_time:.3f}s. Average per run: {avg_run_time:.3f}s.")
 
         # Overall Time Distribution
         if total_time > 0:

@@ -20,10 +20,9 @@ class TimingAnalyzer:
     def __init__(self, logger: HoornLogger, configuration: TimingAnalysisConfiguration = TimingAnalysisConfiguration()):
         self._logger = logger
         self._separator = self.__class__.__name__
-        self._configuration = configuration
 
-        self._suggestion_engine: SuggestionEngine = SuggestionEngine(self._logger, self._configuration)
-        self._report_formatter: ReportFormatter = ReportFormatter(self._logger)
+        self._suggestion_engine: SuggestionEngine = SuggestionEngine(self._logger, configuration)
+        self._report_formatter: ReportFormatter = ReportFormatter(self._logger, configuration)
 
     def analyze_time(self, timing_data: TimingData):
         """Analyzes a single piece of timing data.

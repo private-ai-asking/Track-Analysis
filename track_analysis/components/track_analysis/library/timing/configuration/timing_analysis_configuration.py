@@ -3,6 +3,12 @@ import dataclasses
 
 @dataclasses.dataclass(frozen=True)
 class TimingAnalysisConfiguration:
+    timing_data_name: str = "Run"
+    """This is the name for the timing data."""
+
+    timing_data_name_plural: str = "Runs"
+    """This is the name for the timing data in plural."""
+
     minimum_impact_percentage_threshold: float = 5
     """A feature must have at least this percentage of impact on the total execution for it to be considered as a suggestion for improvements."""
 
