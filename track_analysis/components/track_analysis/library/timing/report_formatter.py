@@ -30,7 +30,7 @@ class ReportFormatter:
         if data.parallelism_stats:
             p_stats = data.parallelism_stats
             lines.append("\n--- Parallelism Analysis ---")
-            lines.append(f"🚀 Speedup: {p_stats.speedup_factor:.2f}x | "
+            lines.append(f"🚀 Speedup: {p_stats.speedup_factor:.2f}x (1x = baseline) | "
                          f"Throughput: {p_stats.avg_throughput:.2f} tasks/sec")
             lines.append(f"🔋 Worker Utilization: {p_stats.worker_utilization_percent:.1f}% | "
                          f"Overhead: {self._time_utils.format_time(p_stats.total_overhead_time)}")
