@@ -41,7 +41,8 @@ class TrackCleanedPitchClassesMaskProvider(AudioDataFeatureProvider):
 
         self._add_timed_cache_times(results)
 
-        return {
-            AudioDataFeature.TRACK_CLEANED_BINARY_MASK: results.value[0],
-            AudioDataFeature.TRACK_CLEANED_CHROMA_MASK: results.value[1]
-        }
+        with self._measure_processing():
+            return {
+                AudioDataFeature.TRACK_CLEANED_BINARY_MASK: results.value[0],
+                AudioDataFeature.TRACK_CLEANED_CHROMA_MASK: results.value[1]
+            }

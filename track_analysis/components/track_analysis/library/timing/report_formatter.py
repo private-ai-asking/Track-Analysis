@@ -1,18 +1,22 @@
 from typing import List, Tuple
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.library.timing.configuration.timing_analysis_configuration import \
+    TimingAnalysisConfiguration
 from track_analysis.components.track_analysis.library.timing.model.processed_feature import ProcessedFeature
+from track_analysis.components.track_analysis.library.timing.model.suggestion_categories import SuggestionCategories
 
 
 class ReportFormatter:
-    def __init__(self, logger: HoornLogger):
+    def __init__(self, logger: HoornLogger, configuration: TimingAnalysisConfiguration):
         self._logger = logger
         self._separator: str = self.__class__.__name__
+        self._configuration: TimingAnalysisConfiguration = configuration
 
     def log_report(
             self, batch_size: int, total_time: float, own_wait: float, own_proc: float,
             feature_time: float, features: List[ProcessedFeature],
-            wait_candidates: List[Tuple[str, str]], optimize_candidates: List[Tuple[str, str]]
+            suggestions: SuggestionCategories
     ):
         """Formats and logs the final analysis report, including suggestions."""
         own_total = own_wait + own_proc
@@ -20,8 +24,9 @@ class ReportFormatter:
         lines = ["\n--- Timing Analysis Report ---"]
 
         # General Summary
+        plural: bool = batch_size > 1
         avg_run_time = total_time / batch_size if batch_size > 0 else 0
-        lines.append(f"Analyzed {batch_size} run(s). Total time: {total_time:.3f}s. Average per run: {avg_run_time:.3f}s.")
+        lines.append(f"Analyzed {batch_size} {self._configuration.timing_data_name_plural if plural else self._configuration.timing_data_name}. Total time: {total_time:.3f}s. Average per run: {avg_run_time:.3f}s.")
 
         # Overall Time Distribution
         if total_time > 0:
@@ -36,10 +41,10 @@ class ReportFormatter:
         lines.extend(self._create_feature_table(features, feature_time))
 
         # Suggestions Section
-        suggestions = self._format_suggestions(wait_candidates, optimize_candidates)
-        if suggestions:
-            lines.append("")  # Add vertical space
-            lines.extend(suggestions)
+        suggestion_lines = self._format_suggestions(suggestions)
+        if suggestion_lines:
+            lines.append("")
+            lines.extend(suggestion_lines)
 
         lines.append("\n--- End of Report ---")
         self._logger.info("\n".join(lines), separator=self._separator)
@@ -55,7 +60,7 @@ class ReportFormatter:
 
         header = (
             f"{'Feature':<{max_name_len}} | {'Total (s)':>10} | {'% of Feat.':>10} | {'Avg (ms)':>10} | "
-            f"{'Calls':>8} | {'Wait (s)':>10} | {'Proc (s)':>10}"
+            f"{'StDev (ms)':>10} | {'Max (ms)':>10} | {'Calls':>8}"
         )
         table = [header, '-' * len(header)]
 
@@ -63,44 +68,51 @@ class ReportFormatter:
             perc_of_total = (f.total_time / total_feature_time * 100) if total_feature_time > 0 else 0
             row = (
                 f"{f.name:<{max_name_len}} | {f.total_time:>10.3f} | {perc_of_total:>9.1f}% | "
-                f"{f.avg_time_ms:>10.2f} | {f.call_count:>8} | "
-                f"{f.wait_time:>10.3f} | {f.process_time:>10.3f}"
+                f"{f.avg_time_ms:>10.2f} | {f.stdev_ms:>10.2f} | {f.max_time_ms:>10.2f} | {f.call_count:>8}"
             )
             table.append(row)
 
         return table
 
-    def _format_suggestions(
-            self,
-            wait_candidates: List[Tuple[str, str]],
-            optimize_candidates: List[Tuple[str, str]]
-    ) -> List[str]:
-        """Formats the final list of suggestions from the identified candidates."""
-        if not wait_candidates and not optimize_candidates:
+    def _format_suggestions(self, suggestions: SuggestionCategories) -> List[str]:
+        """Formats the final list of suggestions from all identified categories."""
+        all_candidates = (
+                suggestions.wait_candidates + suggestions.optimize_candidates +
+                suggestions.variance_candidates + suggestions.caching_candidates
+        )
+        if not all_candidates:
             return []
 
-        suggestions = ["--- 💡 Suggestions ---"]
+        suggestion_lines = ["--- 💡 Suggestions ---"]
 
-        suggestions.extend(self._format_suggestion_section(
-            candidates=wait_candidates,
+        suggestion_lines.extend(self._format_suggestion_section(
+            candidates=suggestions.wait_candidates,
             header="\n[Investigate High Wait Times]",
-            description="These features are blocked. Investigate their code to find the root cause, which could be I/O, a slow cache, or resource contention."
+            description="These features are blocked, likely by I/O. Consider using `asyncio` or threading to perform work concurrently."
         ))
 
-        suggestions.extend(self._format_suggestion_section(
-            candidates=optimize_candidates,
+        suggestion_lines.extend(self._format_suggestion_section(
+            candidates=suggestions.optimize_candidates,
             header="\n[Consider Optimizing Code]",
-            description="These features are CPU-bound. Consider optimizing the algorithm or using more efficient libraries."
+            description="These features are CPU-bound. Profile them to find hot spots and consider optimizing the algorithm or using more efficient libraries."
         ))
 
-        return suggestions
+        suggestion_lines.extend(self._format_suggestion_section(
+            candidates=suggestions.variance_candidates,
+            header="\n[Investigate Performance Variance]",
+            description="These features have inconsistent performance. Investigate if their runtime correlates with input data characteristics."
+        ))
+
+        suggestion_lines.extend(self._format_suggestion_section(
+            candidates=suggestions.caching_candidates,
+            header="\n[Consider Caching Results]",
+            description="These features have a high CPU cost. If their output is deterministic, consider caching results to avoid re-computation on subsequent runs."
+        ))
+
+        return suggestion_lines
 
     @staticmethod
-    def _format_suggestion_section(
-            candidates: List[Tuple[str, str]],
-            header: str,
-            description: str
-    ) -> List[str]:
+    def _format_suggestion_section(candidates: List[Tuple[str, str]], header: str, description: str) -> List[str]:
         """Formats a list of candidate tuples into a complete suggestion section."""
         if not candidates:
             return []

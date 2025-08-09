@@ -20,10 +20,9 @@ class TimingAnalyzer:
     def __init__(self, logger: HoornLogger, configuration: TimingAnalysisConfiguration = TimingAnalysisConfiguration()):
         self._logger = logger
         self._separator = self.__class__.__name__
-        self._configuration = configuration
 
-        self._suggestion_engine: SuggestionEngine = SuggestionEngine(self._logger, self._configuration)
-        self._report_formatter: ReportFormatter = ReportFormatter(self._logger)
+        self._suggestion_engine: SuggestionEngine = SuggestionEngine(self._logger, configuration)
+        self._report_formatter: ReportFormatter = ReportFormatter(self._logger, configuration)
 
     def analyze_time(self, timing_data: TimingData):
         """Analyzes a single piece of timing data.
@@ -54,21 +53,22 @@ class TimingAnalyzer:
                 processed_feature.wait_time += feature.time_spent_waiting
                 processed_feature.process_time += feature.time_spent_processing
                 processed_feature.call_count += 1
+                total_feature_time_ms = (feature.time_spent_waiting + feature.time_spent_processing) * 1000
+                processed_feature.all_timings_ms.append(total_feature_time_ms)
 
         # 2. Process aggregated data
         processed_features: List[ProcessedFeature] = []
         for name, processed_feature in feature_stats.items():
-            processed_feature.total_time = processed_feature.wait_time + processed_feature.process_time
-            processed_feature.avg_time_ms = (processed_feature.total_time / processed_feature.call_count * 1000) if processed_feature.call_count > 0 else 0
+            processed_feature.finalize_stats()
             processed_features.append(processed_feature)
 
         total_feature_time = sum(f.total_time for f in processed_features)
         processed_features.sort(key=lambda x: x.total_time, reverse=True)
 
-        wait_candidates, optimize_candidates = self._suggestion_engine.generate_suggestions(processed_features, total_feature_time)
+        candidates = self._suggestion_engine.generate_suggestions(processed_features, total_feature_time)
 
         # 3. Build and log the report
         self._report_formatter.log_report(
             batch_size, total_time, total_own_waiting, total_own_processing,
-            total_feature_time, processed_features, wait_candidates, optimize_candidates
+            total_feature_time, processed_features, candidates
         )

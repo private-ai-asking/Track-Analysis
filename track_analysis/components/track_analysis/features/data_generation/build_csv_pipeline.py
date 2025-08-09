@@ -10,6 +10,8 @@ from track_analysis.components.track_analysis.features.data_generation.helpers.c
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.feature_to_header_mapping import \
     FEATURE_TO_HEADER_MAPPING
 from track_analysis.components.track_analysis.features.data_generation.mappers.results_mapper import ResultsMapper
+from track_analysis.components.track_analysis.library.timing.configuration.timing_analysis_configuration import \
+    TimingAnalysisConfiguration
 from track_analysis.components.track_analysis.library.timing.timing_analysis import TimingAnalyzer
 from track_analysis.components.track_analysis.shared.caching.max_rate_cache import \
     MaxRateCache
@@ -64,7 +66,10 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._metadata_provider: MetadataDFBuilder = MetadataDFBuilder(tag_extractor)
         self._results_mapper: ResultsMapper = ResultsMapper(logger, FEATURE_TO_HEADER_MAPPING)
         self._cache_updater: CacheUpdater = CacheUpdater(self._logger, self._results_mapper)
-        self._timing_analyzer: TimingAnalyzer = TimingAnalyzer(self._logger)
+        self._timing_analyzer: TimingAnalyzer = TimingAnalyzer(self._logger, configuration=TimingAnalysisConfiguration(
+            timing_data_name="Track",
+            timing_data_name_plural="Tracks",
+        ))
 
         self._hop_length = configuration.hop_length
         self._n_fft = configuration.n_fft

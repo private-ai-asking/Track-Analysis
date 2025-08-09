@@ -77,4 +77,5 @@ class RhythmicRegularityProvider(AudioDataFeatureProvider):
         )
         self._add_timed_cache_times(regularity)
 
-        return {AudioDataFeature.RHYTHMIC_REGULARITY: regularity.value}
+        with self._measure_processing():
+            return {AudioDataFeature.RHYTHMIC_REGULARITY: regularity.value}
