@@ -15,17 +15,16 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
     DependencyResolver
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.validation.feature_data_validator import \
     FeatureDataValidator
+from track_analysis.components.track_analysis.library.timing.timing_analysis import TimingAnalyzer
 
 
 class AudioDataFeatureProviderOrchestrator:
-    def __init__(self, providers: List[AudioDataFeatureProvider], logger: HoornLogger, feature_threads_number: int = 24):
+    def __init__(self, providers: List[AudioDataFeatureProvider], logger: HoornLogger, timing_analyzer: TimingAnalyzer, feature_threads_number: int = 24):
         self._resolver = DependencyResolver(providers, logger)
         self._logger = logger
         self._separator = self.__class__.__name__
         self._time_utils: TimeUtils = TimeUtils()
-        self._plan_executor: PlanExecutor = PlanExecutor(feature_threads_num=feature_threads_number)
-
-    # --- Public Method ---
+        self._plan_executor: PlanExecutor = PlanExecutor(feature_threads_num=feature_threads_number, timing_analyzer=timing_analyzer, logger=logger)
 
     def process_track(
             self,

@@ -41,7 +41,7 @@ class CreateProcessors(IPipe):
         audio_feature_orchestrator_factory = AudioFeatureOrchestratorFactory(self._logger)
         orchestrator = audio_feature_orchestrator_factory.create_audio_feature_orchestrator(
             hop_length=self._hop_length, n_fft=self._n_fft, max_rate_cache=self._max_rate_cache,
-            energy_calculator=data.energy_calculator, key_extraction_config=DEFAULT_KEY_PROGRESSION_CONFIG
+            energy_calculator=data.energy_calculator, key_extraction_config=DEFAULT_KEY_PROGRESSION_CONFIG, timing_analyzer=self._timing_analyzer
         )
         main_processor: MainFeatureProcessor = MainFeatureProcessor(
             orchestrator, self._logger,

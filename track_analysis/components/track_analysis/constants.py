@@ -28,7 +28,7 @@ ENERGY_CALCULATION_REGENERATE_LIBRARY_GROWTH_PERC: float = 0.1
 CURRENT_ENERGY_TRAINING_VERSION_TO_USE: int = -1 # Every training (including the first one increments.) Switch to -1 when starting a new feature set.
 NUMBER_OF_MFCCS: int = 20
 
-DEBUG: bool = False
+DEBUG: bool = True
 VERBOSE: bool = False
 PROFILE_DATA_LOADING: bool = False
 EMBED_BATCH_SIZE: int = 1500

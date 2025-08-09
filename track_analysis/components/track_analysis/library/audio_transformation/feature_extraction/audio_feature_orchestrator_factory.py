@@ -121,6 +121,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.key_e
     KeyProgressionConfig
 from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.core.templates.key_template_builder import \
     KeyTemplateBuilder
+from track_analysis.components.track_analysis.library.timing.timing_analysis import TimingAnalyzer
 from track_analysis.components.track_analysis.shared.caching.max_rate_cache import MaxRateCache
 from track_analysis.components.track_analysis.shared.file_utils import FileUtils
 
@@ -133,6 +134,7 @@ class AudioFeatureOrchestratorFactory:
                                           max_rate_cache: MaxRateCache,
                                           energy_calculator: EnergyAlgorithm,
                                           key_extraction_config: KeyProgressionConfig,
+                                          timing_analyzer: TimingAnalyzer,
                                           hop_length: int = 512,
                                           n_fft: int = 2048,
                                           ) -> AudioDataFeatureProviderOrchestrator:
@@ -195,4 +197,4 @@ class AudioFeatureOrchestratorFactory:
             SubBeatEventsProvider(key_extraction_config.subdivisions_per_beat),
         ]
 
-        return AudioDataFeatureProviderOrchestrator(all_providers, self._logger)
+        return AudioDataFeatureProviderOrchestrator(all_providers, self._logger, timing_analyzer)

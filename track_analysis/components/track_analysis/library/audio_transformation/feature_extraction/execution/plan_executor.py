@@ -1,6 +1,8 @@
+import time
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 from typing import Dict, Any, Tuple, List, Union
 
+from track_analysis.components.md_common_python.py_common.logging import HoornLogger, LogType
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
     AudioDataFeature
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature_provider import \
@@ -13,12 +15,18 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
     TrackProcessingResult
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.validation.feature_data_validator import \
     FeatureDataValidator
+from track_analysis.components.track_analysis.library.timing.model.feature_timing_data import FeatureTimingData
+from track_analysis.components.track_analysis.library.timing.model.timing_data import TimingData
+from track_analysis.components.track_analysis.library.timing.timing_analysis import TimingAnalyzer
 
 
 class PlanExecutor:
     """Handles the execution of feature provider stages for a single track."""
-    def __init__(self, feature_threads_num: int):
+    def __init__(self, feature_threads_num: int, logger: HoornLogger, timing_analyzer: TimingAnalyzer):
         self._feature_threads_num = feature_threads_num
+        self._logger = logger
+        self._separator = self.__class__.__name__
+        self._timing_analyzer = timing_analyzer
 
     def execute_plan(
             self,
@@ -26,6 +34,8 @@ class PlanExecutor:
             execution_plan: ExecutionPlan
     ) -> TrackProcessingResult:
         """Iterates through a specific execution plan and runs each feature provider."""
+        start_time = time.perf_counter()
+
         results = initial_data.copy()
         provider_stats: Dict[AudioDataFeatureProvider, ProviderProcessingStatistics] = {}
 
@@ -36,6 +46,30 @@ class PlanExecutor:
                 stage_results, stage_stats = self._execute_stage(executor, stage, results)
                 results.update(stage_results)
                 provider_stats.update(stage_stats)
+
+        wall_clock_time = time.perf_counter() - start_time
+
+        feature_timings = [
+            FeatureTimingData(
+                associated_feature=provider.__class__.__name__,
+                time_spent_processing=stats.time_spent_processing,
+                time_spent_waiting=stats.time_spent_waiting
+            ) for provider, stats in provider_stats.items()
+        ]
+
+        feature_level_timing_data = TimingData(
+            total_time_spent=wall_clock_time,
+            own_waiting_time=0,
+            own_processing_time=0,
+            feature_dissection=feature_timings
+        )
+
+        self._timing_analyzer.analyze_time(
+            timing_data_batch=[feature_level_timing_data],
+            wall_clock_time=wall_clock_time,
+            worker_count=self._feature_threads_num,
+            log_mode=LogType.DEBUG
+        )
 
         return TrackProcessingResult(retrieved_features=results, provider_stats=provider_stats)
 
