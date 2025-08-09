@@ -59,7 +59,7 @@ class ReportFormatter:
 
         header = (
             f"{'Feature':<{max_name_len}} | {'Total (s)':>10} | {'% of Feat.':>10} | {'Avg (ms)':>10} | "
-            f"{'Calls':>8} | {'Wait (s)':>10} | {'Proc (s)':>10}"
+            f"{'StDev (ms)':>10} | {'Max (ms)':>10} | {'Calls':>8}"
         )
         table = [header, '-' * len(header)]
 
@@ -67,8 +67,7 @@ class ReportFormatter:
             perc_of_total = (f.total_time / total_feature_time * 100) if total_feature_time > 0 else 0
             row = (
                 f"{f.name:<{max_name_len}} | {f.total_time:>10.3f} | {perc_of_total:>9.1f}% | "
-                f"{f.avg_time_ms:>10.2f} | {f.call_count:>8} | "
-                f"{f.wait_time:>10.3f} | {f.process_time:>10.3f}"
+                f"{f.avg_time_ms:>10.2f} | {f.stdev_ms:>10.2f} | {f.max_time_ms:>10.2f} | {f.call_count:>8}"
             )
             table.append(row)
 
@@ -88,7 +87,7 @@ class ReportFormatter:
         suggestions.extend(self._format_suggestion_section(
             candidates=wait_candidates,
             header="\n[Investigate High Wait Times]",
-            description="These features are blocked. Investigate their code to find the root cause, which could be I/O, a slow cache, or resource contention."
+            description="These features are blocked. Investigate their code to find the root cause, which could be I/O, a slow cache, or resource contention. Consider using `asyncio` or threading to run this task concurrently (and investigate the source of the waiting)."
         ))
 
         suggestions.extend(self._format_suggestion_section(

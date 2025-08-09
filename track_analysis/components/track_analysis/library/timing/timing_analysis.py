@@ -53,12 +53,13 @@ class TimingAnalyzer:
                 processed_feature.wait_time += feature.time_spent_waiting
                 processed_feature.process_time += feature.time_spent_processing
                 processed_feature.call_count += 1
+                total_feature_time_ms = (feature.time_spent_waiting + feature.time_spent_processing) * 1000
+                processed_feature.all_timings_ms.append(total_feature_time_ms)
 
         # 2. Process aggregated data
         processed_features: List[ProcessedFeature] = []
         for name, processed_feature in feature_stats.items():
-            processed_feature.total_time = processed_feature.wait_time + processed_feature.process_time
-            processed_feature.avg_time_ms = (processed_feature.total_time / processed_feature.call_count * 1000) if processed_feature.call_count > 0 else 0
+            processed_feature.finalize_stats()
             processed_features.append(processed_feature)
 
         total_feature_time = sum(f.total_time for f in processed_features)

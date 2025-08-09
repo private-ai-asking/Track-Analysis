@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Callable
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.library.timing.configuration.timing_analysis_configuration import \
@@ -20,8 +20,21 @@ class SuggestionEngine:
             return [], []
 
         # 1. Gather candidates for each category
-        wait_candidates = self._get_wait_candidates(features, total_feature_time)
-        optimize_candidates = self._get_optimize_candidates(features, total_feature_time)
+        wait_candidates = self._get_candidates(
+            features,
+            total_feature_time,
+            condition=lambda f: f.wait_time > f.process_time,
+            time_metric=lambda f: f.wait_time,
+            reason_template="Spent {:.0%} of its time waiting ({:.2f}s of {:.2f}s total)."
+        )
+
+        optimize_candidates = self._get_candidates(
+            features,
+            total_feature_time,
+            condition=lambda f: f.process_time > f.wait_time,
+            time_metric=lambda f: f.process_time,
+            reason_template="Spent {:.0%} of its time processing ({:.2f}s of {:.2f}s total). "
+        )
 
         # 2. Format the gathered candidates into a user-friendly list
         return wait_candidates, optimize_candidates
@@ -35,44 +48,22 @@ class SuggestionEngine:
 
         return is_impactful and is_long_enough
 
-    def _get_wait_candidates(self, features: List[ProcessedFeature], total_feature_time: float) -> List[Tuple[str, str]]:
-        """Identifies features that are potentially blocked (I/O bound)."""
+    def _get_candidates(
+            self, features: List[ProcessedFeature], total_feature_time: float,
+            condition: Callable[[ProcessedFeature], bool],
+            time_metric: Callable[[ProcessedFeature], float],
+            reason_template: str
+    ) -> List[Tuple[str, str]]:
+        """Generic method to identify suggestion candidates."""
         candidates = []
         for f in features:
-            is_significant = self._is_feature_significant(f, total_feature_time)
-            is_waiting_more_than_processing = f.wait_time > f.process_time
+            if not self._is_feature_significant(f, total_feature_time) or not condition(f):
+                continue
 
-            wait_ratio = self._get_time_ratio(f.wait_time, f.total_time)
-
-            high_enough_wait_ratio = wait_ratio > self._configuration.minimum_spent_ratio
-
-            if is_significant and is_waiting_more_than_processing and high_enough_wait_ratio:
-                reason = (
-                    f"Spent {wait_ratio:.0%} of its time waiting "
-                    f"({f.wait_time:.2f}s of {f.total_time:.2f}s total)."
-                )
+            ratio = self._get_time_ratio(time_metric(f), f.total_time)
+            if ratio > self._configuration.minimum_spent_ratio:
+                reason = reason_template.format(ratio, time_metric(f), f.total_time)
                 candidates.append((f.name, reason))
-
-        return candidates
-
-    def _get_optimize_candidates(self, features: List[ProcessedFeature], total_feature_time: float) -> List[Tuple[str, str]]:
-        """Identifies features that are potentially CPU-bound."""
-        candidates = []
-        for f in features:
-            is_feature_significant = self._is_feature_significant(f, total_feature_time)
-            is_processing_more_than_waiting = f.process_time > f.wait_time
-
-            process_ratio = self._get_time_ratio(f.process_time, f.total_time)
-
-            high_enough_process_ratio = process_ratio > self._configuration.minimum_spent_ratio
-
-            if is_feature_significant and is_processing_more_than_waiting and high_enough_process_ratio:
-                reason = (
-                    f"Spent {process_ratio:.0%} of its time processing "
-                    f"({f.process_time:.2f}s of {f.total_time:.2f}s total)."
-                )
-                candidates.append((f.name, reason))
-
         return candidates
 
     @staticmethod
