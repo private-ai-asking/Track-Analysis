@@ -39,9 +39,10 @@ class OnsetPeaksProvider(AudioDataFeatureProvider):
         )
         self._add_timed_cache_times(peaks)
 
-        return {
-            AudioDataFeature.ONSET_PEAKS: peaks.value,
-        }
+        with self._measure_processing():
+            return {
+                AudioDataFeature.ONSET_PEAKS: peaks.value,
+            }
 
 class PercussiveOnsetPeaksProvider(AudioDataFeatureProvider):
     """
@@ -82,6 +83,7 @@ class PercussiveOnsetPeaksProvider(AudioDataFeatureProvider):
         )
         self._add_timed_cache_times(peaks)
 
-        return {
-            AudioDataFeature.PERCUSSIVE_ONSET_PEAKS: peaks.value,
-        }
+        with self._measure_processing():
+            return {
+                AudioDataFeature.PERCUSSIVE_ONSET_PEAKS: peaks.value,
+            }
