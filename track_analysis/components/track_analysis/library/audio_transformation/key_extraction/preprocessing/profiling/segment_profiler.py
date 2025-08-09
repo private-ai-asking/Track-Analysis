@@ -108,7 +108,7 @@ class SegmentProfiler:
                     segment_notes=notes
                 )
             )
-            self._logger.debug(
+            self._logger.trace(
                 f"Segment {seg_idx}: {len(notes)} notes, "
                 f"{segments_out[-1].num_pitch_classes} pitch classes",
                 separator=self._separator

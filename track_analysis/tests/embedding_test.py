@@ -27,9 +27,7 @@ class EmbeddingTest(TestInterface):
         self._data_loader = data_loader
         self._input_helper: UserInputHelper = UserInputHelper(logger, self._separator)
         self._logger.trace("Successfully initialized.", separator=self._separator)
-        self._logger.warning("CURRENTLY NOT WORKING -> Needs to adapt to different embedding system.", separator=self._separator)
-
-
+        self._logger.info("CURRENTLY NOT WORKING -> Needs to adapt to different embedding system.", separator=self._separator)
 
     def test(
             self,

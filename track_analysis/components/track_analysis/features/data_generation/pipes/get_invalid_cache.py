@@ -92,7 +92,7 @@ class HandleInvalidCache(IPipe):
 
         invalid_count = (~is_valid).sum()
         if invalid_count > 0:
-            self._logger.warning(
+            self._logger.info(
                 f"Found {invalid_count} invalid {descriptor} entries. Cleaning cache.",
                 separator=self._SEPARATOR
             )

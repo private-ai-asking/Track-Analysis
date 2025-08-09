@@ -54,17 +54,17 @@ class PreprocessData(IPipe):
         for idx in df.index:
             # Artists column
             old_artists = df.at[idx, Header.Artists.value]
-            self._logger.debug(f"Preprocessing old value: {old_artists}", separator=self._separator)
+            self._logger.trace(f"Preprocessing old value: {old_artists}", separator=self._separator)
             new_artists = self._format_list(self._standardize_artists(old_artists))
             df.at[idx, Header.Artists.value] = new_artists
-            self._logger.debug(f"Preprocessing new value: {new_artists}", separator=self._separator)
+            self._logger.trace(f"Preprocessing new value: {new_artists}", separator=self._separator)
 
             # Album Artists column
             old_album_artists = df.at[idx, Header.Album_Artists.value]
-            self._logger.debug(f"Preprocessing old value: {old_album_artists}", separator=self._separator)
+            self._logger.trace(f"Preprocessing old value: {old_album_artists}", separator=self._separator)
             new_album_artists = self._format_list(self._standardize_artists(old_album_artists))
             df.at[idx, Header.Album_Artists.value] = new_album_artists
-            self._logger.debug(f"Preprocessing new value: {new_album_artists}", separator=self._separator)
+            self._logger.trace(f"Preprocessing new value: {new_album_artists}", separator=self._separator)
 
         df[Header.Primary_Artist.value] = (
             df[Header.Artists.value]

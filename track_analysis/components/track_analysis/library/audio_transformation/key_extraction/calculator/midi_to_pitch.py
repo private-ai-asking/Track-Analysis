@@ -31,6 +31,6 @@ class MidiToPitchClassesConverter:
 
     def convert(self, audio_path: Path, midi: np.ndarray) -> TimedCacheResult[np.ndarray]:
         chroma = _convert_to_chroma(audio_path=audio_path, midi=midi)
-        self._logger.debug(f"Pitch Classes Shape: {chroma.value.shape}", separator=self._separator)
-        self._logger.debug(f"Pitch Classes:\n{pprint.pformat(chroma)}", separator=self._separator)
+        self._logger.trace(f"Pitch Classes Shape: {chroma.value.shape}", separator=self._separator)
+        self._logger.trace(f"Pitch Classes:\n{pprint.pformat(chroma)}", separator=self._separator)
         return chroma
