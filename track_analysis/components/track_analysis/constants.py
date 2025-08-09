@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import List, Dict
 
 import psutil
-from pyexpat import features
 
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
     AudioDataFeature

@@ -1,6 +1,6 @@
 from typing import Dict, Any, List
 
-import librosa
+import soundfile as sf
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import AudioDataFeature
@@ -28,15 +28,18 @@ class AudioSampleProvider(AudioDataFeatureProvider):
             original_sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
 
         with self._measure_waiting():
-            samples, sr = librosa.load(audio_path, sr=None)
+            samples, sr = sf.read(audio_path, dtype='float32')
 
         with self._measure_processing():
             if sr != original_sr:
                 self._logger.warning(
                     f"Sample-rate mismatch for {audio_path}: "
-                    f"media_info={original_sr} Hz vs librosa={sr} Hz",
+                    f"media_info={original_sr} Hz vs soundfile={sr} Hz",
                     separator=self._separator
                 )
+
+            if samples.ndim > 1:
+                samples = samples.mean(axis=1)
 
             return {
                 AudioDataFeature.AUDIO_SAMPLES: samples
