@@ -12,6 +12,8 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger, LogType
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
+from track_analysis.components.track_analysis.features.data_generation.helpers.audio_sample_loader import \
+    AudioSampleLoader
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
     AudioDataFeature
@@ -115,7 +117,11 @@ class MainFeatureProcessor:
 
         return pd.DataFrame(all_track_features)
 
-    def _process_track(self, row_info_tuple: Tuple, requested_features: List[AudioDataFeature]) -> TrackProcessingResult | None:
+    def _process_track(self,
+                       row_info_tuple: Tuple,
+                       requested_features: List[AudioDataFeature],
+                       audio_sample_future: Future,
+                       audio_path: Path) -> TrackProcessingResult | None:
         """
         Helper function that processes a single track, adding the audio path to the
         results for later merging.
@@ -128,7 +134,10 @@ class MainFeatureProcessor:
 
         try:
             idx, row = row_info_tuple
-            initial_data = {AudioDataFeature.AUDIO_PATH: Path(row[Header.Audio_Path.value])}
+            initial_data = {
+                AudioDataFeature.AUDIO_PATH: audio_path,
+                AudioDataFeature.AUDIO_SAMPLES_FUTURE: audio_sample_future,
+            }
 
             process_time = time.perf_counter() - start_process
             track_processing_result = self._orchestrator.process_track(idx, initial_data, requested_features)
@@ -176,7 +185,12 @@ class MainFeatureProcessor:
         """Tries to fetch and submit one new task from the iterator."""
         try:
             new_task_data = next(tasks)
-            active_futures.add(executor.submit(self._process_track, new_task_data, requested_features))
+
+            _, row = new_task_data
+            audio_path = Path(row[Header.Audio_Path.value])
+
+            audio_sample_future: Future = executor.submit(AudioSampleLoader.load_audio_samples, audio_path)
+            active_futures.add(executor.submit(self._process_track, new_task_data, requested_features, audio_sample_future, audio_path))
         except StopIteration:
             pass
 

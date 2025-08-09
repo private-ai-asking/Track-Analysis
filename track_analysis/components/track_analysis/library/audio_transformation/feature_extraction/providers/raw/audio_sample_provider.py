@@ -1,3 +1,4 @@
+from concurrent.futures import as_completed, Future
 from typing import Dict, Any, List
 
 import soundfile as sf
@@ -16,7 +17,7 @@ class AudioSampleProvider(AudioDataFeatureProvider):
 
     @property
     def dependencies(self) -> List[AudioDataFeature]:
-        return [AudioDataFeature.AUDIO_PATH, AudioDataFeature.SAMPLE_RATE_HZ]
+        return [AudioDataFeature.AUDIO_PATH, AudioDataFeature.SAMPLE_RATE_HZ, AudioDataFeature.AUDIO_SAMPLES_FUTURE]
 
     @property
     def output_features(self) -> AudioDataFeature | List[AudioDataFeature]:
@@ -26,9 +27,10 @@ class AudioSampleProvider(AudioDataFeatureProvider):
         with self._measure_processing():
             audio_path = data[AudioDataFeature.AUDIO_PATH]
             original_sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
+            audio_samples_future: Future = data[AudioDataFeature.AUDIO_SAMPLES_FUTURE]
 
         with self._measure_waiting():
-            samples, sr = sf.read(audio_path, dtype='float32')
+            samples, sr = audio_samples_future.result()
 
         with self._measure_processing():
             if sr != original_sr:
