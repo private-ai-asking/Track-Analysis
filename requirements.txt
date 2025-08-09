@@ -23,3 +23,5 @@ scikit-image
 matplotlib
 joblib
 psutil
+h5py
+scipy

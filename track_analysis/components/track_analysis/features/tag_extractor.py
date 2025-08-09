@@ -5,7 +5,7 @@ import mutagen
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.features.audio_file_handler import AudioStreamsInfoModel
+from track_analysis.components.track_analysis.features.data_generation.model.album_cost import AlbumCostModel
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 
 
@@ -40,7 +40,7 @@ class TagExtractor:
 
         return artists
 
-    def add_extracted_metadata_to_track(self, track: pd.Series, audio_info: AudioStreamsInfoModel) -> None:
+    def add_extracted_metadata_to_track(self, track: pd.Series, album_costs: List[AlbumCostModel]) -> None:
         """
         Extracts mp3 tags from the given audio file.
 
@@ -75,8 +75,13 @@ class TagExtractor:
         track[Header.Bought.value] = True if "[01] hq" in str(track_path) else False
         track[Header.Extension.value] = track_path.suffix
 
-        file['bpm'] = str(round(audio_info.tempo, 4))
-        file.save()
+        album_cost = 0.0
+
+        for album_cost_model in album_costs:
+            if album_cost_model.Album_Title == track[Header.Album.value]:
+                album_cost = album_cost_model.Album_Cost
+
+        track[Header.Album_Cost.value] = album_cost
 
         self._logger.trace(f"Finished extracting tags from {track}", separator=self._module_separator)
         return None

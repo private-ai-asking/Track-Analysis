@@ -13,6 +13,7 @@ from track_analysis.components.md_common_python.py_common.command_handling impor
 from track_analysis.components.md_common_python.py_common.component_registration import ComponentRegistration
 from track_analysis.components.md_common_python.py_common.handlers import FileHandler
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.md_common_python.py_common.misc import DirectoryTreeConfig, DirectoryTreeGenerator
 from track_analysis.components.md_common_python.py_common.testing import TestCoordinator
 from track_analysis.components.md_common_python.py_common.testing.test_coordinator import TestConfiguration
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
@@ -22,18 +23,12 @@ from track_analysis.components.md_common_python.py_common.utils.string_utils imp
 from track_analysis.components.track_analysis.constants import ROOT_MUSIC_LIBRARY, OUTPUT_DIRECTORY, \
     DATA_DIRECTORY, BENCHMARK_DIRECTORY, DELETE_FINAL_DATA_BEFORE_START, CACHE_DIRECTORY, CLEAR_CACHE, \
     DOWNLOAD_CSV_FILE, TEST_SAMPLE_SIZE, PROFILE_DATA_LOADING, EMBED_BATCH_SIZE, NUM_WORKERS_CPU_HEAVY, \
-    MAX_NEW_TRACKS_PER_RUN
-from track_analysis.components.track_analysis.features.audio_calculator import AudioCalculator
-from track_analysis.components.track_analysis.features.audio_file_handler import AudioFileHandler
+    MAX_NEW_TRACKS_PER_RUN, EXPENSIVE_CACHE_DIRECTORY
+from track_analysis.components.track_analysis.features.data_generation.build_csv_pipeline import \
+    BuildLibraryDataCSVPipeline, PipelineConfiguration
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
-from track_analysis.components.track_analysis.features.data_generation.pipeline.build_csv_pipeline import \
-    BuildLibraryDataCSVPipeline
-from track_analysis.components.track_analysis.features.data_generation.pipeline.pipeline_context import \
+from track_analysis.components.track_analysis.features.data_generation.pipeline_context import \
     LibraryDataGenerationPipelineContext
-from track_analysis.components.track_analysis.features.key_extraction.core.definitions.definition_templates import \
-    TemplateMode
-from track_analysis.components.track_analysis.features.key_extraction.profile_generation.profile_generator import \
-    ProfileGenerator
 from track_analysis.components.track_analysis.features.scrobbling.embedding.default_candidate_retriever import \
     DefaultCandidateRetriever
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
@@ -56,11 +51,14 @@ from track_analysis.components.track_analysis.features.track_downloading.pipelin
 from track_analysis.components.track_analysis.features.track_downloading.pipeline.download_pipeline_context import \
     DownloadPipelineContext
 from track_analysis.components.track_analysis.features.track_downloading.utils.genre_algorithm import GenreAlgorithm
+# from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.profile_generation.profile_generator import \
+#     ProfileGenerator
+from track_analysis.components.track_analysis.shared.caching.max_rate_cache import \
+    MaxRateCache
+from track_analysis.components.track_analysis.shared_objects import MEMORY
 from track_analysis.tests.embedding_test import EmbeddingTest
 from track_analysis.tests.energy_calculation_test import EnergyCalculationTest
-from track_analysis.tests.key_test import KeyProgressionTest
 from track_analysis.tests.registration_test import RegistrationTest
-from track_analysis.tests.short_rms_test import ShortTimeRMSTest
 
 T = TypeVar("T")
 
@@ -94,6 +92,8 @@ def _run_with_profiling(func: Callable[[], T], category: str) -> T:
 
 class App:
     def __init__(self, logger: HoornLogger):
+        MEMORY.set_logger(logger)
+
         self._library_data_path: Path = OUTPUT_DIRECTORY.joinpath("data.csv")
         self._mfcc_data_path: Path = OUTPUT_DIRECTORY.joinpath("mfcc.csv")
         scrobble_data_path: Path = DATA_DIRECTORY.joinpath("scrobbles.csv")
@@ -114,15 +114,17 @@ class App:
         self._user_input_helper: UserInputHelper = UserInputHelper(logger)
         self._tag_extractor: TagExtractor = TagExtractor(logger)
         self._file_handler: FileHandler = FileHandler()
-        self._audio_file_handler: AudioFileHandler = AudioFileHandler(logger, num_workers=NUM_WORKERS_CPU_HEAVY)
-        self._audio_calculator: AudioCalculator = AudioCalculator(logger, self._audio_file_handler, key_csv_path=OUTPUT_DIRECTORY.joinpath("key_progression.csv"), num_workers=NUM_WORKERS_CPU_HEAVY-14)
+
+        self._max_rate_cache: MaxRateCache = MaxRateCache(EXPENSIVE_CACHE_DIRECTORY / "max_rate_cache.pkl")
+
         self._time_utils: TimeUtils = TimeUtils()
         self._registration: ComponentRegistration = ComponentRegistration(logger, port=50000, component_port=50002)
         self._downloader: MusicDownloadInterface = YTDLPMusicDownloader(logger, music_track_download_dir)
         self._genre_algorithm: GenreAlgorithm = GenreAlgorithm(logger)
         self._metadata_api: MetadataAPI = MetadataAPI(logger, self._genre_algorithm)
         self._command_helper: CommandHelper = CommandHelper(logger, "CommandHelper")
-        self._profile_creator: ProfileGenerator = ProfileGenerator(logger, self._audio_file_handler, template_profile_normalized_to=100, num_workers=NUM_WORKERS_CPU_HEAVY-14)
+        # self._profile_creator: ProfileGenerator = ProfileGenerator(logger, self._audio_file_handler, template_profile_normalized_to=100, num_workers=NUM_WORKERS_CPU_HEAVY-14)
+        # self._key_extractor = KeyExtractor(logger, self._audio_file_handler, num_workers=NUM_WORKERS_CPU_HEAVY-14)
 
         self._download_pipeline: DownloadPipeline = DownloadPipeline(
             logger,
@@ -184,8 +186,7 @@ class App:
 
         registration_test: RegistrationTest = RegistrationTest(logger, self._registration)
         embedding_test: EmbeddingTest = EmbeddingTest(logger, embedder=self._embedder, keys_path=keys_path, data_loader=self._scrobble_data_loader)
-        short_time_rms_test: ShortTimeRMSTest = ShortTimeRMSTest(logger, self._audio_file_handler)
-        energy_test: EnergyCalculationTest = EnergyCalculationTest(logger, self._library_data_path, mfcc_data_path=self._mfcc_data_path, train_model=False)
+        energy_test: EnergyCalculationTest = EnergyCalculationTest(logger, self._library_data_path, mfcc_data_path=self._mfcc_data_path)
 
         tests: List[TestConfiguration] = [
             TestConfiguration(
@@ -199,12 +200,6 @@ class App:
                 keyword_arguments=[10],
                 command_description="Tests the embedding similarity matcher.",
                 command_keys=["test_embeddings", "te"]
-            ),
-            TestConfiguration(
-                associated_test=short_time_rms_test,
-                keyword_arguments=[],
-                command_description="Tests the short time rms.",
-                command_keys=["test_short_time_rms", "tstr"]
             ),
             TestConfiguration(
                 associated_test=energy_test,
@@ -225,9 +220,7 @@ class App:
         cmd.add_command(["make_csv-p", "mc-p"], "Builds a CSV for the library data. Fills in any missing values for existing entries. Also profiles the function.", self._make_csv, arguments=[True])
         cmd.add_command(["generate_embeddings", "ge"], "Generates embeddings for the library.", self._generate_embeddings)
         cmd.add_command(["test_params", "tp"], "Tests various parameter combinations for the algorithm.", self._scrobble_linker.test_parameters)
-        cmd.add_command(["test_keys_extraction", "tke"], "Tests the key extraction algorithm.", self._test_keys, arguments=[False])
-        cmd.add_command(["test_keys_extraction-p", "tke-p"], "Tests the key extraction algorithm and profiles.", self._test_keys, arguments=[True])
-        cmd.add_command(["compute_profiles", "cp"], "Computes profiles based on a corpus.", self._profile_creation_test)
+        # cmd.add_command(["compute_profiles", "cp"], "Computes profiles based on a corpus.", self._profile_creation_test)
         cmd.add_command(["process_uncertain", "pu"], "Processes the uncertain keys interactively.", self._uncertain_keys_processor.process)
         cmd.add_command(["print_unmatched", "pru"], "Prints the library entries whose UUIDs don't have an associated cached scrobble.", self._unmatch_util.print_unmatched_tracks)
         cmd.add_command(["build_cache", "bc"], "Builds the cache for the library for n samples.", self._build_cache, arguments=[False])
@@ -236,6 +229,8 @@ class App:
         cmd.add_command(["link_scrobbles-profile", "ls-p"], "Links the scrobbles to the library data but profiles the performance also.", self._link_scrobbles, arguments=[True])
         cmd.add_command(["download_and_md", "damd"], "Combines downloading and setting metadata.", self._download_and_assign_metadata)
         cmd.add_command(["add_album_to_downloads", "aatd"], "Adds an album to the downloads.csv file.", self._metadata_api.add_album_to_downloads)
+        cmd.add_command(["log_hdf5_stats", "lhs"], "Logs interesting statistics for the hdf5 cache.", self._log_hdf5_stats)
+        cmd.add_command(["save_directory_tree", "sdt"], "Saves the directory tree to a file.", self._save_directory_tree)
 
         # noinspection PyBroadException
         try:
@@ -247,13 +242,26 @@ class App:
             )
             self.run()
 
-    def _profile_creation_test(self):
-        corpus_path = Path(r"X:\Track Analysis\data\training\corpus.csv")
+    @staticmethod
+    def _save_directory_tree():
+        config: DirectoryTreeConfig = DirectoryTreeConfig()
+        generator: DirectoryTreeGenerator = DirectoryTreeGenerator(config)
 
-        def __run():
-            self._profile_creator.generate_profile(corpus_path)
+        root_path: Path = Path(r"X:\Track Analysis\track_analysis\components\track_analysis")
+        output_path = root_path / "directory_tree.txt"
+        generator.generate(root_path, output_path)
 
-        __run()
+    @staticmethod
+    def _log_hdf5_stats():
+        MEMORY.log_stats(top_n=5)
+
+    # def _profile_creation_test(self):
+    #     corpus_path = Path(r"X:\Track Analysis\data\training\corpus.csv")
+    #
+    #     def __run():
+    #         self._profile_creator.generate_profile(corpus_path)
+    #
+    #     __run()
 
     def _download_and_assign_metadata(self):
         # Run the download pipeline
@@ -285,31 +293,14 @@ class App:
                         f"Error populating metadata for {track}: {e}"
                     )
 
-    def _test_keys(self, profiling: bool = False) -> None:
-        paths: List[str] = [
-            r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\11 Nas & Damian Marley - Patience.flac",
-            r"W:\media\music\[02] organized\[01] hq\Classical\Claude Debussy\Classical Best\31 Danse sacrée et progane - Sacred Dance.flac",
-            r"W:\media\music\[02] organized\[02] lq\CCM\Champion\08 - Beckah Shae - Me and My God.flac",
-            r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\10 Nas & Damian Marley - Nah Mean.flac",
-            r"W:\media\music\[02] organized\[01] hq\Reggae\Nas\Distant Relatives\09 Nas & Damian Marley feat. Stephen Marley - In His Own Words.flac",
-            r"W:\media\music\[02] organized\[01] hq\Reggae\Damian Marley\Stony Hill (Explicit)\10 Damian “Jr. Gong” Marley - Autumn Leaves.flac",
-            r"W:\media\music\[02] organized\[01] hq\Classical\Reinbert de Leeuw\Satie_ Gymnop_dies; Gnossiennes\02 Satie_ Gymnopédie No. 1.flac",
-            r"W:\media\music\[02] organized\[01] hq\Religious\BYU Vocal Point\Lead Thou Me On - Hymns and Inspiration\11 Come, Thou Fount of Every Blessing.flac",
-            r"W:\media\music\[02] organized\[02] lq\CCM\Champion\09 - Beckah Shae - Pioneer.flac"
-        ]
-
-        track_path: Path = Path(paths[8])
-        tester: KeyProgressionTest = KeyProgressionTest(self._logger, tone_modulation_penalty=18.0, mode_modulation_penalty=None, visualize=False, template_mode=TemplateMode.HOORN, segment_beat_level=4)
-
-        def __test():
-            tester.test(file_path=track_path)
-
-        if profiling: _run_with_profiling(__test, category="Key Extraction")
-        else: __test()
+    def on_exit(self):
+        self._exit()
 
     def _exit(self):
-        self._registration.shutdown_component()
+        MEMORY.close()
+        self._max_rate_cache.save()
         self._logger.save()
+        self._registration.shutdown_component()
         exit()
 
     def _generate_embeddings(self):
@@ -351,15 +342,47 @@ class App:
             mfcc_data_output_file_path=self._mfcc_data_path,
             use_threads=True,
             max_new_tracks_per_run=MAX_NEW_TRACKS_PER_RUN,
-            missing_headers_to_fill=[],
-            headers_to_refill=[]
+            missing_headers_to_fill=[
+                # Header.Onset_Rate_Variation,
+                # Header.High_Ratio,
+                # Header.Mid_Ratio,
+                # Header.Low_Mid_Ratio,
+                # Header.Bass_Ratio,
+                # Header.Sub_Bass_Ratio,
+                # Header.Spectral_Bandwidth_STD,
+                # Header.Spectral_Bandwidth_Mean,
+                # Header.Zero_Crossing_Rate_STD,
+                # Header.Spectral_Entropy,
+                # Header.Spectral_Kurtosis,
+                # Header.Spectral_Skewness,
+                # Header.Spectral_Contrast_STD,
+                # Header.Spectral_Flatness_STD,
+                # Header.Spectral_Flux_Std,
+                # Header.Spectral_Centroid_Std,
+                # Header.Chroma_Entropy,
+                # Header.HPR,
+                # Header.Rhythmic_Regularity,
+                # Header.Beat_Strength,
+                # Header.Integrated_LUFS_Range,
+                # Header.Integrated_LUFS_STD,
+                # Header.Integrated_LUFS_Mean
+            ],
+            headers_to_refill=[
+                # Header.MFCC,
+                # Header.Energy_Level
+            ],
+            end_at_energy_calculation_loading=False
         )
 
         # output_path.unlink(missing_ok=True)
 
+        pipeline_config: PipelineConfiguration = PipelineConfiguration(num_workers=NUM_WORKERS_CPU_HEAVY-10, hop_length=512, n_fft=2048)
+
         pipeline = BuildLibraryDataCSVPipeline(
-            self._logger, self._file_handler, self._tag_extractor, self._audio_file_handler, self._audio_calculator, self._string_utils,
-            num_workers=NUM_WORKERS_CPU_HEAVY, num_workers_refill=NUM_WORKERS_CPU_HEAVY-14
+            logger=self._logger,
+            filehandler=self._file_handler, string_utils=self._string_utils,
+            tag_extractor=self._tag_extractor, max_rate_cache=self._max_rate_cache,
+            configuration=pipeline_config
         )
 
         def __run():
