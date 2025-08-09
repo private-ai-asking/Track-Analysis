@@ -23,12 +23,9 @@ from track_analysis.components.track_analysis.library.audio_transformation.key_e
 
 
 class LocalKeyProvider(AudioDataFeatureProvider):
-    def __init__(self,
-                 logger: HoornLogger,
-                 config: KeyProgressionConfig,
-                 templates: Dict[str, np.ndarray],
-                 similarity_matcher: SimilarityMatcher,
-                 ):
+    def __init__(self, logger: HoornLogger, config: KeyProgressionConfig, templates: Dict[str, np.ndarray],
+                 similarity_matcher: SimilarityMatcher):
+        super().__init__()
         self._logger = logger
         self._separator = self.__class__.__name__
         self._config = config
@@ -54,34 +51,35 @@ class LocalKeyProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature | List[AudioDataFeature]:
         return [AudioDataFeature.KEY_PROGRESSION, AudioDataFeature.START_KEY, AudioDataFeature.END_KEY]
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        feature_matrix = data[AudioDataFeature.TRACK_FEATURE_VECTOR]
-        segments: List[ProfiledSegment] = data[AudioDataFeature.TRACK_SEGMENTS_PROFILED]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            feature_matrix = data[AudioDataFeature.TRACK_FEATURE_VECTOR]
+            segments: List[ProfiledSegment] = data[AudioDataFeature.TRACK_SEGMENTS_PROFILED]
 
-        intervals: List[Tuple[float, float]] = []
+            intervals: List[Tuple[float, float]] = []
 
-        for segment in segments:
-            intervals.append((segment.raw_segment.segment_start_seconds, segment.raw_segment.segment_end_seconds))
+            for segment in segments:
+                intervals.append((segment.raw_segment.segment_start_seconds, segment.raw_segment.segment_end_seconds))
 
-        local_match_result = self._template_matcher.match(feature_matrix)
-        local_key_progression = self._decoder.decode(local_match_result.matrix)
+            local_match_result = self._template_matcher.match(feature_matrix)
+            local_key_progression = self._decoder.decode(local_match_result.matrix)
 
-        local_runs = self._merger.merge(
-            intervals,
-            local_key_progression.tolist(),
-            local_match_result.labels
-        )
+            local_runs = self._merger.merge(
+                intervals,
+                local_key_progression.tolist(),
+                local_match_result.labels
+            )
 
-        formatted_runs: List[StateRun] = [
-            dataclasses.replace(run, state_label=convert_label_to_camelot(run.state_label))
-            for run in local_runs
-        ]
-        start_key = formatted_runs[0].state_label
-        end_key = formatted_runs[-1].state_label
+            formatted_runs: List[StateRun] = [
+                dataclasses.replace(run, state_label=convert_label_to_camelot(run.state_label))
+                for run in local_runs
+            ]
+            start_key = formatted_runs[0].state_label
+            end_key = formatted_runs[-1].state_label
 
-        self._logger.info("Finished local key analysis.", separator=self._separator)
-        return {
-            AudioDataFeature.KEY_PROGRESSION: formatted_runs,
-            AudioDataFeature.START_KEY: start_key,
-            AudioDataFeature.END_KEY: end_key,
-        }
+            self._logger.info("Finished local key analysis.", separator=self._separator)
+            return {
+                AudioDataFeature.KEY_PROGRESSION: formatted_runs,
+                AudioDataFeature.START_KEY: start_key,
+                AudioDataFeature.END_KEY: end_key,
+            }

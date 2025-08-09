@@ -11,6 +11,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.key_e
 
 class TrackProfiledSegmentProvider(AudioDataFeatureProvider):
     def __init__(self, logger: HoornLogger):
+        super().__init__()
         self._segment_profiler: SegmentProfiler = SegmentProfiler(logger)
 
     @property
@@ -21,15 +22,16 @@ class TrackProfiledSegmentProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature | List[AudioDataFeature]:
         return [AudioDataFeature.TRACK_SEGMENTS_PROFILED]
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        raw_segments = data[AudioDataFeature.TRACK_SEGMENTS_RAW]
-        note_events = data[AudioDataFeature.TRACK_NOTE_EVENTS]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            raw_segments = data[AudioDataFeature.TRACK_SEGMENTS_RAW]
+            note_events = data[AudioDataFeature.TRACK_NOTE_EVENTS]
 
-        profiled_segments = self._segment_profiler.profile_segments(
-            raw_segments,
-            note_events,
-        )
+            profiled_segments = self._segment_profiler.profile_segments(
+                raw_segments,
+                note_events,
+            )
 
-        return {
-            AudioDataFeature.TRACK_SEGMENTS_PROFILED: profiled_segments,
-        }
+            return {
+                AudioDataFeature.TRACK_SEGMENTS_PROFILED: profiled_segments,
+            }

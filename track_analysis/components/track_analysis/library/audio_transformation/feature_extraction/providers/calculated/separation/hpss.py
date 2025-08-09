@@ -13,6 +13,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
 class HPSSExtractor(AudioDataFeatureProvider):
     """Calculates and returns the harmonic and percussive components of an audio signal."""
     def __init__(self, logger, hop_length=512, n_fft=2048):
+        super().__init__()
         self._harmonic_extractor = HarmonicExtractor(logger, hop_length, n_fft)
 
     @property
@@ -23,14 +24,19 @@ class HPSSExtractor(AudioDataFeatureProvider):
     def output_features(self) -> List[AudioDataFeature]:
         return [AudioDataFeature.HARMONIC_AUDIO, AudioDataFeature.PERCUSSIVE_AUDIO]
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, np.ndarray]:
-        harmonic, percussive = self._harmonic_extractor.extract_harmonic(
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, np.ndarray]:
+        result = self._harmonic_extractor.extract_harmonic(
             file_path=data[AudioDataFeature.AUDIO_PATH],
             audio=data[AudioDataFeature.AUDIO_SAMPLES],
             sample_rate=data[AudioDataFeature.SAMPLE_RATE_HZ],
             tempo_bpm=data[AudioDataFeature.BPM]
         )
-        return {
-            AudioDataFeature.HARMONIC_AUDIO: harmonic,
-            AudioDataFeature.PERCUSSIVE_AUDIO: percussive
-        }
+
+        self._add_timed_cache_times(result)
+
+        with self._measure_processing():
+            harmonic, percussive = result.value
+            return {
+                AudioDataFeature.HARMONIC_AUDIO: harmonic,
+                AudioDataFeature.PERCUSSIVE_AUDIO: percussive
+            }

@@ -10,6 +10,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
 
 class HarmonicSpectrogramProvider(AudioDataFeatureProvider):
     def __init__(self, logger: HoornLogger, hop_length=512, n_fft=2048):
+        super().__init__()
         self._magnitude_extractor = MagnitudeSpectrogramExtractor(logger, hop_length=hop_length, n_fft=n_fft)
 
     @property
@@ -20,15 +21,20 @@ class HarmonicSpectrogramProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature | List[AudioDataFeature]:
         return AudioDataFeature.HARMONIC_MAGNITUDE_SPECTROGRAM
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            audio_path = data[AudioDataFeature.AUDIO_PATH]
+            harmonic_audio = data[AudioDataFeature.HARMONIC_AUDIO]
+
         magnitudes = self._magnitude_extractor.extract(
-            file_path=data[AudioDataFeature.AUDIO_PATH],
-            audio=data[AudioDataFeature.HARMONIC_AUDIO],
+            file_path=audio_path,
+            audio=harmonic_audio,
             start_sample=0,
-            end_sample=len(data[AudioDataFeature.HARMONIC_AUDIO]),
+            end_sample=len(harmonic_audio),
         )
+        self._add_timed_cache_times(magnitudes)
 
-        return {
-            AudioDataFeature.HARMONIC_MAGNITUDE_SPECTROGRAM: magnitudes,
-        }
-
+        with self._measure_processing():
+            return {
+                AudioDataFeature.HARMONIC_MAGNITUDE_SPECTROGRAM: magnitudes.value,
+            }

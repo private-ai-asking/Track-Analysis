@@ -15,19 +15,37 @@ from track_analysis.components.md_common_python.py_common.time_handling import T
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
     AudioDataFeature
+from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature_provider import \
+    ProviderProcessingStatistics, AudioDataFeatureProvider
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature_provider_orchestrator import \
     AudioDataFeatureProviderOrchestrator
+from track_analysis.components.track_analysis.library.timing.model.feature_timing_data import FeatureTimingData
+from track_analysis.components.track_analysis.library.timing.model.timing_data import TimingData
+from track_analysis.components.track_analysis.library.timing.timing_analysis import TimingAnalyzer
+
 
 @dataclasses.dataclass(frozen=True)
 class TrackProcessingTimeInfo:
-    overall_processing_time: float
-    overall_waiting_time: float
+    total_time_spent: float
+    own_waiting_time: float
+    own_processing_time: float
+    provider_stats: Dict[AudioDataFeatureProvider, ProviderProcessingStatistics]
 
-    def to_dict(self) -> Dict[str, float]:
-        return {
-            "overall_processing_time": self.overall_processing_time,
-            "overall_waiting_time": self.overall_waiting_time,
-        }
+    def to_timing_data(self) -> TimingData:
+        feature_dissection: List[FeatureTimingData] = [
+            FeatureTimingData(
+                associated_feature=feature_provider.__class__.__name__,
+                time_spent_processing=provider_stats.time_spent_processing,
+                time_spent_waiting=provider_stats.time_spent_waiting
+            ) for feature_provider, provider_stats in self.provider_stats.items()
+        ]
+
+        return TimingData(
+            total_time_spent=self.total_time_spent,
+            own_waiting_time=self.own_waiting_time,
+            own_processing_time=self.own_processing_time,
+            feature_dissection=feature_dissection,
+        )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -41,6 +59,7 @@ class MainFeatureProcessor:
             self,
             orchestrator: AudioDataFeatureProviderOrchestrator,
             logger: HoornLogger,
+            timing_analyzer: TimingAnalyzer,
             cpu_workers: int = os.cpu_count(),
     ):
         # Core components
@@ -48,6 +67,7 @@ class MainFeatureProcessor:
         self._logger = logger
         self._separator = "BuildCSV.MainFeatureProcessor"
         self._time_utils: TimeUtils = TimeUtils()
+        self._timing_analyzer = timing_analyzer
 
         # Worker parameters
         self._cpu_workers = cpu_workers
@@ -78,18 +98,23 @@ class MainFeatureProcessor:
             idx, row = row_info_tuple
             initial_data = {AudioDataFeature.AUDIO_PATH: Path(row[Header.Audio_Path.value])}
 
-            retrieved_features = self._orchestrator.process_track(idx, initial_data, requested_features)
+            process_time = time.perf_counter() - start_process
+            track_processing_result = self._orchestrator.process_track(idx, initial_data, requested_features)
+
+            start_process = time.perf_counter()
+            retrieved_features = track_processing_result.retrieved_features
 
             retrieved_features[self._audio_uid_column] = row[self._audio_uid_column]
             features_dict = {k.name if isinstance(k, Enum) else k: v for k, v in retrieved_features.items()}
-
-            time_after_process = time.perf_counter()
-            process_time = time_after_process - start_process
+            process_time = process_time + (time.perf_counter() - start_process)
+            total_time = time.perf_counter() - start_wait
             return TrackProcessingResult(
                 features=features_dict,
                 processing_info=TrackProcessingTimeInfo(
-                    overall_processing_time=process_time,
-                    overall_waiting_time=wait_time
+                    own_waiting_time=process_time,
+                    own_processing_time=wait_time,
+                    provider_stats=track_processing_result.provider_stats,
+                    total_time_spent=total_time,
                 )
             )
         finally:
@@ -132,9 +157,7 @@ class MainFeatureProcessor:
             avg_throughput = len(all_timings) / total_duration
             self._logger.info(f"Overall Throughput: {avg_throughput:.2f} tracks/second", separator=self._separator)
         if all_timings:
-            timings_df = pd.DataFrame([timing.to_dict() for timing in all_timings])
-            self._logger.info("--- Timing Analysis (seconds) ---", separator=self._separator)
-            self._logger.info(f"\n{timings_df.describe().to_string()}", separator=self._separator)
+            self._timing_analyzer.analyze_time_batch([timing.to_timing_data() for timing in all_timings])
 
     def process_batch(self, to_process_df: pd.DataFrame, requested_features: List[AudioDataFeature]) -> pd.DataFrame:
         """Runs the dynamic, self-tuning batch processing workload."""

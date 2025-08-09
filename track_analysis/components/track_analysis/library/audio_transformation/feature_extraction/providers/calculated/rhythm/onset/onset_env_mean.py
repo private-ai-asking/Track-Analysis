@@ -17,6 +17,7 @@ class OnsetEnvMeanProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.ONSET_ENV_MEAN_GLOBAL
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        env_global = data[AudioDataFeature.ONSET_ENVELOPE]
-        return {AudioDataFeature.ONSET_ENV_MEAN_GLOBAL: float(env_global.mean())}
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            env_global = data[AudioDataFeature.ONSET_ENVELOPE]
+            return {AudioDataFeature.ONSET_ENV_MEAN_GLOBAL: float(env_global.mean())}

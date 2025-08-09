@@ -3,6 +3,7 @@ import librosa
 from typing import List, Dict, Any
 from pathlib import Path
 
+from track_analysis.components.track_analysis.shared.caching.hdf5_memory import TimedCacheResult
 from track_analysis.components.track_analysis.shared_objects import MEMORY
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
     AudioDataFeature
@@ -10,7 +11,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
     AudioDataFeatureProvider
 
 
-@MEMORY.cache(identifier_arg="file_path", ignore=["onset_times"])
+@MEMORY.timed_cache(identifier_arg="file_path", ignore=["onset_times"])
 def _compute_onset_rate_variation(
         *,
         file_path: Path,
@@ -19,12 +20,12 @@ def _compute_onset_rate_variation(
         window_sec: float,
         hop_sec: float,
         unique_string: str,
-) -> float:
+) -> TimedCacheResult[float]:
     """
     Cached calculation for the standard deviation of onset rates over time.
     """
     if len(onset_times) < 2:
-        return 0.0
+        return 0.0 # type: ignore
 
     window_rates = []
     start_time = 0.0
@@ -42,7 +43,7 @@ def _compute_onset_rate_variation(
         start_time += hop_sec
 
     if not window_rates:
-        return 0.0
+        return 0.0 # type: ignore
 
     return np.std(window_rates) # type: ignore
 
@@ -63,6 +64,7 @@ class OnsetVariationProvider(AudioDataFeatureProvider):
             window_sec: The length of the analysis window in seconds.
             hop_sec: The amount to slide the window forward in seconds.
         """
+        super().__init__()
         self._window_sec = window_sec
         self._hop_sec = hop_sec
 
@@ -79,16 +81,15 @@ class OnsetVariationProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.ONSET_RATE_VARIATION
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        onset_frames = data[AudioDataFeature.PERCUSSIVE_ONSET_PEAKS]
-        sample_rate = data[AudioDataFeature.SAMPLE_RATE_HZ]
-        total_duration_sec = len(data[AudioDataFeature.AUDIO_SAMPLES]) / sample_rate
-        file_path = data[AudioDataFeature.AUDIO_PATH]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            onset_frames = data[AudioDataFeature.PERCUSSIVE_ONSET_PEAKS]
+            sample_rate = data[AudioDataFeature.SAMPLE_RATE_HZ]
+            total_duration_sec = len(data[AudioDataFeature.AUDIO_SAMPLES]) / sample_rate
+            file_path = data[AudioDataFeature.AUDIO_PATH]
 
-        # Convert onset frame indices to time in seconds first
-        onset_times = librosa.frames_to_time(onset_frames, sr=sample_rate)
+            onset_times = librosa.frames_to_time(onset_frames, sr=sample_rate)
 
-        # Call the new cached function
         onset_rate_variation = _compute_onset_rate_variation(
             file_path=file_path,
             onset_times=onset_times,
@@ -97,5 +98,7 @@ class OnsetVariationProvider(AudioDataFeatureProvider):
             hop_sec=self._hop_sec,
             unique_string="percussive_onset_variation"
         )
+        self._add_timed_cache_times(onset_rate_variation)
 
-        return {AudioDataFeature.ONSET_RATE_VARIATION: onset_rate_variation}
+        with self._measure_processing():
+            return {AudioDataFeature.ONSET_RATE_VARIATION: onset_rate_variation.value}

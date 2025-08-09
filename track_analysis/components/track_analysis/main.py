@@ -1,4 +1,5 @@
 import os
+import signal
 import warnings
 
 from track_analysis.components.track_analysis.constants import DEBUG, VERBOSE, PHYSICAL_CPU_COUNT
@@ -33,3 +34,6 @@ if __name__ == "__main__":
 
     app: App = App(logger)
     app.run()
+
+    signal.signal(signal.SIGINT, app.on_exit)
+    signal.signal(signal.SIGTERM, app.on_exit)

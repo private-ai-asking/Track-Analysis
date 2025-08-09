@@ -18,8 +18,9 @@ class CrestFactorProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.CREST_FACTOR
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        analysis_result: LoudnessAnalysisResult = data[AudioDataFeature.LOUDNESS_ANALYSIS_RESULT]
-        peak = analysis_result.peak
-        rms_all = analysis_result.rms_all
-        return {AudioDataFeature.CREST_FACTOR: 20 * math.log10(peak / rms_all) if rms_all > 0 else 0.0}
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            analysis_result: LoudnessAnalysisResult = data[AudioDataFeature.LOUDNESS_ANALYSIS_RESULT]
+            peak = analysis_result.peak
+            rms_all = analysis_result.rms_all
+            return {AudioDataFeature.CREST_FACTOR: 20 * math.log10(peak / rms_all) if rms_all > 0 else 0.0}

@@ -55,6 +55,7 @@ class AudioDataFeature(Enum):
     SPECTRAL_PITCH_ARRAY = auto()
     SPECTRAL_MAGNITUDES_ARRAY = auto()
     TRACK_CLEANED_CHROMA_MASK = auto()
+    SUB_BEAT_EVENTS = auto()
 
     # //--- 3. Rhythmic Features ---//
     # Features describing tempo, beats, and transient events.

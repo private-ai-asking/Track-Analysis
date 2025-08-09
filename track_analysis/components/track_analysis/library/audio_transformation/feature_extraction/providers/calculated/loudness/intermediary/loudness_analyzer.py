@@ -17,10 +17,11 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
     AudioDataFeatureProvider
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.loudness.intermediary.loudness_analysis_result import \
     LoudnessAnalysisResult
+from track_analysis.components.track_analysis.shared.caching.hdf5_memory import TimedCacheResult
 from track_analysis.components.track_analysis.shared_objects import MEMORY
 
 
-@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
+@MEMORY.timed_cache(identifier_arg="file_path", ignore=["audio"])
 def _compute_shortterm_lufs_array(
         *,
         file_path: Path,
@@ -28,7 +29,7 @@ def _compute_shortterm_lufs_array(
         chunk_size: int,
         hop_size: int,
         audio: np.ndarray,
-) -> np.ndarray:
+) -> TimedCacheResult[np.ndarray]:
     """
     Returns a NumPy array of short-term LUFS values (one per hop).
     Cached on (file_path, sample_rate, chunk_size, hop_size) only.
@@ -52,16 +53,16 @@ def _compute_shortterm_lufs_array(
         except ValueError:
             pass
 
-    return np.array(shortterm_values, dtype=float)
+    return np.array(shortterm_values, dtype=float) # type: ignore
 
-@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
+@MEMORY.timed_cache(identifier_arg="file_path", ignore=["audio"])
 def _compute_global_loudness(
         *,
         file_path:   Path,
         sample_rate: int,
         chunk_size:  int,
         audio:       np.ndarray,
-) -> Tuple[float, float, List[float], float, float, int]:
+) -> TimedCacheResult[Tuple[float, float, List[float], float, float, int]]:
     """
     Returns (LUFS_I, LRA, TruePeak, peak, rms_all, channels)
     for the given audio. Cached on (file_path, sample_rate, chunk_size).
@@ -99,11 +100,12 @@ def _compute_global_loudness(
         for ch in range(0, channels)
     ]
 
-    return lufs_i, lra, true_peak, peak, rms_all, channels
+    return lufs_i, lra, true_peak, peak, rms_all, channels # type: ignore
 
 
 class LoudnessAnalyzer(AudioDataFeatureProvider):
     def __init__(self, chunk_size: int = 4096, hop_size: int = 512):
+        super().__init__()
         self._chunk_size = chunk_size
         self._hop_size = hop_size
 
@@ -119,37 +121,42 @@ class LoudnessAnalyzer(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.LOUDNESS_ANALYSIS_RESULT
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        fp      = data[AudioDataFeature.AUDIO_PATH]
-        audio   = data[AudioDataFeature.AUDIO_SAMPLES]
-        sr      = data[AudioDataFeature.SAMPLE_RATE_HZ]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            fp      = data[AudioDataFeature.AUDIO_PATH]
+            audio   = data[AudioDataFeature.AUDIO_SAMPLES]
+            sr      = data[AudioDataFeature.SAMPLE_RATE_HZ]
 
-        # 1) Global stats, cached
-        lufs_i, lra, true_peak, peak, rms_all, ch = _compute_global_loudness(
+        global_loudness_results = _compute_global_loudness(
             file_path=fp,
             sample_rate=sr,
             chunk_size=self._chunk_size,
             audio=audio,
         )
+        self._add_timed_cache_times(global_loudness_results)
 
         # 2) Short-term array, cached
-        shortterm = _compute_shortterm_lufs_array(
+        shortterm_results = _compute_shortterm_lufs_array(
             file_path=fp,
             sample_rate=sr,
             chunk_size=self._chunk_size,
             hop_size=self._hop_size,
             audio=audio,
         )
+        self._add_timed_cache_times(shortterm_results)
 
-        # CORRECTED: The LoudnessAnalysisResult class should be initialized with the final values
-        return {
-            AudioDataFeature.LOUDNESS_ANALYSIS_RESULT: LoudnessAnalysisResult(
-                lufs_i=lufs_i,
-                lra=lra,
-                true_peak=true_peak,
-                peak=peak,
-                rms_all=rms_all,
-                channels=ch,
-                shortterm_lufs=shortterm,
-            )
-        }
+        with self._measure_processing():
+            lufs_i, lra, true_peak, peak, rms_all, ch = global_loudness_results.value
+            shortterm = shortterm_results.value
+
+            return {
+                AudioDataFeature.LOUDNESS_ANALYSIS_RESULT: LoudnessAnalysisResult(
+                    lufs_i=lufs_i,
+                    lra=lra,
+                    true_peak=true_peak,
+                    peak=peak,
+                    rms_all=rms_all,
+                    channels=ch,
+                    shortterm_lufs=shortterm,
+                )
+            }

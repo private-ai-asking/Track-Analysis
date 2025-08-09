@@ -4,17 +4,18 @@ import numpy as np
 import librosa
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.shared.caching.hdf5_memory import TimedCacheResult
 from track_analysis.components.track_analysis.shared_objects import MEMORY
 
 
-@MEMORY.cache(identifier_arg="file_path", ignore=["frequencies", "magnitudes"])
+@MEMORY.timed_cache(identifier_arg="file_path", ignore=["frequencies", "magnitudes"])
 def _convert_to_midi(
         *,
         file_path: Path,
         sample_rate: int,
         frequencies: np.ndarray = None,
         magnitudes: np.ndarray = None,
-) -> np.ndarray:
+) -> TimedCacheResult[np.ndarray]:
     """
     Cached frequency-to-MIDI piano-roll:
     - Cache key: (file_path, start_sample, end_sample, sample_rate, n_fft, hop_length)
@@ -35,7 +36,7 @@ def _convert_to_midi(
         masked = magnitudes * mask
         piano_roll[note, :] = masked.max(axis=0)
 
-    return piano_roll
+    return piano_roll # type: ignore
 
 
 class FrequencyToMidi:
@@ -54,7 +55,7 @@ class FrequencyToMidi:
             sample_rate: int,
             frequencies: np.ndarray = None,
             magnitudes: np.ndarray = None,
-    ) -> np.ndarray:
+    ) -> TimedCacheResult[np.ndarray]:
         self._logger.debug(f"Converting to MIDI for {file_path.name}", separator=self._separator)
         piano_roll = _convert_to_midi(
             file_path=file_path,
@@ -63,7 +64,7 @@ class FrequencyToMidi:
             magnitudes=magnitudes,
         )
         self._logger.debug(
-            f"Piano roll shape: {piano_roll.shape}",
+            f"Piano roll shape: {piano_roll.value.shape}",
             separator=self._separator
         )
         return piano_roll

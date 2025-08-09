@@ -21,6 +21,7 @@ class EnergyProvider(AudioDataFeatureProvider):
     """
 
     def __init__(self, energy_calculator: EnergyAlgorithm, logger: HoornLogger):
+        super().__init__()
         self._energy_calculator = energy_calculator
         self._feature_to_header_mapping: Dict[str, str] = {
             feature.name: header.value
@@ -40,17 +41,18 @@ class EnergyProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.ENERGY_LEVEL
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
         """
         Passes the dependency data directly to the energy calculator without transformation.
         """
-        transformed_data = self._transform_data_into_df(data)
+        with self._measure_processing():
+            transformed_data = self._transform_data_into_df(data)
 
-        energy_level = self._energy_calculator.calculate_energy_for_row(transformed_data)
+            energy_level = self._energy_calculator.calculate_energy_for_row(transformed_data)
 
-        return {
-            AudioDataFeature.ENERGY_LEVEL: energy_level
-        }
+            return {
+                AudioDataFeature.ENERGY_LEVEL: energy_level
+            }
 
     def _transform_data_into_df(self, data: Dict[AudioDataFeature, Any]) -> pd.DataFrame:
         # TODO - Remove storage detail dependency

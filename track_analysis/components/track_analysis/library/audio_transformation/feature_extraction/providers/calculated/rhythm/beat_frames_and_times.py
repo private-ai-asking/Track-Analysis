@@ -13,6 +13,7 @@ class BeatFramesAndTimesProvider(AudioDataFeatureProvider):
     Provides the frame indices of detected beats using the BeatDetector.
     """
     def __init__(self, beat_detector: BeatDetector, hop_length: int = 512):
+        super().__init__()
         self._beat_detector = beat_detector
         self._hop_length = hop_length
 
@@ -30,8 +31,8 @@ class BeatFramesAndTimesProvider(AudioDataFeatureProvider):
     def output_features(self) -> List[AudioDataFeature]:
         return [AudioDataFeature.BEAT_FRAMES, AudioDataFeature.BEAT_TIMES]
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        frames, times = self._beat_detector.get_beat_frames_and_times(
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        results = self._beat_detector.get_beat_frames_and_times(
             audio_path=data[AudioDataFeature.AUDIO_PATH],
             audio=data[AudioDataFeature.AUDIO_SAMPLES],
             sample_rate=data[AudioDataFeature.SAMPLE_RATE_HZ],
@@ -39,7 +40,13 @@ class BeatFramesAndTimesProvider(AudioDataFeatureProvider):
             hop_length=self._hop_length,
             tempo=data.get(AudioDataFeature.BPM)
         )
-        return {
-            AudioDataFeature.BEAT_FRAMES: frames
-            ,AudioDataFeature.BEAT_TIMES: times
-        }
+
+        self._add_timed_cache_times(results)
+
+        frames, times = results.value
+
+        with self._measure_processing():
+            return {
+                AudioDataFeature.BEAT_FRAMES: frames
+                ,AudioDataFeature.BEAT_TIMES: times
+            }

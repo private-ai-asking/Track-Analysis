@@ -11,6 +11,7 @@ from track_analysis.components.track_analysis.features.data_generation.processor
     MainFeatureProcessor
 from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.core.config.default import \
     DEFAULT_KEY_PROGRESSION_CONFIG
+from track_analysis.components.track_analysis.library.timing.timing_analysis import TimingAnalyzer
 from track_analysis.components.track_analysis.shared.caching.max_rate_cache import \
     MaxRateCache
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
@@ -22,6 +23,7 @@ class CreateProcessors(IPipe):
     def __init__(self, logger: HoornLogger,
                  hop_length: int, n_fft: int,
                  max_rate_cache: MaxRateCache,
+                 timing_analyzer: TimingAnalyzer,
                  num_workers: int):
         self._separator = "BuildCSV.CreateProcessorsPipe"
         self._logger = logger
@@ -31,18 +33,20 @@ class CreateProcessors(IPipe):
         self._n_fft = n_fft
         self._max_rate_cache = max_rate_cache
         self._num_workers = num_workers
+        self._timing_analyzer = timing_analyzer
 
     def flow(self, data: LibraryDataGenerationPipelineContext) -> LibraryDataGenerationPipelineContext:
         self._logger.trace("Creating processors.", separator=self._separator)
 
         audio_feature_orchestrator_factory = AudioFeatureOrchestratorFactory(self._logger)
         orchestrator = audio_feature_orchestrator_factory.create_audio_feature_orchestrator(
-            hop_length=self._hop_length, n_fft=self._n_fft, max_rate_cache=self._max_rate_cache, existing_tempo_cache=self._get_existing_tempo_cache(data.loaded_audio_info_cache),
+            hop_length=self._hop_length, n_fft=self._n_fft, max_rate_cache=self._max_rate_cache,
             energy_calculator=data.energy_calculator, key_extraction_config=DEFAULT_KEY_PROGRESSION_CONFIG
         )
         main_processor: MainFeatureProcessor = MainFeatureProcessor(
             orchestrator, self._logger,
-            cpu_workers=self._num_workers
+            cpu_workers=self._num_workers,
+            timing_analyzer=self._timing_analyzer
         )
 
         data.main_processor = main_processor

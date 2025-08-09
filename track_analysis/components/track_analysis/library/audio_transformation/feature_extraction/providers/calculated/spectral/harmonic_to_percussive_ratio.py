@@ -20,6 +20,7 @@ class HarmonicToPercussiveRatioProvider(AudioDataFeatureProvider):
     A low value indicates a track with significant percussive content.
     """
     def __init__(self, window_ms: float = 50.0, hop_ms: float = 10.0):
+        super().__init__()
         self._window_ms = window_ms
         self._hop_ms = hop_ms
 
@@ -37,15 +38,14 @@ class HarmonicToPercussiveRatioProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.HPR
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        file_path: Path = data[AudioDataFeature.AUDIO_PATH]
-        harmonic_audio: np.ndarray = data[AudioDataFeature.HARMONIC_AUDIO]
-        percussive_audio: np.ndarray = data[AudioDataFeature.PERCUSSIVE_AUDIO]
-        sample_rate: int = data[AudioDataFeature.SAMPLE_RATE_HZ]
-
-        # Use the full length of the original audio for consistent caching segments
-        start_sample = 0
-        end_sample = len(data[AudioDataFeature.AUDIO_SAMPLES])
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            file_path: Path = data[AudioDataFeature.AUDIO_PATH]
+            harmonic_audio: np.ndarray = data[AudioDataFeature.HARMONIC_AUDIO]
+            percussive_audio: np.ndarray = data[AudioDataFeature.PERCUSSIVE_AUDIO]
+            sample_rate: int = data[AudioDataFeature.SAMPLE_RATE_HZ]
+            start_sample = 0
+            end_sample = len(data[AudioDataFeature.AUDIO_SAMPLES])
 
         # 1. Calculate the RMS values for each component using the cached function.
         #    A unique `method_string` ensures separate cache entries for each component.
@@ -59,6 +59,8 @@ class HarmonicToPercussiveRatioProvider(AudioDataFeatureProvider):
             window_ms=self._window_ms,
             hop_ms=self._hop_ms
         )
+        self._add_timed_cache_times(rms_harmonic)
+
         rms_percussive = compute_linear_rms_cached(
             file_path=file_path,
             audio=percussive_audio,
@@ -69,15 +71,17 @@ class HarmonicToPercussiveRatioProvider(AudioDataFeatureProvider):
             window_ms=self._window_ms,
             hop_ms=self._hop_ms
         )
+        self._add_timed_cache_times(rms_percussive)
 
-        # 2. Calculate the mean square energy from the RMS values.
-        harmonic_energy = np.mean(rms_harmonic**2)
-        percussive_energy = np.mean(rms_percussive**2)
+        with self._measure_processing():
+            # 2. Calculate the mean square energy from the RMS values.
+            harmonic_energy = np.mean(rms_harmonic.value**2)
+            percussive_energy = np.mean(rms_percussive.value**2)
 
-        # 3. Handle the edge case where percussive energy is zero.
-        if percussive_energy < 1e-9:
-            hpr = 1e9
-        else:
-            hpr = harmonic_energy / percussive_energy
+            # 3. Handle the edge case where percussive energy is zero.
+            if percussive_energy < 1e-9:
+                hpr = 1e9
+            else:
+                hpr = harmonic_energy / percussive_energy
 
-        return {AudioDataFeature.HPR: hpr}
+            return {AudioDataFeature.HPR: hpr}

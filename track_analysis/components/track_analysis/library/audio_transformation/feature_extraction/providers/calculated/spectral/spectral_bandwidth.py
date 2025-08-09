@@ -8,17 +8,18 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
     AudioDataFeature
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature_provider import \
     AudioDataFeatureProvider
+from track_analysis.components.track_analysis.shared.caching.hdf5_memory import TimedCacheResult
 from track_analysis.components.track_analysis.shared_objects import MEMORY
 
 
-@MEMORY.cache(identifier_arg="file_path", ignore=["magnitude_spectrogram", "centroid_array"])
+@MEMORY.timed_cache(identifier_arg="file_path", ignore=["magnitude_spectrogram", "centroid_array"])
 def _compute_spectral_bandwidth(
         *,
         file_path: Path,
         magnitude_spectrogram: np.ndarray,
         centroid_array: np.ndarray,
         unique_string: str,
-) -> np.ndarray:
+) -> TimedCacheResult[np.ndarray]:
     """
     Cached calculation for the spectral bandwidth.
     This reuses a pre-computed spectrogram and spectral centroid for efficiency.
@@ -26,6 +27,7 @@ def _compute_spectral_bandwidth(
     if centroid_array.ndim == 1:
         centroid_array = np.expand_dims(centroid_array, axis=0)
 
+    # noinspection PyTypeChecker
     return spectral_bandwidth(
         S=magnitude_spectrogram,
         centroid=centroid_array,
@@ -57,24 +59,26 @@ class SpectralBandwidthProvider(AudioDataFeatureProvider):
             AudioDataFeature.SPECTRAL_BANDWIDTH_STD,
         ]
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        file_path = data[AudioDataFeature.AUDIO_PATH]
-        harmonic_spec = data[AudioDataFeature.HARMONIC_MAGNITUDE_SPECTROGRAM]
-        centroid_array = data[AudioDataFeature.SPECTRAL_CENTROID_ARRAY]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            file_path = data[AudioDataFeature.AUDIO_PATH]
+            harmonic_spec = data[AudioDataFeature.HARMONIC_MAGNITUDE_SPECTROGRAM]
+            centroid_array = data[AudioDataFeature.SPECTRAL_CENTROID_ARRAY]
 
-        # Get the frame-by-frame bandwidth values from the cached function
         bandwidth_array = _compute_spectral_bandwidth(
             file_path=file_path,
             magnitude_spectrogram=harmonic_spec,
             centroid_array=centroid_array,
             unique_string="harmonic_bandwidth"
         )
+        self._add_timed_cache_times(bandwidth_array)
 
-        # Calculate the final mean and standard deviation features
-        mean_bandwidth = np.mean(bandwidth_array)
-        std_bandwidth = np.std(bandwidth_array)
+        with self._measure_processing():
+            bandwidth_array = bandwidth_array.value
+            mean_bandwidth = np.mean(bandwidth_array)
+            std_bandwidth = np.std(bandwidth_array)
 
-        return {
-            AudioDataFeature.SPECTRAL_BANDWIDTH_MEAN: mean_bandwidth,
-            AudioDataFeature.SPECTRAL_BANDWIDTH_STD: std_bandwidth,
-        }
+            return {
+                AudioDataFeature.SPECTRAL_BANDWIDTH_MEAN: mean_bandwidth,
+                AudioDataFeature.SPECTRAL_BANDWIDTH_STD: std_bandwidth,
+            }

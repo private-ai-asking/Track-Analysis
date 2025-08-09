@@ -1,14 +1,16 @@
+import time
 from pathlib import Path
 import numpy as np
 import librosa.effects
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.shared.caching.hdf5_memory import TimedCacheResult
 from track_analysis.components.track_analysis.shared_objects import MEMORY
 
 
 # TODO - Consolidate into HPSS feature provider once key extraction has been integrated into feature provider.
 
-@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
+@MEMORY.timed_cache(identifier_arg="file_path", ignore=["audio"])
 def _compute_hpss(
         *,
         file_path: Path,
@@ -19,7 +21,7 @@ def _compute_hpss(
         kernel_size: int = None,
         margin: float = None,
         audio: np.ndarray = None,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> TimedCacheResult[tuple[np.ndarray, np.ndarray]]:
     """
     Cached HPSS computation:
     - Cache key: (file_path, start_sample, end_sample, hop_length, n_fft, kernel_size, margin)
@@ -42,7 +44,7 @@ def _compute_hpss(
             power=2
         )
 
-    return harmonic, percussive
+    return harmonic, percussive # type: ignore
 
 
 class HarmonicExtractor:
@@ -66,14 +68,14 @@ class HarmonicExtractor:
             start_sample: int = 0,
             end_sample: int = None,
             margin: float = 1.0
-    ) -> np.ndarray:
+    ) -> TimedCacheResult[np.ndarray]:
         """
         Extracts only the percussive component, using cache when file_path is given.
         """
         if end_sample is None and audio is not None:
             end_sample = audio.shape[0]
 
-        harmonic, percussive = _compute_hpss(
+        result = _compute_hpss(
             file_path=file_path,
             start_sample=start_sample,
             end_sample=end_sample,
@@ -82,11 +84,13 @@ class HarmonicExtractor:
             margin=margin,
             audio=audio
         )
+        harmonic, percussive = result.value
+
         self._logger.debug(
             f"Percussive-only extracted: shape={percussive.shape}",
             separator=self._separator
         )
-        return percussive
+        return result
 
     def extract_harmonic(
             self,
@@ -95,11 +99,12 @@ class HarmonicExtractor:
             audio: np.ndarray = None,
             sample_rate: int,
             tempo_bpm: float
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> TimedCacheResult[tuple[np.ndarray, np.ndarray]]:
         """
         Extracts harmonic & percussive components based on tempo.
         If file_path provided, uses cache; else uses in-memory audio.
         """
+        processing_start = time.perf_counter()
         if audio is None and file_path is None:
             raise ValueError("Either `audio` or `file_path` must be provided.")
 
@@ -117,7 +122,9 @@ class HarmonicExtractor:
             separator=self._separator
         )
 
-        harmonic, percussive = _compute_hpss(
+        processing_duration = time.perf_counter() - processing_start
+
+        results = _compute_hpss(
             file_path=file_path,
             start_sample=start_sample,
             end_sample=end_sample,
@@ -126,8 +133,16 @@ class HarmonicExtractor:
             kernel_size=kernel_size,
             audio=audio
         )
+
+        harmonic, percussive = results.value
+
         self._logger.debug(
             f"Harmonic shape={harmonic.shape}, Percussive shape={percussive.shape}",
             separator=self._separator
         )
-        return harmonic, percussive
+        return TimedCacheResult(
+            value=(harmonic, percussive),
+            time_waiting=results.time_waiting,
+            time_processing=processing_duration+results.time_processing,
+            retrieved_from_cache=results.retrieved_from_cache,
+        )

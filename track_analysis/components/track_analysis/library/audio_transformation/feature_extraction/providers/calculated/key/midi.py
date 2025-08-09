@@ -11,6 +11,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.key_e
 
 class TrackMidiMapProvider(AudioDataFeatureProvider):
     def __init__(self, logger: HoornLogger):
+        super().__init__()
         self._frequency_to_midi_map_converter = FrequencyToMidi(logger)
 
     @property
@@ -21,19 +22,22 @@ class TrackMidiMapProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature | List[AudioDataFeature]:
         return AudioDataFeature.TRACK_MIDI_MAP
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        audio_path = data[AudioDataFeature.AUDIO_PATH]
-        sample_rate = data[AudioDataFeature.SAMPLE_RATE_HZ]
-        frequencies = data[AudioDataFeature.SPECTRAL_PITCH_ARRAY]
-        spectral_magnitudes = data[AudioDataFeature.SPECTRAL_MAGNITUDES_ARRAY]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            audio_path = data[AudioDataFeature.AUDIO_PATH]
+            sample_rate = data[AudioDataFeature.SAMPLE_RATE_HZ]
+            frequencies = data[AudioDataFeature.SPECTRAL_PITCH_ARRAY]
+            spectral_magnitudes = data[AudioDataFeature.SPECTRAL_MAGNITUDES_ARRAY]
 
-        midi = self._frequency_to_midi_map_converter.convert(
+        midi_results = self._frequency_to_midi_map_converter.convert(
             file_path=audio_path,
             sample_rate=sample_rate,
             frequencies=frequencies,
             magnitudes=spectral_magnitudes,
         )
+        self._add_timed_cache_times(midi_results)
 
-        return {
-            AudioDataFeature.TRACK_MIDI_MAP: midi,
-        }
+        with self._measure_processing():
+            return {
+                AudioDataFeature.TRACK_MIDI_MAP: midi_results.value,
+            }

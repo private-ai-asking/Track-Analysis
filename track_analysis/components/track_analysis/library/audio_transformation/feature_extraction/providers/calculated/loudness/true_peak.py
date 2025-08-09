@@ -20,10 +20,11 @@ class TruePeakProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.TRUE_PEAK
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        analysis_result: LoudnessAnalysisResult = data[AudioDataFeature.LOUDNESS_ANALYSIS_RESULT]
-        tp_ch = [
-            20 * math.log10(tp)
-            for tp in analysis_result.true_peak
-        ]
-        return {AudioDataFeature.TRUE_PEAK: max(tp_ch) if tp_ch else 0.0}
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            analysis_result: LoudnessAnalysisResult = data[AudioDataFeature.LOUDNESS_ANALYSIS_RESULT]
+            tp_ch = [
+                20 * math.log10(tp)
+                for tp in analysis_result.true_peak
+            ]
+            return {AudioDataFeature.TRUE_PEAK: max(tp_ch) if tp_ch else 0.0}

@@ -19,9 +19,10 @@ class SpectralFluxProvider(AudioDataFeatureProvider):
     def output_features(self) -> List[AudioDataFeature]:
         return [AudioDataFeature.SPECTRAL_FLUX_MEAN, AudioDataFeature.SPECTRAL_FLUX_MAX, AudioDataFeature.SPECTRAL_FLUX_STD]
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, float]:
-        return {
-            AudioDataFeature.SPECTRAL_FLUX_MEAN: float(np.mean(data[AudioDataFeature.SPECTRAL_FLUX_ARRAY])),
-            AudioDataFeature.SPECTRAL_FLUX_MAX: float(np.max(data[AudioDataFeature.SPECTRAL_FLUX_ARRAY])),
-            AudioDataFeature.SPECTRAL_FLUX_STD: float(np.std(data[AudioDataFeature.SPECTRAL_FLUX_ARRAY])),
-        }
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, float]:
+        with self._measure_processing():
+            return {
+                AudioDataFeature.SPECTRAL_FLUX_MEAN: float(np.mean(data[AudioDataFeature.SPECTRAL_FLUX_ARRAY])),
+                AudioDataFeature.SPECTRAL_FLUX_MAX: float(np.max(data[AudioDataFeature.SPECTRAL_FLUX_ARRAY])),
+                AudioDataFeature.SPECTRAL_FLUX_STD: float(np.std(data[AudioDataFeature.SPECTRAL_FLUX_ARRAY])),
+            }

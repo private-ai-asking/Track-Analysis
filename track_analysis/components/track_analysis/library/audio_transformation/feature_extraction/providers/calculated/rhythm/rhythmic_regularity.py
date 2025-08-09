@@ -8,31 +8,32 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
     AudioDataFeature
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature_provider import \
     AudioDataFeatureProvider
+from track_analysis.components.track_analysis.shared.caching.hdf5_memory import TimedCacheResult
 # Assuming your existing imports and class definitions are available
 from track_analysis.components.track_analysis.shared_objects import MEMORY
 
 
-@MEMORY.cache(identifier_arg="file_path", ignore=["onset_envelope"])
+@MEMORY.timed_cache(identifier_arg="file_path", ignore=["onset_envelope"])
 def _compute_rhythmic_regularity(
         *,
         file_path: Path,
         onset_envelope: np.ndarray,
         unique_string: str,
         algorithm_version: str = "v2"
-) -> float:
+) -> TimedCacheResult[float]:
     """
     Cached calculation for rhythmic regularity using autocorrelation.
     Includes normalization to ensure the result is scaled correctly.
     """
     if onset_envelope.size < 2:
-        return 0.0
+        return 0.0 # type: ignore
 
     # Calculate the autocorrelation of the onset envelope
     autocorr = librosa.autocorrelate(onset_envelope)
 
     energy = autocorr[0]
     if energy < 1e-9:
-        return 0.0
+        return 0.0 # type: ignore
 
     normalized_autocorr = autocorr / energy
 
@@ -43,7 +44,7 @@ def _compute_rhythmic_regularity(
     else:
         regularity = 0.0
 
-    return float(regularity)
+    return float(regularity) # type: ignore
 
 
 class RhythmicRegularityProvider(AudioDataFeatureProvider):
@@ -64,14 +65,16 @@ class RhythmicRegularityProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.RHYTHMIC_REGULARITY
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        file_path = data[AudioDataFeature.AUDIO_PATH]
-        percussive_onset_env = data[AudioDataFeature.PERCUSSIVE_ONSET_ENVELOPE]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            file_path = data[AudioDataFeature.AUDIO_PATH]
+            percussive_onset_env = data[AudioDataFeature.PERCUSSIVE_ONSET_ENVELOPE]
 
         regularity = _compute_rhythmic_regularity(
             file_path=file_path,
             onset_envelope=percussive_onset_env,
             unique_string="percussive_rhythmic_regularity"
         )
+        self._add_timed_cache_times(regularity)
 
-        return {AudioDataFeature.RHYTHMIC_REGULARITY: regularity}
+        return {AudioDataFeature.RHYTHMIC_REGULARITY: regularity.value}

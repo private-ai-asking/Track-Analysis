@@ -16,6 +16,7 @@ class MfccProvider(AudioDataFeatureProvider):
     """Calculates the MFCC means and standard deviations."""
 
     def __init__(self, logger):
+        super().__init__()
         self._mfcc_helper = MFCCHelper(MfccExtractor(logger))
 
     @property
@@ -26,17 +27,21 @@ class MfccProvider(AudioDataFeatureProvider):
     def output_features(self) -> List[AudioDataFeature]:
         return [AudioDataFeature.MFCC_MEANS, AudioDataFeature.MFCC_STDS, AudioDataFeature.MFCC_VELOCITIES_MEANS, AudioDataFeature.MFCC_VELOCITIES_STDS, AudioDataFeature.MFCC_ACCELERATIONS_MEANS, AudioDataFeature.MFCC_ACCELERATIONS_STDS]
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, np.ndarray]:
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, np.ndarray]:
         results = self._mfcc_helper.get_mffcs(
             audio_path=data[AudioDataFeature.AUDIO_PATH],
             sample_rate=data[AudioDataFeature.SAMPLE_RATE_HZ],
             audio=data[AudioDataFeature.AUDIO_SAMPLES]
         )
-        return {
-            AudioDataFeature.MFCC_MEANS: results.means,
-            AudioDataFeature.MFCC_STDS: results.stds,
-            AudioDataFeature.MFCC_VELOCITIES_MEANS: results.delta_means,
-            AudioDataFeature.MFCC_VELOCITIES_STDS: results.delta_stds,
-            AudioDataFeature.MFCC_ACCELERATIONS_MEANS: results.delta2_means,
-            AudioDataFeature.MFCC_ACCELERATIONS_STDS: results.delta2_stds,
-        }
+        self._add_timed_cache_times(results)
+        results = results.value
+
+        with self._measure_processing():
+            return {
+                AudioDataFeature.MFCC_MEANS: results.means,
+                AudioDataFeature.MFCC_STDS: results.stds,
+                AudioDataFeature.MFCC_VELOCITIES_MEANS: results.delta_means,
+                AudioDataFeature.MFCC_VELOCITIES_STDS: results.delta_stds,
+                AudioDataFeature.MFCC_ACCELERATIONS_MEANS: results.delta2_means,
+                AudioDataFeature.MFCC_ACCELERATIONS_STDS: results.delta2_stds,
+            }

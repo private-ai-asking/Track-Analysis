@@ -293,9 +293,14 @@ class App:
                         f"Error populating metadata for {track}: {e}"
                     )
 
+    def on_exit(self):
+        self._exit()
+
     def _exit(self):
-        self._registration.shutdown_component()
+        MEMORY.close()
+        self._max_rate_cache.save()
         self._logger.save()
+        self._registration.shutdown_component()
         exit()
 
     def _generate_embeddings(self):

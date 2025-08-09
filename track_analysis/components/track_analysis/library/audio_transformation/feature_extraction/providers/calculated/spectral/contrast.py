@@ -12,6 +12,7 @@ class SpectralContrastProvider(AudioDataFeatureProvider):
     """Calculates the mean spectral contrast from the full audio signal."""
 
     def __init__(self, logger, hop_length=512):
+        super().__init__()
         self._contrast_extractor = SpectralContrastExtractor(logger)
         self._hop_length = hop_length
 
@@ -23,18 +24,23 @@ class SpectralContrastProvider(AudioDataFeatureProvider):
     def output_features(self) -> List[AudioDataFeature]:
         return [AudioDataFeature.SPECTRAL_CONTRAST_MEAN, AudioDataFeature.SPECTRAL_CONTRAST_STD]
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        samples = data[AudioDataFeature.AUDIO_SAMPLES]
-        common_args = {
-            "file_path": data[AudioDataFeature.AUDIO_PATH],
-            "sample_rate": data[AudioDataFeature.SAMPLE_RATE_HZ],
-            "audio": samples,
-            "start_sample": 0,
-            "end_sample": len(samples),
-            "hop_length": self._hop_length
-        }
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            samples = data[AudioDataFeature.AUDIO_SAMPLES]
+            common_args = {
+                "file_path": data[AudioDataFeature.AUDIO_PATH],
+                "sample_rate": data[AudioDataFeature.SAMPLE_RATE_HZ],
+                "audio": samples,
+                "start_sample": 0,
+                "end_sample": len(samples),
+                "hop_length": self._hop_length
+            }
+
         contrast = self._contrast_extractor.extract(**common_args)
-        return {
-            AudioDataFeature.SPECTRAL_CONTRAST_MEAN: float(contrast.mean()),
-            AudioDataFeature.SPECTRAL_CONTRAST_STD: float(contrast.std()),
-        }
+        self._add_timed_cache_times(contrast)
+
+        with self._measure_processing():
+            return {
+                AudioDataFeature.SPECTRAL_CONTRAST_MEAN: float(contrast.value.mean()),
+                AudioDataFeature.SPECTRAL_CONTRAST_STD: float(contrast.value.std()),
+            }

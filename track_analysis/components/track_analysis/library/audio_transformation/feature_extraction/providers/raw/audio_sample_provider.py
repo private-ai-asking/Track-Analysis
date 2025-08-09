@@ -10,6 +10,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
 
 class AudioSampleProvider(AudioDataFeatureProvider):
     def __init__(self, logger: HoornLogger):
+        super().__init__()
         self._logger = logger
         self._separator = self.__class__.__name__
 
@@ -21,7 +22,7 @@ class AudioSampleProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature | List[AudioDataFeature]:
         return [AudioDataFeature.AUDIO_SAMPLES]
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
         audio_path = data[AudioDataFeature.AUDIO_PATH]
         original_sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
 

@@ -76,5 +76,5 @@ class BatchProcessNewTracks(IPipe):
     @staticmethod
     def _assign_data_to_context(data: MappedAudioData, context: LibraryDataGenerationPipelineContext):
         context.generated_audio_info = data.main_audio_info
-        context.mfcc_audio_info = data.mfcc_audio_info
-        context.key_progression_audio_info = data.key_progression_audio_info
+        context.generated_mfcc_audio_info = data.mfcc_audio_info
+        context.generated_key_progression_audio_info = data.key_progression_audio_info

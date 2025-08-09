@@ -6,7 +6,6 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature_provider import \
     AudioDataFeatureProvider
 
-# Assuming BANDS is defined elsewhere, e.g.:
 BANDS = {
     "sub_bass": (20, 60),
     "bass": (60, 250),
@@ -32,19 +31,20 @@ class MultiBandEnergyProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.MULTI_BAND_ENERGY
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        magnitude_spectrogram = data[AudioDataFeature.HARMONIC_MAGNITUDE_SPECTROGRAM]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            magnitude_spectrogram = data[AudioDataFeature.HARMONIC_MAGNITUDE_SPECTROGRAM]
 
-        freqs = data[AudioDataFeature.FFT_FREQUENCIES]
+            freqs = data[AudioDataFeature.FFT_FREQUENCIES]
 
-        power_spec = magnitude_spectrogram**2
+            power_spec = magnitude_spectrogram**2
 
-        band_energies = {}
-        for band_name, (low_freq, high_freq) in BANDS.items():
-            band_mask = (freqs >= low_freq) & (freqs < high_freq)
-            band_energies[band_name] = power_spec[band_mask, :].sum()
+            band_energies = {}
+            for band_name, (low_freq, high_freq) in BANDS.items():
+                band_mask = (freqs >= low_freq) & (freqs < high_freq)
+                band_energies[band_name] = power_spec[band_mask, :].sum()
 
-        return {AudioDataFeature.MULTI_BAND_ENERGY: band_energies}
+            return {AudioDataFeature.MULTI_BAND_ENERGY: band_energies}
 
 # --- Bass Energy Ratio Provider ---
 
@@ -61,19 +61,16 @@ class BassEnergyRatioProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.BASS_ENERGY_RATIO
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        band_energies = data[AudioDataFeature.MULTI_BAND_ENERGY]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            band_energies = data[AudioDataFeature.MULTI_BAND_ENERGY]
 
-        # Sum the energy from the sub-bass and bass bands
-        bass_total_energy = band_energies.get("sub_bass", 0.0) + band_energies.get("bass", 0.0)
+            bass_total_energy = band_energies.get("bass", 0.0)
+            total_energy = sum(band_energies.values())
 
-        # Sum the energy from all bands to get the total
-        total_energy = sum(band_energies.values())
+            ratio = bass_total_energy / total_energy if total_energy > 0 else 0.0
 
-        # Calculate the ratio, handling the case of zero total energy
-        ratio = bass_total_energy / total_energy if total_energy > 0 else 0.0
-
-        return {AudioDataFeature.BASS_ENERGY_RATIO: ratio}
+            return {AudioDataFeature.BASS_ENERGY_RATIO: ratio}
 
 # --- Sub-Bass Energy Ratio Provider ---
 
@@ -90,15 +87,16 @@ class SubBassEnergyRatioProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.SUB_BASS_ENERGY_RATIO
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        band_energies = data[AudioDataFeature.MULTI_BAND_ENERGY]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            band_energies = data[AudioDataFeature.MULTI_BAND_ENERGY]
 
-        sub_bass_energy = band_energies.get("sub_bass", 0.0)
-        total_energy = sum(band_energies.values())
+            sub_bass_energy = band_energies.get("sub_bass", 0.0)
+            total_energy = sum(band_energies.values())
 
-        ratio = sub_bass_energy / total_energy if total_energy > 0 else 0.0
+            ratio = sub_bass_energy / total_energy if total_energy > 0 else 0.0
 
-        return {AudioDataFeature.SUB_BASS_ENERGY_RATIO: ratio}
+            return {AudioDataFeature.SUB_BASS_ENERGY_RATIO: ratio}
 
 # --- Low-Mid Energy Ratio Provider ---
 
@@ -116,15 +114,16 @@ class LowMidEnergyRatioProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.LOW_MID_ENERGY_RATIO
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        band_energies = data[AudioDataFeature.MULTI_BAND_ENERGY]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            band_energies = data[AudioDataFeature.MULTI_BAND_ENERGY]
 
-        low_mid_energy = band_energies.get("low_mid", 0.0)
-        total_energy = sum(band_energies.values())
+            low_mid_energy = band_energies.get("low_mid", 0.0)
+            total_energy = sum(band_energies.values())
 
-        ratio = low_mid_energy / total_energy if total_energy > 0 else 0.0
+            ratio = low_mid_energy / total_energy if total_energy > 0 else 0.0
 
-        return {AudioDataFeature.LOW_MID_ENERGY_RATIO: ratio}
+            return {AudioDataFeature.LOW_MID_ENERGY_RATIO: ratio}
 
 # --- Mid Energy Ratio Provider ---
 
@@ -141,15 +140,16 @@ class MidEnergyRatioProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.MID_ENERGY_RATIO
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        band_energies = data[AudioDataFeature.MULTI_BAND_ENERGY]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            band_energies = data[AudioDataFeature.MULTI_BAND_ENERGY]
 
-        mid_energy = band_energies.get("mid", 0.0)
-        total_energy = sum(band_energies.values())
+            mid_energy = band_energies.get("mid", 0.0)
+            total_energy = sum(band_energies.values())
 
-        ratio = mid_energy / total_energy if total_energy > 0 else 0.0
+            ratio = mid_energy / total_energy if total_energy > 0 else 0.0
 
-        return {AudioDataFeature.MID_ENERGY_RATIO: ratio}
+            return {AudioDataFeature.MID_ENERGY_RATIO: ratio}
 
 # --- High Energy Ratio Provider ---
 
@@ -166,12 +166,13 @@ class HighEnergyRatioProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.HIGH_ENERGY_RATIO
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        band_energies = data[AudioDataFeature.MULTI_BAND_ENERGY]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            band_energies = data[AudioDataFeature.MULTI_BAND_ENERGY]
 
-        high_energy = band_energies.get("high", 0.0)
-        total_energy = sum(band_energies.values())
+            high_energy = band_energies.get("high", 0.0)
+            total_energy = sum(band_energies.values())
 
-        ratio = high_energy / total_energy if total_energy > 0 else 0.0
+            ratio = high_energy / total_energy if total_energy > 0 else 0.0
 
-        return {AudioDataFeature.HIGH_ENERGY_RATIO: ratio}
+            return {AudioDataFeature.HIGH_ENERGY_RATIO: ratio}

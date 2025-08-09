@@ -19,6 +19,7 @@ class TempoVariationProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.TEMPO_VARIATION
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        dynamic_tempo = data[AudioDataFeature.DYNAMIC_TEMPO]
-        return {AudioDataFeature.TEMPO_VARIATION: np.std(dynamic_tempo)}
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            dynamic_tempo = data[AudioDataFeature.DYNAMIC_TEMPO]
+            return {AudioDataFeature.TEMPO_VARIATION: np.std(dynamic_tempo)}

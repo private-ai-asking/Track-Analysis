@@ -46,9 +46,9 @@ class HDF5CacheManager:
 
     # --- Public API Methods ---
 
-    def put(self, track_id: str, feature: str, params: Dict[str, Any], data: Any):
+    def put(self, group_id: str, function: str, params: Dict[str, Any], data: Any):
         """Saves data atomically to the cache if it does not already exist."""
-        item_path = self._get_item_path(track_id, feature, params)
+        item_path = self._get_item_path(group_id, function, params)
         if self._logger:
             self._logger.trace(f"Attempting to cache item: '{item_path}'", separator=self._separator)
 
@@ -60,9 +60,9 @@ class HDF5CacheManager:
 
             self._write_item_to_file(item_path, params, data)
 
-    def get(self, track_id: str, feature: str, params: Dict[str, Any]) -> Any | None:
+    def get(self, group_id: str, function: str, params: Dict[str, Any]) -> Any | None:
         """Retrieves an item from the cache. Returns None if not found."""
-        item_path = self._get_item_path(track_id, feature, params)
+        item_path = self._get_item_path(group_id, function, params)
         if self._logger:
             self._logger.trace(f"Attempting to retrieve item: '{item_path}'", separator=self._separator)
 

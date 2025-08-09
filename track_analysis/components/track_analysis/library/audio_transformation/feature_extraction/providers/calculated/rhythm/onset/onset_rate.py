@@ -16,10 +16,11 @@ class OnsetRateProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.ONSET_RATE_GLOBAL
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        peaks_global = data[AudioDataFeature.ONSET_PEAKS]
-        samples = data[AudioDataFeature.AUDIO_SAMPLES]
-        sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            peaks_global = data[AudioDataFeature.ONSET_PEAKS]
+            samples = data[AudioDataFeature.AUDIO_SAMPLES]
+            sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
 
-        duration_sec = len(samples) / sr if sr > 0 else 1.0
-        return {AudioDataFeature.ONSET_RATE_GLOBAL: len(peaks_global) / duration_sec}
+            duration_sec = len(samples) / sr if sr > 0 else 1.0
+            return {AudioDataFeature.ONSET_RATE_GLOBAL: len(peaks_global) / duration_sec}

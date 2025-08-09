@@ -4,10 +4,11 @@ import numpy as np
 from librosa.feature import mfcc, delta
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.shared.caching.hdf5_memory import TimedCacheResult
 from track_analysis.components.track_analysis.shared_objects import MEMORY
 
 
-@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
+@MEMORY.timed_cache(identifier_arg="file_path", ignore=["audio"])
 def _compute_mfccs(
         *,
         file_path:     Path,
@@ -16,20 +17,21 @@ def _compute_mfccs(
         sample_rate:   int,
         n_mfcc:        int = 20,
         audio:         np.ndarray = None,
-) -> np.ndarray:
+) -> TimedCacheResult[np.ndarray]:
     """
     Returns the Mel-frequency cepstral coefficients (MFCCs) for the given range.
     Caches on (file_path, start_sample, end_sample, sample_rate, n_mfcc) only.
     """
     audio = audio[start_sample:end_sample]
 
+    # noinspection PyTypeChecker
     return mfcc(
         y=audio,
         sr=sample_rate,
         n_mfcc=n_mfcc,
     )
 
-@MEMORY.cache(identifier_arg="file_path",
+@MEMORY.timed_cache(identifier_arg="file_path",
               ignore=["mffccs", "sample_rate"])
 def _compute_deltas(
         *,
@@ -40,11 +42,12 @@ def _compute_deltas(
         order: int = 1,
         axis: int = -1,
         mffccs: np.ndarray,
-) -> np.ndarray:
+) -> TimedCacheResult[np.ndarray]:
     segment = mffccs[start_sample:end_sample]
 
     width = min(9, segment.shape[axis] if axis >= 0 else segment.shape[segment.ndim + axis])
 
+    # noinspection PyTypeChecker
     return delta(
         data=segment,
         width=width,
@@ -66,7 +69,7 @@ class MfccExtractor:
             sample_rate:   int,
             n_mfcc:        int = 20,
             audio:         np.ndarray = None,
-    ) -> np.ndarray:
+    ) -> TimedCacheResult[np.ndarray]:
         """
         Returns the MFCCs for the given range.
         """
@@ -91,7 +94,7 @@ class MfccExtractor:
                        sample_rate:   int,
                        order: int = 1,
                        axis: int = -1,
-                       mffccs:         np.ndarray,) -> np.ndarray:
+                       mffccs:         np.ndarray,) -> TimedCacheResult[np.ndarray]:
         self._logger.debug(
             f"Extracting Deltas for {file_path.name}[{start_sample}:{end_sample}]",
             separator=self._separator,

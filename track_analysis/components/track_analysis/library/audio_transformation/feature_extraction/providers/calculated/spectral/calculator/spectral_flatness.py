@@ -4,10 +4,11 @@ import numpy as np
 from librosa.feature import spectral_flatness
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.shared.caching.hdf5_memory import TimedCacheResult
 from track_analysis.components.track_analysis.shared_objects import MEMORY
 
 
-@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
+@MEMORY.timed_cache(identifier_arg="file_path", ignore=["audio"])
 def compute_spectral_flatness(
         *,
         file_path:     Path,
@@ -17,21 +18,13 @@ def compute_spectral_flatness(
         hop_length:    int,
         n_fft:         int = 2048,
         audio:         np.ndarray = None,
-) -> np.ndarray:
+) -> TimedCacheResult[np.ndarray]:
     """
     Returns spectral flatness for the given range.
     """
-    if audio is None:
-        audio = np.memmap(
-            str(file_path),
-            dtype="float32",
-            mode="r",
-            offset=start_sample * 4,
-            shape=(end_sample - start_sample,),
-        )
-    else:
-        audio = audio[start_sample:end_sample]
+    audio = audio[start_sample:end_sample]
 
+    # noinspection PyTypeChecker
     return spectral_flatness(
         y=audio,
         n_fft=n_fft,
@@ -53,7 +46,7 @@ class SpectralFlatnessExtractor:
             hop_length:    int,
             n_fft:         int = 2048,
             audio:         np.ndarray = None,
-    ) -> np.ndarray:
+    ) -> TimedCacheResult[np.ndarray]:
         """
         Extracts spectral flatness envelope, cached.
         """

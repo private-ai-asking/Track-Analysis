@@ -1,12 +1,9 @@
-from pathlib import Path
 from typing import List, Tuple
 
 import numpy as np
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.constants import VERBOSE
-from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.calculator.metrical_hierarcy_construction import \
-    generate_subbeat_events
 
 
 class MetricalHierarchyConstructor:
@@ -28,22 +25,19 @@ class MetricalHierarchyConstructor:
 
     def construct_hierarchy(
             self,
-            file_path: Path,
-            beat_times: np.ndarray,
-            beat_frames: np.ndarray,
             beats_per_segment: int,
+            sub_beat_events: List[Tuple[float, int]]
     ) -> Tuple[np.ndarray, List[float]]:
         """
         Generate a level array and corresponding event times for sub-beat events.
         """
-        self._validate_inputs(beat_times, beat_frames, beats_per_segment)
+        self._validate_inputs(beats_per_segment)
 
         events_per_bar = self._calculate_events_per_segment(beats_per_segment)
         top_divisors = self._get_top_divisors(events_per_bar)
 
-        events = self._generate_subbeat_events(file_path, beat_times, beat_frames)
         levels, event_times = self._assign_event_levels(
-            events, events_per_bar, top_divisors
+            sub_beat_events, events_per_bar, top_divisors
         )
 
         self._log_levels(levels)
@@ -51,18 +45,12 @@ class MetricalHierarchyConstructor:
 
     def _validate_inputs(
             self,
-            beat_times: np.ndarray,
-            beat_frames: np.ndarray,
             beats_per_segment: int,
     ) -> None:
         if self._subdivisions < 1:
             raise ValueError("subdivisions_per_beat must be positive")
         if beats_per_segment < 1:
             raise ValueError("beats_per_segment must be positive")
-        if beat_times.ndim != 1 or beat_frames.ndim != 1:
-            raise ValueError("beat_times and beat_frames must be 1D arrays")
-        if beat_times.size != beat_frames.size:
-            raise ValueError("beat_times and beat_frames must have the same length")
 
     def _calculate_events_per_segment(self, beats_per_segment: int) -> int:
         return beats_per_segment * self._subdivisions
@@ -80,18 +68,6 @@ class MetricalHierarchyConstructor:
     def _get_divisors(n: int) -> List[int]:
         """Return all positive divisors of n, sorted descending."""
         return sorted([d for d in range(1, n + 1) if n % d == 0], reverse=True)
-
-    def _generate_subbeat_events(
-            self,
-            file_path: Path,
-            beat_times: np.ndarray,
-            beat_frames: np.ndarray,
-    ) -> List[Tuple[float, int]]:
-        """
-        Linearly interpolate times and frames between beats for subdivisions.
-        Returns a sorted list of (time, frame) tuples for each sub-beat event.
-        """
-        return generate_subbeat_events(file_path, self._subdivisions, beat_times, beat_frames)
 
     def _assign_event_levels(
             self,

@@ -11,6 +11,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.key_e
 
 class NoteEventProvider(AudioDataFeatureProvider):
     def __init__(self, logger: HoornLogger, hop_length: int = 512):
+        super().__init__()
         self._note_event_builder: NoteEventBuilder = NoteEventBuilder(logger, hop_length=hop_length)
 
     @property
@@ -21,17 +22,18 @@ class NoteEventProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature | List[AudioDataFeature]:
         return AudioDataFeature.TRACK_NOTE_EVENTS
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        cleaned_mask = data[AudioDataFeature.TRACK_CLEANED_BINARY_MASK]
-        midi_map = data[AudioDataFeature.TRACK_MIDI_MAP]
-        sample_rate = data[AudioDataFeature.SAMPLE_RATE_HZ]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            cleaned_mask = data[AudioDataFeature.TRACK_CLEANED_BINARY_MASK]
+            midi_map = data[AudioDataFeature.TRACK_MIDI_MAP]
+            sample_rate = data[AudioDataFeature.SAMPLE_RATE_HZ]
 
-        note_events = self._note_event_builder.build_note_events(
-            cleaned_mask=cleaned_mask,
-            midi_map=midi_map,
-            sr=sample_rate,
-        )
+            note_events = self._note_event_builder.build_note_events(
+                cleaned_mask=cleaned_mask,
+                midi_map=midi_map,
+                sr=sample_rate,
+            )
 
-        return {
-            AudioDataFeature.TRACK_NOTE_EVENTS: note_events,
-        }
+            return {
+                AudioDataFeature.TRACK_NOTE_EVENTS: note_events,
+            }

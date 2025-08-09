@@ -7,10 +7,11 @@ from typing import Dict, Tuple, cast
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.spectral.calculator.magnitude_spectogram import \
     MagnitudeSpectrogramExtractor
+from track_analysis.components.track_analysis.shared.caching.hdf5_memory import TimedCacheResult
 from track_analysis.components.track_analysis.shared_objects import MEMORY
 
 
-@MEMORY.cache(identifier_arg="file_path", ignore=["audio", "magnitude_extractor"])
+@MEMORY.timed_cache(identifier_arg="file_path", ignore=["audio", "magnitude_extractor"])
 def compute_onset_strengths_multi(
         *,
         file_path: Path,
@@ -21,7 +22,7 @@ def compute_onset_strengths_multi(
         bands: tuple[tuple[str, Tuple[float, float]], ...],
         magnitude_extractor: MagnitudeSpectrogramExtractor,
         audio: np.ndarray | None = None,
-) -> Dict[str, np.ndarray]:
+) -> TimedCacheResult[Dict[str, np.ndarray]]:
     """
     Returns per-band onset-strength envelopes for the given range.
     Caches on (file_path, start_sample, end_sample, sample_rate, hop_length, bands) only.
@@ -56,10 +57,10 @@ def compute_onset_strengths_multi(
     )
 
     # 4) Return a dictionary mapping band names to their respective envelopes.
-    return {band_names[idx]: onset_envs[idx] for idx in range(len(band_names))}
+    return {band_names[idx]: onset_envs[idx] for idx in range(len(band_names))} # type: ignore
 
 
-@MEMORY.cache(identifier_arg="file_path", ignore=["audio", "magnitude_extractor"])
+@MEMORY.timed_cache(identifier_arg="file_path", ignore=["onset_envelopes"])
 def compute_onset_peaks_multi(
         *,
         file_path: Path,
@@ -67,27 +68,12 @@ def compute_onset_peaks_multi(
         end_sample: int,
         sample_rate: int,
         hop_length: int,
-        bands: tuple[tuple[str, Tuple[float, float]], ...],
-        magnitude_extractor: MagnitudeSpectrogramExtractor,
-        audio: np.ndarray | None = None,
-) -> Dict[str, np.ndarray]:
+        onset_envelopes: Dict[str, np.ndarray],
+) -> TimedCacheResult[Dict[str, np.ndarray]]:
     """
     NEW: Computes and caches onset peaks for each band.
     This function first gets the cached onset envelopes and then finds the peaks in each one.
     """
-    # 1) Get the (cached) onset strength envelopes.
-    onset_envelopes = compute_onset_strengths_multi(
-        file_path=file_path,
-        start_sample=start_sample,
-        end_sample=end_sample,
-        sample_rate=sample_rate,
-        hop_length=hop_length,
-        bands=bands,
-        magnitude_extractor=magnitude_extractor,
-        audio=audio
-    )
-
-    # 2) Detect peaks in each band's envelope.
     onset_peaks = {}
     for name, onset_env in onset_envelopes.items():
         peaks = librosa.onset.onset_detect(
@@ -98,7 +84,7 @@ def compute_onset_peaks_multi(
         )
         onset_peaks[name] = peaks
 
-    return onset_peaks
+    return onset_peaks # type: ignore
 
 
 class OnsetStrengthMultiExtractor:
@@ -133,7 +119,7 @@ class OnsetStrengthMultiExtractor:
             sample_rate: int,
             hop_length: int,
             audio: np.ndarray | None = None,
-    ) -> Dict[str, np.ndarray]:
+    ) -> TimedCacheResult[Dict[str, np.ndarray]]:
         """
         Returns a dict of onset-strength envelopes, one per configured band.
         """
@@ -164,22 +150,33 @@ class OnsetStrengthMultiExtractor:
             sample_rate: int,
             hop_length: int,
             audio: np.ndarray | None = None,
-    ) -> Dict[str, np.ndarray]:
+    ) -> TimedCacheResult[Dict[str, np.ndarray]]:
         self._logger.debug(
             f"Extracting multi-band onset peaks for {file_path.name}[{start_sample}:{end_sample}]",
             separator=self._separator
         )
-        bands_tuple = cast(
-            tuple[tuple[str, Tuple[float, float]], ...],
-            tuple(self._bands.items())
-        )
-        return compute_onset_peaks_multi(
+
+        onset_envelope_results = self.extract(
             file_path=file_path,
             start_sample=start_sample,
             end_sample=end_sample,
             sample_rate=sample_rate,
             hop_length=hop_length,
-            bands=bands_tuple,
-            magnitude_extractor=self._magnitude_extractor,
             audio=audio
+        )
+
+        onset_peak_results = compute_onset_peaks_multi(
+            file_path=file_path,
+            start_sample=start_sample,
+            end_sample=end_sample,
+            sample_rate=sample_rate,
+            hop_length=hop_length,
+            onset_envelopes=onset_envelope_results.value
+        )
+
+        return TimedCacheResult(
+            value=onset_peak_results.value,
+            time_waiting=onset_envelope_results.time_waiting+onset_peak_results.time_waiting,
+            time_processing=onset_envelope_results.time_processing+onset_peak_results.time_processing,
+            retrieved_from_cache=onset_peak_results.retrieved_from_cache,
         )

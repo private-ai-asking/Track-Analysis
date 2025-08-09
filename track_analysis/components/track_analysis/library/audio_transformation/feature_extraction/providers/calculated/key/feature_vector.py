@@ -15,6 +15,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.key_e
 
 class FeatureVectorProvider(AudioDataFeatureProvider):
     def __init__(self, logger: HoornLogger):
+        super().__init__()
         self._feature_extractor: FeatureVectorExtractor = FeatureVectorExtractor(
             logger,
             transformer=LOFFeatureTransformer()
@@ -28,10 +29,11 @@ class FeatureVectorProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature | List[AudioDataFeature]:
         return [AudioDataFeature.TRACK_FEATURE_VECTOR]
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        segments: List[ProfiledSegment] = data[AudioDataFeature.TRACK_SEGMENTS_PROFILED]
-        track_feature_vector = self._feature_extractor.extract_segments(segments)
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            segments: List[ProfiledSegment] = data[AudioDataFeature.TRACK_SEGMENTS_PROFILED]
+            track_feature_vector = self._feature_extractor.extract_segments(segments)
 
-        return {
-            AudioDataFeature.TRACK_FEATURE_VECTOR: track_feature_vector,
-        }
+            return {
+                AudioDataFeature.TRACK_FEATURE_VECTOR: track_feature_vector,
+            }

@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 
+from track_analysis.components.track_analysis.shared.caching.hdf5_memory import TimedCacheResult
 from track_analysis.components.track_analysis.shared_objects import MEMORY
 
 
@@ -32,7 +33,7 @@ def compute_linear_rms(
     rms_vals = np.sqrt(np.mean(windows**2, axis=1))
     return rms_vals
 
-@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
+@MEMORY.timed_cache(identifier_arg="file_path", ignore=["audio"])
 def compute_linear_rms_cached(
         *,
         file_path:     Path,
@@ -43,24 +44,10 @@ def compute_linear_rms_cached(
         window_ms:     float = 50.0,
         hop_ms:        float = 10.0,
         audio:         np.ndarray = None,
-) -> np.ndarray:
-    """
-    Returns the linear RMS values for the given range.
-    Caches on (file_path, start_sample, end_sample, sample_rate, window_ms, hop_ms, method_string) only.
+) -> TimedCacheResult[np.ndarray]:
+    audio = audio[start_sample:end_sample]
 
-    If `audio` is provided, slices that array. Otherwise memory-maps the file.
-    """
-    if audio is None:
-        audio = np.memmap(
-            str(file_path),
-            dtype="float32",
-            mode="r",
-            offset=start_sample * 4,
-            shape=(end_sample - start_sample,),
-        )
-    else:
-        audio = audio[start_sample:end_sample]
-
+    # noinspection PyTypeChecker
     return compute_linear_rms(
         samples=audio,
         sr=sample_rate,

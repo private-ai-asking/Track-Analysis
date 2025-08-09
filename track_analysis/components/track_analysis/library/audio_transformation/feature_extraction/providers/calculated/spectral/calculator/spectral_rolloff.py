@@ -3,10 +3,11 @@ import numpy as np
 from librosa.feature import spectral_rolloff
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.shared.caching.hdf5_memory import TimedCacheResult
 from track_analysis.components.track_analysis.shared_objects import MEMORY
 
 
-@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
+@MEMORY.timed_cache(identifier_arg="file_path", ignore=["audio"])
 def compute_spectral_rolloff(
         *,
         file_path:     Path,
@@ -16,7 +17,7 @@ def compute_spectral_rolloff(
         hop_length:    int,
         roll_percent:  float = 0.85,
         audio:         np.ndarray = None,
-) -> np.ndarray:
+) -> TimedCacheResult[np.ndarray]:
     """
     Returns the spectral rolloff for the given range.
     Caches on (file_path, start_sample, end_sample, sample_rate, hop_length, roll_percent) only.
@@ -34,6 +35,7 @@ def compute_spectral_rolloff(
     else:
         audio = audio[start_sample:end_sample]
 
+    # noinspection PyTypeChecker
     return spectral_rolloff(
         y=audio,
         sr=sample_rate,
@@ -56,7 +58,7 @@ class SpectralRolloffExtractor:
             hop_length:    int,
             roll_percent:  float = 0.85,
             audio:         np.ndarray = None,
-    ) -> np.ndarray:
+    ) -> TimedCacheResult[np.ndarray]:
         """
         Returns the spectral rolloff for the given range.
         """

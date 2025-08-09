@@ -11,6 +11,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.key_e
 
 class TrackPitchClassesProvider(AudioDataFeatureProvider):
     def __init__(self, logger: HoornLogger):
+        super().__init__()
         self._pitch_class_builder = MidiToPitchClassesConverter(logger)
 
     @property
@@ -21,15 +22,18 @@ class TrackPitchClassesProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature | List[AudioDataFeature]:
         return [AudioDataFeature.TRACK_PITCH_CLASSES]
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        audio_path = data[AudioDataFeature.AUDIO_PATH]
-        midi_map = data[AudioDataFeature.TRACK_MIDI_MAP]
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            audio_path = data[AudioDataFeature.AUDIO_PATH]
+            midi_map = data[AudioDataFeature.TRACK_MIDI_MAP]
 
-        pitch_classes = self._pitch_class_builder.convert(
+        pitch_classes_result = self._pitch_class_builder.convert(
             audio_path=audio_path,
             midi=midi_map,
         )
+        self._add_timed_cache_times(pitch_classes_result)
 
-        return {
-            AudioDataFeature.TRACK_PITCH_CLASSES: pitch_classes,
-        }
+        with self._measure_processing():
+            return {
+                AudioDataFeature.TRACK_PITCH_CLASSES: pitch_classes_result.value,
+            }

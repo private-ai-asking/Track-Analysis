@@ -17,6 +17,7 @@ class LoudnessRangeProvider(AudioDataFeatureProvider):
     def output_features(self) -> AudioDataFeature:
         return AudioDataFeature.LOUDNESS_RANGE_LU
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        analysis_result: LoudnessAnalysisResult = data[AudioDataFeature.LOUDNESS_ANALYSIS_RESULT]
-        return {AudioDataFeature.LOUDNESS_RANGE_LU: analysis_result.lra}
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            analysis_result: LoudnessAnalysisResult = data[AudioDataFeature.LOUDNESS_ANALYSIS_RESULT]
+            return {AudioDataFeature.LOUDNESS_RANGE_LU: analysis_result.lra}

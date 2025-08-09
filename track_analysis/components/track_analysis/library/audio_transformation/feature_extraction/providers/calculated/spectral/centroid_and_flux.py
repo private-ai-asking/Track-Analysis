@@ -21,27 +21,27 @@ class SpectralCentroidAndFluxProvider(AudioDataFeatureProvider):
 
     @property
     def output_features(self) -> List[AudioDataFeature]:
-        # This calculator outputs two intermediate features
         return [AudioDataFeature.SPECTRAL_CENTROID_ARRAY, AudioDataFeature.SPECTRAL_FLUX_ARRAY]
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, np.ndarray]:
-        s_h = data[AudioDataFeature.HARMONIC_MAGNITUDE_SPECTROGRAM]
-        sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
-        n_bins, n_frames = s_h.shape
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, np.ndarray]:
+        with self._measure_processing():
+            s_h = data[AudioDataFeature.HARMONIC_MAGNITUDE_SPECTROGRAM]
+            sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
+            n_bins, n_frames = s_h.shape
 
-        if n_frames < 2:
+            if n_frames < 2:
+                return {
+                    AudioDataFeature.SPECTRAL_CENTROID_ARRAY: np.array([]),
+                    AudioDataFeature.SPECTRAL_FLUX_ARRAY: np.array([])
+                }
+
+            freqs = spectral_get_freqs(sr, n_bins)
+            cent_out = np.empty(n_frames, dtype=np.float64)
+            flux_out = np.empty(n_frames - 1, dtype=np.float64)
+
+            spectral_centroid_and_flux(s_h, freqs, cent_out, flux_out)
+
             return {
-                AudioDataFeature.SPECTRAL_CENTROID_ARRAY: np.array([]),
-                AudioDataFeature.SPECTRAL_FLUX_ARRAY: np.array([])
+                AudioDataFeature.SPECTRAL_CENTROID_ARRAY: cent_out,
+                AudioDataFeature.SPECTRAL_FLUX_ARRAY: flux_out
             }
-
-        freqs = spectral_get_freqs(sr, n_bins)
-        cent_out = np.empty(n_frames, dtype=np.float64)
-        flux_out = np.empty(n_frames - 1, dtype=np.float64)
-
-        spectral_centroid_and_flux(s_h, freqs, cent_out, flux_out)
-
-        return {
-            AudioDataFeature.SPECTRAL_CENTROID_ARRAY: cent_out,
-            AudioDataFeature.SPECTRAL_FLUX_ARRAY: flux_out
-        }

@@ -17,14 +17,15 @@ class SpectralCentroidProvider(AudioDataFeatureProvider):
     def output_features(self) -> List[AudioDataFeature]:
         return [AudioDataFeature.SPECTRAL_CENTROID_MEAN, AudioDataFeature.SPECTRAL_CENTROID_MAX, AudioDataFeature.SPECTRAL_CENTROID_STD]
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, float]:
-        array = data[AudioDataFeature.SPECTRAL_CENTROID_ARRAY]
-        mean = np.mean(array)
-        max = np.max(array)
-        std = np.std(array)
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, float]:
+        with self._measure_processing():
+            array = data[AudioDataFeature.SPECTRAL_CENTROID_ARRAY]
+            mean = np.mean(array)
+            max = np.max(array)
+            std = np.std(array)
 
-        return {
-            AudioDataFeature.SPECTRAL_CENTROID_MEAN: float(mean),
-            AudioDataFeature.SPECTRAL_CENTROID_MAX: float(max),
-            AudioDataFeature.SPECTRAL_CENTROID_STD: float(std),
-        }
+            return {
+                AudioDataFeature.SPECTRAL_CENTROID_MEAN: float(mean),
+                AudioDataFeature.SPECTRAL_CENTROID_MAX: float(max),
+                AudioDataFeature.SPECTRAL_CENTROID_STD: float(std),
+            }

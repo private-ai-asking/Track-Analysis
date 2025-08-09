@@ -3,10 +3,11 @@ import numpy as np
 import librosa
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.track_analysis.shared.caching.hdf5_memory import TimedCacheResult
 from track_analysis.components.track_analysis.shared_objects import MEMORY
 
 
-@MEMORY.cache(identifier_arg="file_path", ignore=["audio"])
+@MEMORY.timed_cache(identifier_arg="file_path", ignore=["audio"])
 def _compute_magnitude_spectrogram(
         *,
         file_path: Path,
@@ -15,7 +16,7 @@ def _compute_magnitude_spectrogram(
         n_fft: int = 2048,
         hop_length: int = 512,
         audio: np.ndarray = None,
-) -> np.ndarray:
+) -> TimedCacheResult[np.ndarray]:
     """
     Cached magnitude spectrogram computation:
     - Cache key: (file_path, start_sample, end_sample, n_fft, hop_length)
@@ -57,7 +58,7 @@ class MagnitudeSpectrogramExtractor:
             start_sample: int,
             end_sample: int,
             audio: np.ndarray = None
-    ) -> np.ndarray:
+    ) -> TimedCacheResult[np.ndarray]:
         """
         Extracts (and caches) the magnitude spectrogram for the specified segment.
 
@@ -76,7 +77,7 @@ class MagnitudeSpectrogramExtractor:
             audio=audio
         )
         self._logger.debug(
-            f"Spectrogram shape: {spectrogram.shape}",
+            f"Spectrogram shape: {spectrogram.value.shape}",
             separator=self._separator
         )
         return spectrogram

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 
@@ -28,8 +27,8 @@ class AudioSegmenter:
     def __init__(
             self,
             logger: HoornLogger,
+            subdivisions_per_beat: int,
             hop_length_samples: int = 512,
-            subdivisions_per_beat: int = 2,
             beats_per_segment: int = 8
     ):
         self._logger = logger
@@ -44,18 +43,12 @@ class AudioSegmenter:
             "Initialized AudioSegmenter",
             separator=self._separator,
         )
-        self._logger.debug(
-            f"Configuration: subdivisions_per_beat={subdivisions_per_beat}",
-            separator=self._separator,
-        )
 
     def get_segments(
             self,
-            audio_path: Path,
-            beat_frames: np.ndarray,
-            beat_times: np.ndarray,
             audio_samples: np.ndarray,
             sample_rate: int,
+            sub_beat_events: List[Tuple[float, int]],
             min_segment_level: int = 3,
     ) -> List[RawSegment]:
         self._logger.debug(
@@ -64,15 +57,8 @@ class AudioSegmenter:
             separator=self._separator,
         )
 
-        if len(beat_frames) < self._beats_per_segment:
-            self._logger.warning(
-                "Too few beats for a full segment; cannot segment.",
-                separator=self._separator,
-            )
-            return []
-
         level_array, event_times = self._hierarchy_constructor.construct_hierarchy(
-            audio_path, beat_times, beat_frames, self._beats_per_segment
+            self._beats_per_segment, sub_beat_events
         )
         strong_times = [t for t, lvl in zip(event_times, level_array) if lvl >= min_segment_level]
 

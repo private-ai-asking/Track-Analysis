@@ -22,7 +22,7 @@ OUTPUT_DIRECTORY: Path = Path("X:\Track Analysis\output")
 
 DATA_DIRECTORY: Path = Path("X:\Track Analysis\data")
 CACHE_DIRECTORY: Path = Path("X:\Track Analysis\cache")
-EXPENSIVE_CACHE_DIRECTORY: Path = Path(r"G:/")
+EXPENSIVE_CACHE_DIRECTORY: Path = Path(r"N:/")
 BENCHMARK_DIRECTORY: Path = Path(r"X:\Track Analysis\track_analysis\benchmarks")
 
 ENERGY_CALCULATION_REGENERATE_LIBRARY_GROWTH_PERC: float = 0.1

@@ -1,6 +1,4 @@
-from pathlib import Path
-from typing import Dict
-
+from track_analysis.components.md_common_python.py_common.algorithms.similarity import SimilarityMatcher
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_calculator import \
     EnergyAlgorithm
@@ -37,6 +35,8 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
     TrackProfiledSegmentProvider
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.key.raw_segment import \
     TrackRawSegmentProvider
+from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.key.sub_beat_events import \
+    SubBeatEventsProvider
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.loudness.crest_factor import \
     CrestFactorProvider
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.loudness.integrated_lufs import \
@@ -45,14 +45,8 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
     LoudnessAnalyzer
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.loudness.loudness_range import \
     LoudnessRangeProvider
-from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.loudness.rms.iqr_rms import \
-    IQRRmsProvider
-from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.loudness.rms.max_rms import \
-    MaxRmsProvider
-from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.loudness.rms.mean_rms import \
-    MeanRmsProvider
-from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.loudness.rms.percentile_rms import \
-    PercentileRmsProvider
+from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.loudness.rms_provider import \
+    RMSProvider
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.loudness.true_peak import \
     TruePeakProvider
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.rhythm.beat_frames_and_times import \
@@ -72,9 +66,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.rhythm.onset.onset_envelope import \
     OnsetEnvelopeProvider, PercussiveOnsetEnvelopeProvider
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.rhythm.onset.onset_peaks import \
-    OnsetPeaksProvider
-from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.rhythm.onset.onset_peaks_percussive import \
-    PercussiveOnsetPeaksProvider
+    OnsetPeaksProvider, PercussiveOnsetPeaksProvider
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.rhythm.onset.onset_rate import \
     OnsetRateProvider
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.rhythm.onset.onset_variation_provider import \
@@ -131,7 +123,6 @@ from track_analysis.components.track_analysis.library.audio_transformation.key_e
     KeyTemplateBuilder
 from track_analysis.components.track_analysis.shared.caching.max_rate_cache import MaxRateCache
 from track_analysis.components.track_analysis.shared.file_utils import FileUtils
-from track_analysis.components.md_common_python.py_common.algorithms.similarity import SimilarityMatcher
 
 
 class AudioFeatureOrchestratorFactory:
@@ -142,14 +133,13 @@ class AudioFeatureOrchestratorFactory:
                                           max_rate_cache: MaxRateCache,
                                           energy_calculator: EnergyAlgorithm,
                                           key_extraction_config: KeyProgressionConfig,
-                                          existing_tempo_cache: Dict[Path, float] | None = None,
                                           hop_length: int = 512,
                                           n_fft: int = 2048,
                                           ) -> AudioDataFeatureProviderOrchestrator:
         """Factory function to assemble and configure all audio feature calculators."""
         magnitude_extractor = MagnitudeSpectrogramExtractor(self._logger, n_fft=n_fft, hop_length=hop_length)
         onset_multi_extractor = OnsetStrengthMultiExtractor(self._logger, magnitude_extractor)
-        beat_detector: BeatDetector = BeatDetector(self._logger, existing_tempo_cache=existing_tempo_cache)
+        beat_detector: BeatDetector = BeatDetector(self._logger)
         file_utils: FileUtils = FileUtils()
 
         template_builder = KeyTemplateBuilder(self._logger, template_mode=key_extraction_config.template_mode)
@@ -164,7 +154,7 @@ class AudioFeatureOrchestratorFactory:
         all_providers = [
             CrestFactorProvider(), IntegratedLufsProvider(), LoudnessAnalyzer(hop_size=hop_length),
             LoudnessRangeProvider(), TruePeakProvider(), HPSSExtractor(self._logger, hop_length=hop_length, n_fft=n_fft),
-            IQRRmsProvider(), MaxRmsProvider(), MeanRmsProvider(), PercentileRmsProvider(),
+            RMSProvider(),
             SpectralCentroidProvider(), SpectralCentroidAndFluxProvider(),
             SpectralContrastProvider(self._logger, hop_length=hop_length),
             SpectralFlatnessProvider(self._logger, hop_length=hop_length), SpectralFluxProvider(),
@@ -195,13 +185,14 @@ class AudioFeatureOrchestratorFactory:
             TrackRawSegmentProvider(
                 self._logger,
                 hop_length_samples=hop_length,
-                subdivisions_per_beat=key_extraction_config.subdivisions_per_beat,
                 beats_per_segment=key_extraction_config.beats_per_segment,
                 min_segment_beat_level=key_extraction_config.min_segment_beat_level,
+                subdivisions_per_beat=key_extraction_config.subdivisions_per_beat,
             ),
             TrackProfiledSegmentProvider(self._logger), NoteEventProvider(self._logger, hop_length=hop_length),
             TrackCleanedPitchClassesMaskProvider(self._logger, hop_length=hop_length, n_fft=n_fft), NormalizedPitchClassesMaskProvider(self._logger),
             TrackPitchClassesProvider(self._logger), TrackMidiMapProvider(self._logger), SpectralPeakProvider(hop_length=hop_length, n_fft=n_fft, min_frequency_hz=27, max_frequency_hz=4200),
+            SubBeatEventsProvider(key_extraction_config.subdivisions_per_beat),
         ]
 
         return AudioDataFeatureProviderOrchestrator(all_providers, self._logger)

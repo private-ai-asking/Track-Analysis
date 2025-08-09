@@ -12,6 +12,7 @@ class ZCRProvider(AudioDataFeatureProvider):
     """Calculates the mean Zero Crossing Rate."""
 
     def __init__(self, logger, hop_length=512):
+        super().__init__()
         self._zcr_extractor = ZeroCrossingRateExtractor(logger)
         self._hop_length = hop_length
 
@@ -23,18 +24,23 @@ class ZCRProvider(AudioDataFeatureProvider):
     def output_features(self) -> List[AudioDataFeature]:
         return [AudioDataFeature.ZCR_MEAN, AudioDataFeature.ZCR_STD]
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        samples = data[AudioDataFeature.AUDIO_SAMPLES]
-        common_args = {
-            "file_path": data[AudioDataFeature.AUDIO_PATH],
-            "sample_rate": data[AudioDataFeature.SAMPLE_RATE_HZ],
-            "audio": samples,
-            "start_sample": 0,
-            "end_sample": len(samples),
-            "hop_length": self._hop_length
-        }
+    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+        with self._measure_processing():
+            samples = data[AudioDataFeature.AUDIO_SAMPLES]
+            common_args = {
+                "file_path": data[AudioDataFeature.AUDIO_PATH],
+                "sample_rate": data[AudioDataFeature.SAMPLE_RATE_HZ],
+                "audio": samples,
+                "start_sample": 0,
+                "end_sample": len(samples),
+                "hop_length": self._hop_length
+            }
+
         zcr = self._zcr_extractor.extract(**common_args)
-        return {
-            AudioDataFeature.ZCR_MEAN: float(zcr.mean()),
-            AudioDataFeature.ZCR_STD: float(zcr.std()),
-        }
+        self._add_timed_cache_times(zcr)
+
+        with self._measure_processing():
+            return {
+                AudioDataFeature.ZCR_MEAN: float(zcr.value.mean()),
+                AudioDataFeature.ZCR_STD: float(zcr.value.std()),
+            }
