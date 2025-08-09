@@ -46,7 +46,7 @@ class AudioDataFeatureProvider(ABC):
         pass
 
     @abstractmethod
-    def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
+    async def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
         """Performs the core logic for providing features."""
         pass
 
@@ -86,7 +86,7 @@ class AudioDataFeatureProvider(ABC):
         self._thread_local.timings["waiting"].append(timed_cache.time_waiting)
         self._thread_local.timings["processing"].append(timed_cache.time_processing)
 
-    def provide(self, data: Dict[AudioDataFeature, Any]) -> ProviderResult:
+    async def provide(self, data: Dict[AudioDataFeature, Any]) -> ProviderResult:
         """
         Performs the retrieval operation for a single track.
         This method is now thread-safe.
