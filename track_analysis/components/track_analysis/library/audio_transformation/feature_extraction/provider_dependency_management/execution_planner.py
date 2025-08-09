@@ -1,3 +1,4 @@
+import pprint
 from typing import List, Set, Dict
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
@@ -5,6 +6,8 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature_provider import (
     AudioDataFeatureProvider,
 )
+from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.model.execution_plan import \
+    ExecutionPlan, ExecutionStage
 
 
 class ExecutionPlanner:
@@ -14,34 +17,47 @@ class ExecutionPlanner:
         self._feature_map = self._build_feature_to_provider_map(all_providers)
         self._logger = logger
         self._separator = self.__class__.__name__
+        self._execution_plans: Set[str] = set()
 
     def generate_plan(
             self, providers_to_run: List[AudioDataFeatureProvider]
-    ) -> List[AudioDataFeatureProvider]:
+    ) -> ExecutionPlan:
         """Creates an ordered execution plan for a specific set of providers."""
-        order: List[AudioDataFeatureProvider] = []
+        order: ExecutionPlan = ExecutionPlan()
         resolved: Set[AudioDataFeature] = self.get_required_base_features(
             providers_to_run
         )
         pending = providers_to_run.copy()
 
         stage_num = 1
-        self._logger.info("--- Feature Execution Plan Analysis ---", separator=self._separator)
-
         while pending:
             ready_to_process = self._find_ready_providers(pending, resolved)
-            if ready_to_process:
-                provider_names = [p.__class__.__name__ for p in ready_to_process]
-                self._logger.info(
-                    f"Stage {stage_num}: Can run {len(ready_to_process)} providers in parallel -> {provider_names}",
-                    separator=self._separator
-                )
-                stage_num += 1
-            else:
+
+            if not ready_to_process:
                 self._handle_unresolvable_graph(pending)
-            self._update_state(ready_to_process, order, pending, resolved)
+
+            self._update_state(ready_to_process, order, pending, resolved, stage_num)
+            stage_num += 1
+
+        self._log_execution_plan_info(order)
+        self._execution_plans.add(order.get_hash())
 
         return order
+
+    def _log_execution_plan_info(self, order: ExecutionPlan) -> None:
+        if order.get_hash() in self._execution_plans:
+            return
+
+        self._logger.info("--- START Feature Execution Plan Analysis ---", separator=self._separator)
+
+        for execution_stage in order.stages:
+            provider_names = [p.__class__.__name__ for p in execution_stage.providers]
+            self._logger.info(
+                f"Stage {execution_stage.stage_number}: Can run {len(execution_stage.providers)} providers in parallel:\n\t{pprint.pformat(provider_names)}",
+                separator=self._separator
+            )
+
+        self._logger.info("--- END Feature Execution Plan Analysis ---", separator=self._separator)
 
     def _build_feature_to_provider_map(
             self, all_providers: List[AudioDataFeatureProvider]
@@ -88,15 +104,17 @@ class ExecutionPlanner:
     def _update_state(
             self,
             ready_providers: List[AudioDataFeatureProvider],
-            order: List[AudioDataFeatureProvider],
+            order: ExecutionPlan,
             pending: List[AudioDataFeatureProvider],
             resolved: Set[AudioDataFeature],
+            stage_num: int,
     ) -> None:
         """Updates the state for the next iteration of the topological sort."""
-        for calc in ready_providers:
-            order.append(calc)
-            pending.remove(calc)
-            for output_feature in self._get_provider_outputs(calc):
+        order.stages.append(ExecutionStage(stage_num, ready_providers.copy()))
+
+        for provider in ready_providers:
+            pending.remove(provider)
+            for output_feature in self._get_provider_outputs(provider):
                 resolved.add(output_feature)
 
     def _handle_unresolvable_graph(

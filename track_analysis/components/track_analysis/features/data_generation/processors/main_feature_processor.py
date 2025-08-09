@@ -194,7 +194,7 @@ class MainFeatureProcessor:
 
         executor = ThreadPoolExecutor(max_workers=self._cpu_workers)
 
-        try:
+        with executor:
             active_futures = set()
             for _ in range(self._cpu_workers):
                 self._try_submit_new_task(executor, active_futures, tasks_iterator, requested_features)
@@ -205,9 +205,6 @@ class MainFeatureProcessor:
                     active_futures.remove(future)
                     self._handle_completed_future(future, all_track_features, all_timings)
                     self._try_submit_new_task(executor, active_futures, tasks_iterator, requested_features)
-        finally:
-            if executor:
-                executor.shutdown(wait=True)
 
         total_duration = time.perf_counter() - start_time
         self._log_summary_report(all_timings, total_duration, self._total_to_process)

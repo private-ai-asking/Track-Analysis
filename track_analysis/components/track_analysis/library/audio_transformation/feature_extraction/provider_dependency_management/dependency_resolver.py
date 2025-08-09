@@ -5,6 +5,8 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature_provider import (
     AudioDataFeatureProvider,
 )
+from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.model.execution_plan import \
+    ExecutionPlan
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.provider_dependency_management.execution_planner import \
     ExecutionPlanner
 
@@ -19,7 +21,7 @@ class DependencyResolver:
 
     def resolve(
             self, features_to_calculate: List[AudioDataFeature]
-    ) -> Tuple[List[AudioDataFeatureProvider], Set[AudioDataFeature]]:
+    ) -> Tuple[ExecutionPlan, Set[AudioDataFeature]]:
         """
         Resolves the full dependency graph for a feature list.
 
@@ -31,7 +33,6 @@ class DependencyResolver:
         all_required_features = self._resolve_all_dependencies(features_to_calculate)
 
         # 2. Determine which required features are "base features" (they have no provider).
-        #    This is the crucial step that was missing.
         required_base_features = {
             feature for feature in all_required_features
             if feature not in self._feature_map
