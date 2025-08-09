@@ -23,18 +23,21 @@ class AudioSampleProvider(AudioDataFeatureProvider):
         return [AudioDataFeature.AUDIO_SAMPLES]
 
     def _provide(self, data: Dict[AudioDataFeature, Any]) -> Dict[AudioDataFeature, Any]:
-        audio_path = data[AudioDataFeature.AUDIO_PATH]
-        original_sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
+        with self._measure_processing():
+            audio_path = data[AudioDataFeature.AUDIO_PATH]
+            original_sr = data[AudioDataFeature.SAMPLE_RATE_HZ]
 
-        samples, sr = librosa.load(audio_path, sr=None)
+        with self._measure_waiting():
+            samples, sr = librosa.load(audio_path, sr=None)
 
-        if sr != original_sr:
-            self._logger.warning(
-                f"Sample-rate mismatch for {audio_path}: "
-                f"media_info={original_sr} Hz vs librosa={sr} Hz",
-                separator=self._separator
-            )
+        with self._measure_processing():
+            if sr != original_sr:
+                self._logger.warning(
+                    f"Sample-rate mismatch for {audio_path}: "
+                    f"media_info={original_sr} Hz vs librosa={sr} Hz",
+                    separator=self._separator
+                )
 
-        return {
-            AudioDataFeature.AUDIO_SAMPLES: samples
-        }
+            return {
+                AudioDataFeature.AUDIO_SAMPLES: samples
+            }

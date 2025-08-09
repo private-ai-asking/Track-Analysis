@@ -33,6 +33,7 @@ class DynamicTempoProvider(AudioDataFeatureProvider):
         )
         self._add_timed_cache_times(dynamic_tempo)
 
-        return {
-            AudioDataFeature.DYNAMIC_TEMPO: dynamic_tempo.value,
-        }
+        with self._measure_processing():
+            return {
+                AudioDataFeature.DYNAMIC_TEMPO: dynamic_tempo.value,
+            }

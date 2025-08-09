@@ -67,4 +67,5 @@ class BeatStrengthProvider(AudioDataFeatureProvider):
         )
         self._add_timed_cache_times(strength)
 
-        return {AudioDataFeature.BEAT_STRENGTH: strength.value}
+        with self._measure_processing():
+            return {AudioDataFeature.BEAT_STRENGTH: strength.value}
