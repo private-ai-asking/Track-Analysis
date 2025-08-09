@@ -65,10 +65,10 @@ class TimingAnalyzer:
         total_feature_time = sum(f.total_time for f in processed_features)
         processed_features.sort(key=lambda x: x.total_time, reverse=True)
 
-        wait_candidates, optimize_candidates = self._suggestion_engine.generate_suggestions(processed_features, total_feature_time)
+        candidates = self._suggestion_engine.generate_suggestions(processed_features, total_feature_time)
 
         # 3. Build and log the report
         self._report_formatter.log_report(
             batch_size, total_time, total_own_waiting, total_own_processing,
-            total_feature_time, processed_features, wait_candidates, optimize_candidates
+            total_feature_time, processed_features, candidates
         )
