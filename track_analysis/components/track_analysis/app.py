@@ -4,10 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Callable, TypeVar, Any
 
-from sentence_transformers import SentenceTransformer
 from viztracer import VizTracer
 
-from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.cli_framework import CommandLineInterface
 from track_analysis.components.md_common_python.py_common.command_handling import CommandHelper
 from track_analysis.components.md_common_python.py_common.handlers import FileHandler
@@ -17,23 +15,19 @@ from track_analysis.components.md_common_python.py_common.testing import TestCoo
 from track_analysis.components.md_common_python.py_common.testing.test_coordinator import TestConfiguration
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
-from track_analysis.components.md_common_python.py_common.utils import SimilarityScorer
 from track_analysis.components.md_common_python.py_common.utils.string_utils import StringUtils
 from track_analysis.components.track_analysis.features.data_generation.build_csv_pipeline import \
     BuildLibraryDataCSVPipeline, PipelineConfiguration
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.features.data_generation.pipeline_context import \
     LibraryDataGenerationPipelineContext
-from track_analysis.components.track_analysis.features.scrobbling.embedding.default_candidate_retriever import \
-    DefaultCandidateRetriever
-from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
-from track_analysis.components.track_analysis.features.scrobbling.get_unmatched_library_tracks import \
+from track_analysis.components.track_analysis.features.scrobble_linking.factory.scrobble_factory import ScrobbleFactory
+from track_analysis.components.track_analysis.features.scrobble_linking.get_unmatched_library_tracks import \
     UnmatchedLibraryTracker
-from track_analysis.components.track_analysis.features.scrobbling.scrobble_linker_service import ScrobbleLinkerService
-from track_analysis.components.track_analysis.features.scrobbling.uncertain_keys_processor import UncertainKeysProcessor
-from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
-from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
-from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
+from track_analysis.components.track_analysis.features.scrobble_linking.processor.uncertain_keys_processor import \
+    UncertainKeysProcessor
+from track_analysis.components.track_analysis.features.scrobble_linking.scrobble_linker_service import \
+    ScrobbleLinkerService
 from track_analysis.components.track_analysis.features.tag_extractor import TagExtractor
 from track_analysis.components.track_analysis.features.track_downloading.api.metadata_api import MetadataAPI
 from track_analysis.components.track_analysis.features.track_downloading.api.music_download_interface import \
@@ -53,7 +47,6 @@ from track_analysis.components.track_analysis.library.configuration.model.config
 from track_analysis.components.track_analysis.shared.caching.max_rate_cache import \
     MaxRateCache
 from track_analysis.components.track_analysis.shared_objects import MEMORY
-from track_analysis.tests.embedding_test import EmbeddingTest
 from track_analysis.tests.energy_calculation_test import EnergyCalculationTest
 
 T = TypeVar("T")
@@ -94,15 +87,8 @@ class App:
         self._configuration: TrackAnalysisConfigurationModel = configuration
         self._library_data_path: Path = configuration.paths.library_data
         self._mfcc_data_path: Path = configuration.paths.mfcc_data
-        scrobble_data_path: Path = configuration.paths.scrobble_data
         cache_path: Path = configuration.paths.scrobble_cache
         music_track_download_dir: Path = configuration.paths.music_track_downloads
-
-        self._embedder: SentenceTransformer = SentenceTransformer(model_name_or_path=str(configuration.scrobble_linker.embedder_path), device="cuda")
-
-        keys_path: Path = configuration.paths.library_keys
-
-        embed_weights = configuration.scrobble_linker.embedding_weights
 
         self._string_utils: StringUtils = StringUtils(logger)
         self._user_input_helper: UserInputHelper = UserInputHelper(logger)
@@ -119,6 +105,8 @@ class App:
         # self._profile_creator: ProfileGenerator = ProfileGenerator(logger, self._audio_file_handler, template_profile_normalized_to=100, num_workers=NUM_WORKERS_CPU_HEAVY-14)
         # self._key_extractor = KeyExtractor(logger, self._audio_file_handler, num_workers=NUM_WORKERS_CPU_HEAVY-14)
 
+        scrobble_factory: ScrobbleFactory = ScrobbleFactory(logger, self._string_utils, configuration)
+
         self._download_pipeline: DownloadPipeline = DownloadPipeline(
             logger,
             self._downloader,
@@ -127,62 +115,16 @@ class App:
         )
         self._download_pipeline.build_pipeline()
 
-        self._combo_key: str = configuration.scrobble_linker.field_combination_key
-
         if configuration.development.clear_cache:
             cache_path.unlink(missing_ok=True)
 
-        cache_builder: CacheBuilder = CacheBuilder(logger, cache_path, tree_separator=self._combo_key)
-        scrobble_utils: ScrobbleUtility = ScrobbleUtility(logger, self._embedder, embed_weights, join_key=self._combo_key, embed_batch_size=configuration.scrobble_linker.embedding_batch_size)
-        token_accept_threshold: float = configuration.scrobble_linker.token_accept_threshold
-        scorer = SimilarityScorer(
-            embed_weights,
-            logger=logger,
-            threshold=token_accept_threshold
-        )
+        self._scrobble_linker: ScrobbleLinkerService = scrobble_factory.create_scrobble_linker_service()
+        self._uncertain_keys_processor: UncertainKeysProcessor = scrobble_factory.create_uncertain_keys_processor()
+        self._unmatch_util: UnmatchedLibraryTracker = scrobble_factory.create_unmatched_library_tracker()
 
-        self._scrobble_data_loader: ScrobbleDataLoader = ScrobbleDataLoader(logger, self._library_data_path, scrobble_data_path, self._string_utils, scrobble_utils, configuration.scrobble_linker.scrobble_index_dir, keys_path)
-
-        def _load():
-            self._scrobble_data_loader.load(configuration.scrobble_linker.embedding_batch_size)
-
-        if configuration.development.profile_data_loading:
-            _run_with_profiling(_load, "Data Loading", configuration.paths.benchmark_directory)
-        else: _load()
-
-        scrobble_cache_helper: ScrobbleCacheHelper = ScrobbleCacheHelper(logger, self._scrobble_data_loader, cache_builder)
-        embedding_searcher: EmbeddingSearcher = EmbeddingSearcher(logger, top_k=5, loader=self._scrobble_data_loader, utility=scrobble_utils, candidate_retriever=DefaultCandidateRetriever(
-            logger=logger,
-            loader=self._scrobble_data_loader,
-            token_similarity_scorer=scorer
-        ))
-
-        self._uncertain_keys_processor: UncertainKeysProcessor = UncertainKeysProcessor(logger, embedding_searcher, scrobble_utils, self._scrobble_data_loader, configuration)
-        self._unmatch_util: UnmatchedLibraryTracker = UnmatchedLibraryTracker(logger, self._scrobble_data_loader, cache_path)
-
-        self._scrobble_linker: ScrobbleLinkerService = ScrobbleLinkerService(
-            logger,
-            data_loader=self._scrobble_data_loader,
-            string_utils=self._string_utils,
-            embedder=self._embedder,
-            scrobble_utils=scrobble_utils,
-            cache_builder=cache_builder,
-            cache_helper=scrobble_cache_helper,
-            embedding_searcher=embedding_searcher,
-            scorer=scorer,
-            app_config=configuration,
-        )
-
-        embedding_test: EmbeddingTest = EmbeddingTest(logger, embedder=self._embedder, keys_path=keys_path, data_loader=self._scrobble_data_loader)
         energy_test: EnergyCalculationTest = EnergyCalculationTest(logger, self._library_data_path, mfcc_data_path=self._mfcc_data_path, track_analysis_config=configuration)
 
         tests: List[TestConfiguration] = [
-            TestConfiguration(
-                associated_test=embedding_test,
-                keyword_arguments=[10],
-                command_description="Tests the embedding similarity matcher.",
-                command_keys=["test_embeddings", "te"]
-            ),
             TestConfiguration(
                 associated_test=energy_test,
                 keyword_arguments=[],
