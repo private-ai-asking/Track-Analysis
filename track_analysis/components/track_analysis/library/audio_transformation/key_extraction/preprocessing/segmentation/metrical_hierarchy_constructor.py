@@ -3,7 +3,6 @@ from typing import List, Tuple
 import numpy as np
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.constants import VERBOSE
 
 
 class MetricalHierarchyConstructor:
@@ -102,7 +101,6 @@ class MetricalHierarchyConstructor:
         return 1
 
     def _log_levels(self, levels: np.ndarray) -> None:
-        if VERBOSE:
-            self._logger.debug(
-                f"Assigned levels: {levels.tolist()}", separator=self._separator
-            )
+        self._logger.trace(
+            f"Assigned levels: {levels.tolist()}", separator=self._separator
+        )

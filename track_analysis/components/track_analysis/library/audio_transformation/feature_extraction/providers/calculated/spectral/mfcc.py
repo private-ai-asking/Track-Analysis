@@ -15,9 +15,9 @@ from track_analysis.components.track_analysis.library.audio_transformation.featu
 class MfccProvider(AudioDataFeatureProvider):
     """Calculates the MFCC means and standard deviations."""
 
-    def __init__(self, logger):
+    def __init__(self, logger, number_of_mfccs: int):
         super().__init__()
-        self._mfcc_helper = MFCCHelper(MfccExtractor(logger))
+        self._mfcc_helper = MFCCHelper(MfccExtractor(logger), number_of_mfccs)
 
     @property
     def dependencies(self) -> List[AudioDataFeature]:

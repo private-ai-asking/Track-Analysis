@@ -116,31 +116,31 @@ class NormalizedPitchClassesCleaner:
 
         cleaned_pass1 = _first_clean_pass(file_path, envelope_db.value, normalized)
         perc_changed_pass1 = _get_perc_diff(file_path, normalized, cleaned_pass1.value)
-        self._logger.debug(f"Cleaning (1st pass) changed {perc_changed_pass1.value:.4f}% frames!", separator=self._separator)
-        self._logger.debug(f"Cleaned (1st pass):\n{pprint.pformat(cleaned_pass1.value)}", separator=self._separator)
+        self._logger.trace(f"Cleaning (1st pass) changed {perc_changed_pass1.value:.4f}% frames!", separator=self._separator)
+        self._logger.trace(f"Cleaned (1st pass):\n{pprint.pformat(cleaned_pass1.value)}", separator=self._separator)
 
         cleaned_pass2 = _second_clean_pass(file_path, cleaned_pass1.value)
         perc_changed_pass2 = _get_perc_diff(file_path, cleaned_pass1.value, cleaned_pass2.value)
-        self._logger.debug(f"Cleaning (2nd pass) changed {perc_changed_pass2.value:.4f}% frames in comparison to first pass!", separator=self._separator)
-        self._logger.debug(f"Cleaned (2nd pass):\n{pprint.pformat(cleaned_pass2.value)}", separator=self._separator)
+        self._logger.trace(f"Cleaning (2nd pass) changed {perc_changed_pass2.value:.4f}% frames in comparison to first pass!", separator=self._separator)
+        self._logger.trace(f"Cleaned (2nd pass):\n{pprint.pformat(cleaned_pass2.value)}", separator=self._separator)
 
         cleaned_pass3 = _third_clean_pass(file_path, cleaned_pass2.value)
         perc_changed_pass3 = _get_perc_diff(file_path, cleaned_pass2.value, cleaned_pass3.value)
-        self._logger.debug(f"Cleaning (3rd pass) changed {perc_changed_pass3.value:.4f}% frames in comparison to second pass!", separator=self._separator)
-        self._logger.debug(f"Cleaned (3rd pass):\n{pprint.pformat(cleaned_pass3.value)}", separator=self._separator)
+        self._logger.trace(f"Cleaning (3rd pass) changed {perc_changed_pass3.value:.4f}% frames in comparison to second pass!", separator=self._separator)
+        self._logger.trace(f"Cleaned (3rd pass):\n{pprint.pformat(cleaned_pass3.value)}", separator=self._separator)
 
         cleaned_pass4 = _fourth_clean_pass(file_path, cleaned_pass3.value)
         perc_changed_pass4 = _get_perc_diff(file_path, cleaned_pass3.value, cleaned_pass4.value)
-        self._logger.debug(f"Cleaning (4th pass) changed {perc_changed_pass4.value:.4f}% frames in comparison to third pass!", separator=self._separator)
-        self._logger.debug(f"Cleaned (4th pass):\n{pprint.pformat(cleaned_pass4.value)}", separator=self._separator)
+        self._logger.trace(f"Cleaning (4th pass) changed {perc_changed_pass4.value:.4f}% frames in comparison to third pass!", separator=self._separator)
+        self._logger.trace(f"Cleaned (4th pass):\n{pprint.pformat(cleaned_pass4.value)}", separator=self._separator)
 
         cleaned_pass5_binary = _fifth_clean_pass(file_path, cleaned_pass4.value, sample_rate, self._hop_length)
         perc_changed_pass5 = _get_perc_diff(file_path, cleaned_pass4.value, cleaned_pass5_binary.value)
-        self._logger.debug(f"Cleaning (5th pass) changed {perc_changed_pass5.value:.4f}% frames in comparison to fourth pass!", separator=self._separator)
-        self._logger.debug(f"Cleaned (5th pass):\n{pprint.pformat(cleaned_pass5_binary.value)}", separator=self._separator)
+        self._logger.trace(f"Cleaning (5th pass) changed {perc_changed_pass5.value:.4f}% frames in comparison to fourth pass!", separator=self._separator)
+        self._logger.trace(f"Cleaned (5th pass):\n{pprint.pformat(cleaned_pass5_binary.value)}", separator=self._separator)
 
         cleaned_pass5_chroma = _convert_back(file_path, cleaned_pass5_binary.value, normalized)
-        self._logger.debug(f"Cleaned (5th pass/normalized):\n{pprint.pformat(cleaned_pass5_chroma.value)}", separator=self._separator)
+        self._logger.trace(f"Cleaned (5th pass/normalized):\n{pprint.pformat(cleaned_pass5_chroma.value)}", separator=self._separator)
 
         return self._summarize_results(
             results=[

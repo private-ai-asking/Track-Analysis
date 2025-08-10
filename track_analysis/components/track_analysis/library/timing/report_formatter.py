@@ -1,53 +1,64 @@
 from typing import List, Tuple
 
-from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.md_common_python.py_common.logging import HoornLogger, LogType
+from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
 from track_analysis.components.track_analysis.library.timing.configuration.timing_analysis_configuration import \
     TimingAnalysisConfiguration
+from track_analysis.components.track_analysis.library.timing.model.analysis_report_data import AnalysisReportData
 from track_analysis.components.track_analysis.library.timing.model.processed_feature import ProcessedFeature
 from track_analysis.components.track_analysis.library.timing.model.suggestion_categories import SuggestionCategories
 
 
 class ReportFormatter:
-    def __init__(self, logger: HoornLogger, configuration: TimingAnalysisConfiguration):
+    def __init__(self, logger: HoornLogger, configuration: TimingAnalysisConfiguration, time_utils: TimeUtils):
         self._logger = logger
         self._separator: str = self.__class__.__name__
         self._configuration: TimingAnalysisConfiguration = configuration
+        self._time_utils: TimeUtils = time_utils
 
-    def log_report(
-            self, batch_size: int, total_time: float, own_wait: float, own_proc: float,
-            feature_time: float, features: List[ProcessedFeature],
-            suggestions: SuggestionCategories
-    ):
-        """Formats and logs the final analysis report, including suggestions."""
-        own_total = own_wait + own_proc
-        unaccounted_time = total_time - own_total - feature_time
+    def log_report(self, data: AnalysisReportData, log_mode: LogType):
+        """Formats and logs the final analysis report from a single data object."""
         lines = ["\n--- Timing Analysis Report ---"]
 
         # General Summary
-        plural: bool = batch_size > 1
-        avg_run_time = total_time / batch_size if batch_size > 0 else 0
-        lines.append(f"Analyzed {batch_size} {self._configuration.timing_data_name_plural if plural else self._configuration.timing_data_name}. Total time: {total_time:.3f}s. Average per run: {avg_run_time:.3f}s.")
+        plural = data.batch_size > 1
+        avg_run_time = data.total_sequential_time / data.batch_size if data.batch_size > 0 else 0
+        lines.append(f"Analyzed {data.batch_size} {self._configuration.timing_data_name_plural if plural else self._configuration.timing_data_name}. "
+                     f"Avg task time: {self._time_utils.format_time(avg_run_time)}.")
+
+        # Parallelism Analysis Section
+        if data.parallelism_stats:
+            p_stats = data.parallelism_stats
+            lines.append("\n--- Parallelism Analysis ---")
+            lines.append(f"🚀 Speedup: {p_stats.speedup_factor:.2f}x (1x = baseline) | "
+                         f"Throughput: {p_stats.avg_throughput:.2f} tasks/sec")
+            lines.append(f"🔋 Worker Utilization: {p_stats.worker_utilization_percent:.1f}% | "
+                         f"Overhead: {self._time_utils.format_time(p_stats.total_overhead_time)}")
+            lines.append(f"   - Sequential Time: {self._time_utils.format_time(p_stats.sequential_time)} (on 1 worker)")
+            lines.append(f"   - Parallel Time:   {self._time_utils.format_time(p_stats.wall_clock_time)} (on {p_stats.worker_count} workers)")
 
         # Overall Time Distribution
-        if total_time > 0:
-            lines.append("\nOverall Time Distribution:")
-            lines.append(f"  - Main Logic:     {own_total:8.3f}s ({(own_total / total_time) * 100:5.1f}%) -> [Wait: {own_wait:.3f}s, Process: {own_proc:.3f}s]")
-            lines.append(f"  - Sub-features:   {feature_time:8.3f}s ({(feature_time / total_time) * 100:5.1f}%)")
+        own_total = data.total_own_waiting + data.total_own_processing
+        unaccounted_time = data.total_sequential_time - own_total - data.total_feature_time
+        if data.total_sequential_time > 0:
+            lines.append("\n--- Overall Time Distribution (Based on Sequential Time) ---")
+            lines.append(f"  - Main Logic:     {own_total:8.3f}s ({(own_total / data.total_sequential_time) * 100:5.1f}%) -> "
+                         f"[Wait: {data.total_own_waiting:.3f}s, Process: {data.total_own_processing:.3f}s]")
+            lines.append(f"  - Sub-features:   {data.total_feature_time:8.3f}s ({(data.total_feature_time / data.total_sequential_time) * 100:5.1f}%)")
             if unaccounted_time > 0.001:
-                lines.append(f"  - Unaccounted:    {unaccounted_time:8.3f}s ({(unaccounted_time / total_time) * 100:5.1f}%)")
+                lines.append(f"  - Unaccounted:    {unaccounted_time:8.3f}s ({(unaccounted_time / data.total_sequential_time) * 100:5.1f}%)")
 
         # Feature Table
         lines.append("\n--- Feature Dissection (sorted by Total Time) ---")
-        lines.extend(self._create_feature_table(features, feature_time))
+        lines.extend(self._create_feature_table(data.processed_features, data.total_feature_time))
 
         # Suggestions Section
-        suggestion_lines = self._format_suggestions(suggestions)
-        if suggestion_lines:
+        if any(vars(data.suggestions).values()):
             lines.append("")
-            lines.extend(suggestion_lines)
+            lines.extend(self._format_suggestions(data.suggestions))
 
         lines.append("\n--- End of Report ---")
-        self._logger.info("\n".join(lines), separator=self._separator)
+        self._logger.log_raw(log_mode, "\n".join(lines), separator=self._separator)
 
     @staticmethod
     def _create_feature_table(features: List[ProcessedFeature], total_feature_time: float) -> List[str]:

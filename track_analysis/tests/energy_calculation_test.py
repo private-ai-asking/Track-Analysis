@@ -11,6 +11,8 @@ from track_analysis.components.track_analysis.library.audio_transformation.energ
     EnergyAlgorithm
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.feature_to_header_mapping import \
     FEATURE_TO_HEADER_MAPPING
+from track_analysis.components.track_analysis.library.configuration.model.configuration import \
+    TrackAnalysisConfigurationModel
 
 TO_CHECK = [
     r"W:\media\music\[02] organized\[01] hq\OST\Path of Exile (Original Game Soundtrack)\29 Chamber of Innocence.flac",
@@ -34,15 +36,21 @@ TO_CHECK = [
 ]
 
 class EnergyCalculationTest(TestInterface):
-    def __init__(self, logger: HoornLogger, main_data_path: Path, mfcc_data_path: Path):
+    def __init__(self,
+                 logger: HoornLogger,
+                 track_analysis_config: TrackAnalysisConfigurationModel
+                 ):
         super().__init__(logger, is_child=True)
         self._logger = logger
         self._separator = self.__class__.__name__
 
-        self._main_df = pd.read_csv(main_data_path)
-        self._mfcc_df = pd.read_csv(mfcc_data_path)
+        self._main_df = pd.read_csv(track_analysis_config.paths.library_data)
+        self._mfcc_df = pd.read_csv(track_analysis_config.paths.mfcc_data)
 
-        self._energy_loader: EnergyLoader = EnergyLoader(logger)
+        self._energy_loader: EnergyLoader = EnergyLoader(logger,
+                                                         energy_training_version_to_use=track_analysis_config.additional_config.current_energy_training_version_to_use,
+                                                         regenerate_library_growth_threshold=track_analysis_config.additional_config.energy_calculation_regenerate_library_growth_perc,
+                                                         cache_dir=track_analysis_config.paths.cache_dir)
         self._combined_data = self._energy_loader.get_combined_data(self._main_df, self._mfcc_df)
 
         # Invert the mapping for easy lookup in the test method

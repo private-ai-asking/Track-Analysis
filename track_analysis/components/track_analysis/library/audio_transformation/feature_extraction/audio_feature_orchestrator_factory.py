@@ -121,6 +121,7 @@ from track_analysis.components.track_analysis.library.audio_transformation.key_e
     KeyProgressionConfig
 from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.core.templates.key_template_builder import \
     KeyTemplateBuilder
+from track_analysis.components.track_analysis.library.timing.timing_analysis import TimingAnalyzer
 from track_analysis.components.track_analysis.shared.caching.max_rate_cache import MaxRateCache
 from track_analysis.components.track_analysis.shared.file_utils import FileUtils
 
@@ -133,8 +134,10 @@ class AudioFeatureOrchestratorFactory:
                                           max_rate_cache: MaxRateCache,
                                           energy_calculator: EnergyAlgorithm,
                                           key_extraction_config: KeyProgressionConfig,
+                                          timing_analyzer: TimingAnalyzer,
                                           hop_length: int = 512,
                                           n_fft: int = 2048,
+                                          number_of_mfccs: int = 20,
                                           ) -> AudioDataFeatureProviderOrchestrator:
         """Factory function to assemble and configure all audio feature calculators."""
         magnitude_extractor = MagnitudeSpectrogramExtractor(self._logger, n_fft=n_fft, hop_length=hop_length)
@@ -158,7 +161,7 @@ class AudioFeatureOrchestratorFactory:
             SpectralCentroidProvider(), SpectralCentroidAndFluxProvider(),
             SpectralContrastProvider(self._logger, hop_length=hop_length),
             SpectralFlatnessProvider(self._logger, hop_length=hop_length), SpectralFluxProvider(),
-            HarmonicityProvider(self._logger), MfccProvider(self._logger),
+            HarmonicityProvider(self._logger), MfccProvider(self._logger, number_of_mfccs),
             MultiBandOnsetPeaksProvider(onset_multi_extractor), MultiBandOnsetEnvelopeProvider(onset_multi_extractor),
             OnsetEnvMeanProvider(), OnsetEnvMeanKickProvider(), OnsetEnvMeanSnareProvider(),
             OnsetEnvMeanLowMidProvider(), OnsetEnvMeanHiHatProvider(), OnsetRateProvider(),
@@ -195,4 +198,4 @@ class AudioFeatureOrchestratorFactory:
             SubBeatEventsProvider(key_extraction_config.subdivisions_per_beat),
         ]
 
-        return AudioDataFeatureProviderOrchestrator(all_providers, self._logger)
+        return AudioDataFeatureProviderOrchestrator(all_providers, self._logger, timing_analyzer)

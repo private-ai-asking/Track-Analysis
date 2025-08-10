@@ -24,7 +24,7 @@ class PitchClassesNormalizer:
     def normalize_pitch_classes(self, file_path: Path, pitch_classes: np.ndarray) -> TimedCacheResult[np.ndarray]:
         normalized_pitch_classes = _normalize(file_path, pitch_classes)
 
-        self._logger.debug(f"Normalized Pitch Classes Shape: {normalized_pitch_classes.value.shape}", separator=self._separator)
-        self._logger.debug(f"Normalized Pitch Classes:\n{pprint.pformat(normalized_pitch_classes)}", separator=self._separator)
+        self._logger.trace(f"Normalized Pitch Classes Shape: {normalized_pitch_classes.value.shape}", separator=self._separator)
+        self._logger.trace(f"Normalized Pitch Classes:\n{pprint.pformat(normalized_pitch_classes)}", separator=self._separator)
 
         return normalized_pitch_classes

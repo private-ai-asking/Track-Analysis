@@ -9,7 +9,6 @@ import yt_dlp
 from yt_dlp.postprocessor import PostProcessor
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.constants import COOKIES_FILE, FFMPEG_PATH
 from track_analysis.components.track_analysis.features.track_downloading.api.music_download_interface import \
     MusicDownloadInterface
 from track_analysis.components.track_analysis.features.track_downloading.model.download_model import DownloadModel
@@ -34,12 +33,14 @@ class PostProcessorHelper(PostProcessor):
 
 
 class YTDLPMusicDownloader(MusicDownloadInterface):
-    def __init__(self, logger: HoornLogger, output_directory: Path):
+    def __init__(self, logger: HoornLogger, output_directory: Path, cookies_file: Path, ffmpeg_path: Path):
         super().__init__(is_child=True)
         self._logger = logger
         self._separator: str = "YTDLPMusicDownloader"
 
         self._output_dir: Path = output_directory
+        self._cookies_file: Path = cookies_file
+        self._ffmpeg_path: Path = ffmpeg_path
 
         self._logger.debug("YTDLPMusicDownloader initialized", separator=self._separator)
 
@@ -83,8 +84,8 @@ class YTDLPMusicDownloader(MusicDownloadInterface):
             'format': 'ba',
             'postprocessors': [{'key': 'FFmpegExtractAudio'}],
             'noplaylist': True,
-            'cookiefile': str(COOKIES_FILE),
-            'ffmpeg_location': str(FFMPEG_PATH),
+            'cookiefile': str(self._cookies_file),
+            'ffmpeg_location': str(self._ffmpeg_path),
         }
 
         def download_one(url: str) -> (str, Path):

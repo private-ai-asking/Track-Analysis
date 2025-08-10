@@ -72,7 +72,7 @@ class HDF5CacheManager:
 
         data = self._deserialize_payload(payload_bytes, item_path)
         if data is not None and self._logger:
-            self._logger.debug(f"Cache hit: '{item_path}'", separator=self._separator)
+            self._logger.trace(f"Cache hit: '{item_path}'", separator=self._separator)
 
         return data
 
@@ -106,7 +106,7 @@ class HDF5CacheManager:
             self._file.flush()
 
             if self._logger:
-                self._logger.debug(f"Cached new item: '{item_path}'", separator=self._separator)
+                self._logger.trace(f"Cached new item: '{item_path}'", separator=self._separator)
 
         except Exception as e:
             if self._logger:
@@ -137,7 +137,7 @@ class HDF5CacheManager:
         """
         if item_path not in hdf5_file:
             if self._logger:
-                self._logger.debug(f"Cache miss: '{item_path}'", separator=self._separator)
+                self._logger.trace(f"Cache miss: '{item_path}'", separator=self._separator)
             return None
         return hdf5_file[item_path][()].tobytes()
 

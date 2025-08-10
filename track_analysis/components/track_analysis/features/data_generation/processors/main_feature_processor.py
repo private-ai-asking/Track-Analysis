@@ -10,8 +10,10 @@ from typing import List, Dict, Any, Tuple, Set, Iterator
 
 import pandas as pd
 
-from track_analysis.components.md_common_python.py_common.logging import HoornLogger
+from track_analysis.components.md_common_python.py_common.logging import HoornLogger, LogType
 from track_analysis.components.md_common_python.py_common.time_handling import TimeUtils
+from track_analysis.components.track_analysis.features.data_generation.helpers.audio_sample_loader import \
+    AudioSampleLoader
 from track_analysis.components.track_analysis.features.data_generation.model.header import Header
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.audio_data_feature import \
     AudioDataFeature
@@ -71,7 +73,7 @@ class MainFeatureProcessor:
 
         # Worker parameters
         self._cpu_workers = cpu_workers
-        self._thread_buffer_amount = self._cpu_workers * 2
+        self._thread_buffer_amount = round(self._cpu_workers * 1.5)
 
         # Concurrency and state management
         self._memory_limiter = Semaphore(self._thread_buffer_amount)
@@ -83,7 +85,43 @@ class MainFeatureProcessor:
 
         self._audio_uid_column = Header.UUID.value
 
-    def _process_track(self, row_info_tuple: Tuple, requested_features: List[AudioDataFeature]) -> TrackProcessingResult | None:
+    def process_batch(self, to_process_df: pd.DataFrame, requested_features: List[AudioDataFeature]) -> pd.DataFrame:
+        """Runs the dynamic, self-tuning batch processing workload."""
+        self._total_processed = 0
+        self._total_to_process = len(to_process_df)
+
+        self._logger.info(f"Starting dynamic batch of {self._total_to_process} tracks. CPU Workers={self._cpu_workers}, Thread Buffer (For I/O)={self._thread_buffer_amount}", separator=self._separator)
+
+        all_track_features: List[Dict[str, Any]] = []
+        all_timings: List[TrackProcessingTimeInfo] = []
+
+        tasks_iterator: Iterator = iter(to_process_df.iterrows())
+        start_time = time.perf_counter()
+
+        executor = ThreadPoolExecutor(max_workers=self._cpu_workers)
+
+        with executor:
+            active_futures = set()
+            for _ in range(self._cpu_workers):
+                self._try_submit_new_task(executor, active_futures, tasks_iterator, requested_features)
+
+            while active_futures:
+                completed_futures = as_completed(active_futures)
+                for future in completed_futures:
+                    active_futures.remove(future)
+                    self._handle_completed_future(future, all_track_features, all_timings, start_time)
+                    self._try_submit_new_task(executor, active_futures, tasks_iterator, requested_features)
+
+        total_duration = time.perf_counter() - start_time
+        self._log_summary_report(all_timings, total_duration, self._total_to_process)
+
+        return pd.DataFrame(all_track_features)
+
+    def _process_track(self,
+                       row_info_tuple: Tuple,
+                       requested_features: List[AudioDataFeature],
+                       audio_sample_future: Future,
+                       audio_path: Path) -> TrackProcessingResult | None:
         """
         Helper function that processes a single track, adding the audio path to the
         results for later merging.
@@ -96,7 +134,10 @@ class MainFeatureProcessor:
 
         try:
             idx, row = row_info_tuple
-            initial_data = {AudioDataFeature.AUDIO_PATH: Path(row[Header.Audio_Path.value])}
+            initial_data = {
+                AudioDataFeature.AUDIO_PATH: audio_path,
+                AudioDataFeature.AUDIO_SAMPLES_FUTURE: audio_sample_future,
+            }
 
             process_time = time.perf_counter() - start_process
             track_processing_result = self._orchestrator.process_track(idx, initial_data, requested_features)
@@ -120,7 +161,7 @@ class MainFeatureProcessor:
         finally:
             self._memory_limiter.release()
 
-    def _handle_completed_future(self, future: Future, all_track_features: List[Dict[str, Any]], all_timings: List[TrackProcessingTimeInfo]) -> None:
+    def _handle_completed_future(self, future: Future, all_track_features: List[Dict[str, Any]], all_timings: List[TrackProcessingTimeInfo], start_time: float) -> None:
         """Processes the result of a completed future, handling exceptions and storing results."""
         try:
             response: TrackProcessingResult | None = future.result()
@@ -131,9 +172,12 @@ class MainFeatureProcessor:
                 with self._lock:
                     self._total_processed += 1
 
+                    elapsed_time = time.perf_counter() - start_time
+
                     self._logger.info(
                         f"Processed {self._total_processed} / {self._total_to_process} "
-                        f"({self._total_processed / self._total_to_process * 100:.2f}%) tracks.",
+                        f"({self._total_processed / self._total_to_process * 100:.2f}%) tracks. "
+                        f"- Running for {self._time_utils.format_time(elapsed_time)} so far.",
                         separator=self._separator
                     )
         except Exception as e:
@@ -144,52 +188,23 @@ class MainFeatureProcessor:
         """Tries to fetch and submit one new task from the iterator."""
         try:
             new_task_data = next(tasks)
-            active_futures.add(executor.submit(self._process_track, new_task_data, requested_features))
+
+            _, row = new_task_data
+            audio_path = Path(row[Header.Audio_Path.value])
+
+            audio_sample_future: Future = executor.submit(AudioSampleLoader.load_audio_samples, audio_path)
+            active_futures.add(executor.submit(self._process_track, new_task_data, requested_features, audio_sample_future, audio_path))
         except StopIteration:
             pass
 
     def _log_summary_report(self, all_timings: List[TrackProcessingTimeInfo], total_duration: float, total_tracks: int) -> None:
-        """Logs the final timing analysis report."""
         self._logger.info(f"--- DYNAMIC BATCH COMPLETE ---", separator=self._separator)
         self._logger.info(f"Total Tracks Processed: {len(all_timings)} / {total_tracks}", separator=self._separator)
-        self._logger.info(f"Total Time Elapsed: {self._time_utils.format_time(total_duration)}", separator=self._separator)
-        if total_duration > 0:
-            avg_throughput = len(all_timings) / total_duration
-            self._logger.info(f"Overall Throughput: {avg_throughput:.2f} tracks/second", separator=self._separator)
+
         if all_timings:
-            self._timing_analyzer.analyze_time_batch([timing.to_timing_data() for timing in all_timings])
-
-    def process_batch(self, to_process_df: pd.DataFrame, requested_features: List[AudioDataFeature]) -> pd.DataFrame:
-        """Runs the dynamic, self-tuning batch processing workload."""
-        self._total_processed = 0
-        self._total_to_process = len(to_process_df)
-
-        self._logger.info(f"Starting dynamic batch of {self._total_to_process} tracks. CPU Workers={self._cpu_workers}, Thread Buffer (For I/O)={self._thread_buffer_amount}", separator=self._separator)
-
-        all_track_features: List[Dict[str, Any]] = []
-        all_timings: List[TrackProcessingTimeInfo] = []
-
-        tasks_iterator: Iterator = iter(to_process_df.iterrows())
-        start_time = time.perf_counter()
-
-        executor = ThreadPoolExecutor(max_workers=self._cpu_workers)
-
-        try:
-            active_futures = set()
-            for _ in range(self._cpu_workers):
-                self._try_submit_new_task(executor, active_futures, tasks_iterator, requested_features)
-
-            while active_futures:
-                completed_futures = as_completed(active_futures)
-                for future in list(completed_futures):
-                    active_futures.remove(future)
-                    self._handle_completed_future(future, all_track_features, all_timings)
-                    self._try_submit_new_task(executor, active_futures, tasks_iterator, requested_features)
-        finally:
-            if executor:
-                executor.shutdown(wait=True)
-
-        total_duration = time.perf_counter() - start_time
-        self._log_summary_report(all_timings, total_duration, self._total_to_process)
-
-        return pd.DataFrame(all_track_features)
+            self._timing_analyzer.analyze_time(
+                timing_data_batch=[timing.to_timing_data() for timing in all_timings],
+                wall_clock_time=total_duration,
+                worker_count=self._cpu_workers,
+                log_mode=LogType.DEBUG
+            )

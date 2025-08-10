@@ -10,6 +10,8 @@ from track_analysis.components.track_analysis.features.data_generation.helpers.c
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.feature_to_header_mapping import \
     FEATURE_TO_HEADER_MAPPING
 from track_analysis.components.track_analysis.features.data_generation.mappers.results_mapper import ResultsMapper
+from track_analysis.components.track_analysis.library.configuration.model.configuration import \
+    TrackAnalysisConfigurationModel
 from track_analysis.components.track_analysis.library.timing.configuration.timing_analysis_configuration import \
     TimingAnalysisConfiguration
 from track_analysis.components.track_analysis.library.timing.timing_analysis import TimingAnalyzer
@@ -57,7 +59,8 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
                  tag_extractor: TagExtractor,
                  string_utils: StringUtils,
                  max_rate_cache: MaxRateCache,
-                 configuration: PipelineConfiguration):
+                 configuration: PipelineConfiguration,
+                 app_configuration: TrackAnalysisConfigurationModel):
         self._logger = logger
         self._filehandler = filehandler
         self._string_utils = string_utils
@@ -75,6 +78,8 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
         self._n_fft = configuration.n_fft
         self._max_rate_cache = max_rate_cache
 
+        self._app_configuration = app_configuration
+
         super().__init__(logger)
 
     def build_pipeline(self):
@@ -91,7 +96,7 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
 
         self._add_step(GetAlbumCosts())
         self._add_step(LoadCache(self._logger))
-        self._add_step(LoadEnergyCalculator(self._logger))
+        self._add_step(LoadEnergyCalculator(self._logger, self._app_configuration))
         self._add_exit_check(__exit_if_at_energy_loading)
         self._add_step(CreateProcessors(
             logger=self._logger,
@@ -100,6 +105,7 @@ class BuildLibraryDataCSVPipeline(AbPipeline):
             n_fft=self._n_fft,
             max_rate_cache=self._max_rate_cache,
             timing_analyzer=self._timing_analyzer,
+            number_of_mfccs=self._app_configuration.additional_config.number_of_mfccs
         ))
         self._add_step(FilterCache(self._logger))
         self._add_step(GetAudioFiles(self._logger, self._filehandler))

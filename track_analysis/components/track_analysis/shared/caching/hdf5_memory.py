@@ -3,7 +3,7 @@ import inspect
 import time
 from functools import wraps
 from pathlib import Path
-from typing import Union, List, Callable, Set, Tuple, Any, Dict, Generic, TypeVar, ParamSpec
+from typing import Union, List, Callable, Set, Any, Dict, Generic, TypeVar, ParamSpec
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.track_analysis.shared.caching.cache_manager import HDF5CacheManager
@@ -25,15 +25,17 @@ class HDF5Memory:
     A class that mimics the joblib.Memory API to provide a caching decorator
     backed by a thread-safe HDF5CacheManager.
     """
-    def __init__(self, cache_path: Union[str, Path]):
-        """Initializes the memory object and its underlying cache manager."""
-        self._cache_manager = HDF5CacheManager(cache_path)
+    def __init__(self):
+        self._cache_manager: HDF5CacheManager | None = None
 
     def close(self) -> None:
         self._cache_manager.close()
 
     def set_logger(self, logger: HoornLogger):
         self._cache_manager.set_logger(logger)
+
+    def instantiate(self, cache_path: Union[str, Path]):
+        self._cache_manager = HDF5CacheManager(cache_path)
 
     def log_stats(self, top_n: int = 5):
         self._cache_manager.log_statistics(top_n=top_n)
@@ -47,6 +49,9 @@ class HDF5Memory:
         def decorator(func: Callable) -> Callable:
             @wraps(func)
             def wrapper(*args, **kwargs) -> Any:
+                if self._cache_manager is None:
+                    raise RuntimeError("Trying to cache without instantiated cache manager.")
+
                 cache_keys = self._get_cache_keys(
                     func, identifier_arg, ignored_args_set, *args, **kwargs
                 )
@@ -70,6 +75,9 @@ class HDF5Memory:
         def decorator(func: Callable[P, T]) -> Callable[P, TimedCacheResult[T]]:
             @wraps(func)
             def wrapper(*args: P.args, **kwargs: P.kwargs) -> TimedCacheResult[T]:
+                if self._cache_manager is None:
+                    raise RuntimeError("Trying to cache without instantiated cache manager.")
+
                 time_start = time.perf_counter()
 
                 cache_keys = self._get_cache_keys(

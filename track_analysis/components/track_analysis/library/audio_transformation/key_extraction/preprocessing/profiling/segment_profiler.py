@@ -5,7 +5,6 @@ from typing import List
 import numpy as np
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.constants import VERBOSE
 from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.preprocessing.note_extraction.note_event_builder import \
     NoteEvent
 from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.preprocessing.segmentation.audio_segmenter import \
@@ -108,15 +107,14 @@ class SegmentProfiler:
                     segment_notes=notes
                 )
             )
-            self._logger.debug(
+            self._logger.trace(
                 f"Segment {seg_idx}: {len(notes)} notes, "
                 f"{segments_out[-1].num_pitch_classes} pitch classes",
                 separator=self._separator
             )
 
         # Preview debug
-        if VERBOSE:
-            self._preview_debug(segments_out, preview_n, preview_x)
+        self._preview_debug(segments_out, preview_n, preview_x)
 
         # Stats of unique notes per segment
         uniques = np.array([seg.num_pitch_classes for seg in segments_out])
@@ -180,6 +178,6 @@ class SegmentProfiler:
             })
 
         out = pprint.pformat(preview, sort_dicts=False)
-        self._logger.debug(f"Segment preview:\n{out}", separator=self._separator)
+        self._logger.trace(f"Segment preview:\n{out}", separator=self._separator)
 
 # TODO - see if we can cache here

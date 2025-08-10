@@ -8,10 +8,10 @@ from track_analysis.components.track_analysis.features.track_downloading.utils.m
 
 class ClearMetadata:
     """A tool to help clear metadata from music files."""
-    def __init__(self, logger: HoornLogger):
+    def __init__(self, logger: HoornLogger, library_file_handler: LibraryFileHandler, metadata_manipulator: MetadataManipulator):
         self._logger = logger
-        self._library_helper: LibraryFileHandler = LibraryFileHandler(logger)
-        self._metadata_helper: MetadataManipulator = MetadataManipulator(logger)
+        self._library_helper: LibraryFileHandler = library_file_handler
+        self._metadata_helper: MetadataManipulator = metadata_manipulator
 
     def clear_genres(self, music_directory: Path):
         music_files = self._library_helper.get_music_files(music_directory)
