@@ -15,7 +15,7 @@
     "scrobble-cache": "{Path Configuration/_placeholders/cache-normal}\\scrobble_cache.json",
     "gold-standard-data": "{Path Configuration/_placeholders/data}\\training\\gold_standard.csv",
     "manual-override": "{Path Configuration/_placeholders/cache-normal}\\manual_override.json",
-    "music-track-downloads": "{Path Configuration/_placeholders/output}\\Music Track Downloads",
+    "music-track-downloads-dir": "{Path Configuration/_placeholders/output}\\Music Track Downloads",
     "library-keys": "{Path Configuration/_placeholders/data}\\__internal__\\lib_keys.pkl",
     "max-rate-cache": "{Path Configuration/_placeholders/cache-expensive}\\max_rate_cache.pkl",
     "root-music-library": "W:\\media\\music\\[02] organized",

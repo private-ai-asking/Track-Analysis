@@ -38,16 +38,14 @@ TO_CHECK = [
 class EnergyCalculationTest(TestInterface):
     def __init__(self,
                  logger: HoornLogger,
-                 main_data_path: Path,
-                 mfcc_data_path: Path,
                  track_analysis_config: TrackAnalysisConfigurationModel
                  ):
         super().__init__(logger, is_child=True)
         self._logger = logger
         self._separator = self.__class__.__name__
 
-        self._main_df = pd.read_csv(main_data_path)
-        self._mfcc_df = pd.read_csv(mfcc_data_path)
+        self._main_df = pd.read_csv(track_analysis_config.paths.library_data)
+        self._mfcc_df = pd.read_csv(track_analysis_config.paths.mfcc_data)
 
         self._energy_loader: EnergyLoader = EnergyLoader(logger,
                                                          energy_training_version_to_use=track_analysis_config.additional_config.current_energy_training_version_to_use,

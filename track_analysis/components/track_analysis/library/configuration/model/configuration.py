@@ -17,7 +17,7 @@ class PathConfig:
     key_progression_data: Path
     gold_standard_data: Path
     manual_override: Path
-    music_track_downloads: Path
+    music_track_downloads_dir: Path
     library_keys: Path
     max_rate_cache: Path
     root_music_library: Path
