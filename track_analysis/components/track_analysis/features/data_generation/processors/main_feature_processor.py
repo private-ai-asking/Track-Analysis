@@ -73,7 +73,7 @@ class MainFeatureProcessor:
 
         # Worker parameters
         self._cpu_workers = cpu_workers
-        self._thread_buffer_amount = self._cpu_workers * 2
+        self._thread_buffer_amount = round(self._cpu_workers * 1.5)
 
         # Concurrency and state management
         self._memory_limiter = Semaphore(self._thread_buffer_amount)
@@ -109,7 +109,7 @@ class MainFeatureProcessor:
                 completed_futures = as_completed(active_futures)
                 for future in completed_futures:
                     active_futures.remove(future)
-                    self._handle_completed_future(future, all_track_features, all_timings)
+                    self._handle_completed_future(future, all_track_features, all_timings, start_time)
                     self._try_submit_new_task(executor, active_futures, tasks_iterator, requested_features)
 
         total_duration = time.perf_counter() - start_time
@@ -161,7 +161,7 @@ class MainFeatureProcessor:
         finally:
             self._memory_limiter.release()
 
-    def _handle_completed_future(self, future: Future, all_track_features: List[Dict[str, Any]], all_timings: List[TrackProcessingTimeInfo]) -> None:
+    def _handle_completed_future(self, future: Future, all_track_features: List[Dict[str, Any]], all_timings: List[TrackProcessingTimeInfo], start_time: float) -> None:
         """Processes the result of a completed future, handling exceptions and storing results."""
         try:
             response: TrackProcessingResult | None = future.result()
@@ -172,9 +172,12 @@ class MainFeatureProcessor:
                 with self._lock:
                     self._total_processed += 1
 
+                    elapsed_time = time.perf_counter() - start_time
+
                     self._logger.info(
                         f"Processed {self._total_processed} / {self._total_to_process} "
-                        f"({self._total_processed / self._total_to_process * 100:.2f}%) tracks.",
+                        f"({self._total_processed / self._total_to_process * 100:.2f}%) tracks. "
+                        f"- Running for {self._time_utils.format_time(elapsed_time)} so far.",
                         separator=self._separator
                     )
         except Exception as e:
