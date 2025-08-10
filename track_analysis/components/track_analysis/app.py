@@ -293,7 +293,7 @@ class App:
                         f"Error populating metadata for {track}: {e}"
                     )
 
-    def on_exit(self):
+    def on_exit(self) -> None:
         self._exit()
 
     def _exit(self):
