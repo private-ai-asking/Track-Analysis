@@ -107,7 +107,7 @@ class MainFeatureProcessor:
 
             while active_futures:
                 completed_futures = as_completed(active_futures)
-                for future in list(completed_futures):
+                for future in completed_futures:
                     active_futures.remove(future)
                     self._handle_completed_future(future, all_track_features, all_timings)
                     self._try_submit_new_task(executor, active_futures, tasks_iterator, requested_features)
