@@ -2,7 +2,8 @@ import os
 import signal
 import warnings
 
-from track_analysis.components.track_analysis.constants import DEBUG, VERBOSE, PHYSICAL_CPU_COUNT
+from track_analysis.components.track_analysis.constants import PHYSICAL_CPU_COUNT, CONFIGURATION_PATH
+from track_analysis.components.track_analysis.library.configuration.configuration_loader import ConfigurationLoader
 
 os.environ['LOKY_MAX_CPU_COUNT'] = str(PHYSICAL_CPU_COUNT)
 
@@ -17,12 +18,15 @@ from track_analysis.components.track_analysis.app import App
 
 
 if __name__ == "__main__":
+    configuration_loader: ConfigurationLoader = ConfigurationLoader(CONFIGURATION_PATH)
+    configuration = configuration_loader.get_configuration()
+
     min_level: LogType = LogType.INFO
 
-    if DEBUG:
+    if configuration.development.debug:
         min_level = LogType.DEBUG
 
-        if VERBOSE:
+        if configuration.development.verbose:
             min_level = LogType.TRACE
 
     builder = HoornLoggerBuilder("TrackAnalysis", max_separator_length=65)
@@ -32,7 +36,7 @@ if __name__ == "__main__":
 
     logger: HoornLogger = builder.get_logger(min_level)
 
-    app: App = App(logger)
+    app: App = App(logger, configuration)
     app.run()
 
     signal.signal(signal.SIGINT, app.on_exit)

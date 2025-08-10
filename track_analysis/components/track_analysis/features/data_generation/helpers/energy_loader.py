@@ -1,8 +1,8 @@
+from pathlib import Path
+
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.constants import CURRENT_ENERGY_TRAINING_VERSION_TO_USE, \
-    ENERGY_CALCULATION_REGENERATE_LIBRARY_GROWTH_PERC
 from track_analysis.components.track_analysis.features.data_generation.helpers.energy_training_config_factory import \
     TrainingConfigFactory
 from track_analysis.components.track_analysis.features.data_generation.helpers.energy_training_data_builder import \
@@ -25,13 +25,17 @@ class EnergyLoader:
     """
     Helper class for loading the energy model.
     """
-    def __init__(self, logger: HoornLogger):
+    def __init__(self, logger: HoornLogger,
+                 energy_training_version_to_use: int, regenerate_library_growth_threshold: float,
+                 cache_dir: Path):
         self._logger = logger
         self._separator: str = self.__class__.__name__
 
-        self._energy_factory: EnergyFactory = EnergyFactory(logger)
+        self._energy_factory: EnergyFactory = EnergyFactory(logger, cache_dir)
         self._data_builder: TrainingDataBuilder = TrainingDataBuilder()
         self._config_factory: TrainingConfigFactory = TrainingConfigFactory()
+        self._energy_training_version_to_use: int = energy_training_version_to_use
+        self.regenerate_library_growth_threshold: float = regenerate_library_growth_threshold
 
     def get_combined_data(self, main_data_frame: pd.DataFrame, mfcc_data_frame: pd.DataFrame) -> pd.DataFrame:
         base_config = DEFAULT_ENERGY_MODEL_CONFIG
@@ -51,7 +55,7 @@ class EnergyLoader:
         base_config = DEFAULT_ENERGY_MODEL_CONFIG
         main_df = self.get_combined_data(main_data_frame, mfcc_data_frame)
 
-        final_config = self._config_factory.create(base_config, main_df, CURRENT_ENERGY_TRAINING_VERSION_TO_USE)
+        final_config = self._config_factory.create(base_config, main_df, self._energy_training_version_to_use)
 
         loaded_model = manager.load_model(final_config)
         is_model_valid = manager.validate_model(loaded_model, main_df)
@@ -88,7 +92,7 @@ class EnergyLoader:
         samples_used_for_training = model.features_shape.training_samples
         growth_percentage = (current_track_count - samples_used_for_training) / samples_used_for_training
 
-        should_retrain = growth_percentage >= ENERGY_CALCULATION_REGENERATE_LIBRARY_GROWTH_PERC
+        should_retrain = growth_percentage >= self.regenerate_library_growth_threshold
         if should_retrain:
             self._logger.info(f"Retraining model: growth percentage ({growth_percentage}) exceeds threshold\n"
                               f"Using old model for current calculations, because the new model needs to be manually verified..", separator=self._separator)

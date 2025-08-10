@@ -1,14 +1,11 @@
 import os
 import subprocess
-import threading
 import traceback
-import asyncio
 from pathlib import Path
 
 from track_analysis.components.md_common_python.py_common.command_handling import CommandHelper
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.constants import FFMPEG_PATH
 from track_analysis.components.track_analysis.features.track_downloading.pipeline.download_pipeline_context import (
     DownloadPipelineContext,
 )
@@ -16,10 +13,11 @@ from track_analysis.components.track_analysis.features.track_downloading.pipelin
 
 class ConvertTracks(IPipe):
     """Pipe to gather all the tracks from the csv."""
-    def __init__(self, logger: HoornLogger, command_helper: CommandHelper):
+    def __init__(self, logger: HoornLogger, command_helper: CommandHelper, ffmpeg_path: Path):
         self._logger = logger
         self._separator: str = "DownloadPipeline.ConvertTracks"
         self._command_helper: CommandHelper = command_helper
+        self._ffmpeg_path: Path = ffmpeg_path
         self._logger.trace("Successfully initialized.", separator=self._separator)
 
     def flow(self, data: DownloadPipelineContext) -> DownloadPipelineContext:
@@ -39,7 +37,7 @@ class ConvertTracks(IPipe):
 
                 # synchronous, never hangs
                 subprocess.run(
-                    [str(FFMPEG_PATH)] + cmd,
+                    [str(self._ffmpeg_path)] + cmd,
                     check=True
                 )
 

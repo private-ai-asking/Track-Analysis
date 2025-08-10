@@ -5,7 +5,6 @@ import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.constants import KEYS_TO_BE_IGNORED_IN_CACHE_CHECK
 from track_analysis.components.track_analysis.features.scrobbling.algorithm.algorithm_context import \
     CacheBuildingAlgorithmContext
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
@@ -21,14 +20,22 @@ from track_analysis.components.track_analysis.features.scrobbling.embedding.eval
     FieldThresholdEvaluator
 from track_analysis.components.track_analysis.features.scrobbling.model.candidate_model import CandidateModel, \
     DecisionBin
+from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import \
+    ScrobbleCacheAlgorithmParameters
+from track_analysis.components.track_analysis.library.configuration.model.configuration import \
+    TrackAnalysisConfigurationModel
 
 
 class FilterManualOverride(IPipe):
     """A pipe to filter out the tracks present in the manual override."""
-    def __init__(self, logger: HoornLogger, manual_override_json_path: Path, embedding_searcher: EmbeddingSearcher, params):
+    def __init__(self,
+                 logger: HoornLogger,
+                 embedding_searcher: EmbeddingSearcher, params: ScrobbleCacheAlgorithmParameters,
+                 app_config: TrackAnalysisConfigurationModel):
         self._logger = logger
         self._separator = "CacheBuilder.FilterManualOverride"
-        self._override_path: Path = manual_override_json_path
+        self._config = app_config
+        self._override_path: Path = app_config.paths.manual_override
         self._embedding_searcher: EmbeddingSearcher = embedding_searcher
 
         self._token_accept_threshold = params.token_accept_threshold / 100.0
@@ -133,7 +140,7 @@ class FilterManualOverride(IPipe):
     ) -> None:
         """Log each previously rejected row whose top FAISS candidate is now ACCEPT."""
         # 1) Build mask of rows to process
-        mask = ~df['__key'].isin(KEYS_TO_BE_IGNORED_IN_CACHE_CHECK)
+        mask = ~df['__key'].isin(self._config.additional_config.keys_to_be_ignored_in_cache_check)
         df_to_check = df.loc[mask]
 
         if df_to_check.empty:

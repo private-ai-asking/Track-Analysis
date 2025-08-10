@@ -8,28 +8,29 @@ from typing import List
 import musicbrainzngs
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.constants import DOWNLOAD_CSV_FILE
-from track_analysis.components.track_analysis.features.track_downloading.utils.genre_algorithm import GenreAlgorithm
-from track_analysis.components.track_analysis.features.track_downloading.utils.library_file_handler import LibraryFileHandler
-from track_analysis.components.track_analysis.features.track_downloading.utils.metadata_manipulator import \
-    MetadataManipulator, MetadataKey
+from track_analysis.components.track_analysis.features.track_downloading.api.music_brainz_api_helper import \
+    MusicBrainzAPIHelper
 from track_analysis.components.track_analysis.features.track_downloading.model.download_model import DownloadModel
 from track_analysis.components.track_analysis.features.track_downloading.model.recording_model import RecordingModel
 from track_analysis.components.track_analysis.features.track_downloading.model.track_model import TrackModel
-from track_analysis.components.track_analysis.features.track_downloading.api.music_brainz_api_helper import \
-    MusicBrainzAPIHelper
+from track_analysis.components.track_analysis.features.track_downloading.utils.genre_algorithm import GenreAlgorithm
+from track_analysis.components.track_analysis.features.track_downloading.utils.library_file_handler import \
+    LibraryFileHandler
+from track_analysis.components.track_analysis.features.track_downloading.utils.metadata_manipulator import \
+    MetadataManipulator, MetadataKey
 from track_analysis.components.track_analysis.features.track_downloading.utils.music_brainz_result_interpreter import \
     MusicBrainzResultInterpreter
 
 
 class MetadataPopulater:
-    def __init__(self, logger: HoornLogger, genre_algorithm: GenreAlgorithm):
+    def __init__(self, logger: HoornLogger, genre_algorithm: GenreAlgorithm, library_file_handler: LibraryFileHandler, download_csv_path: Path):
         self._logger = logger
         self._separator: str = "MetadataPopulater"
-        self._music_library_handler: LibraryFileHandler = LibraryFileHandler(logger)
+        self._music_library_handler: LibraryFileHandler = library_file_handler
         self._metadata_manipulator: MetadataManipulator = MetadataManipulator(logger)
         self._musicbrainz_interpreter: MusicBrainzResultInterpreter = MusicBrainzResultInterpreter(logger)
         self._recording_helper: MusicBrainzAPIHelper = MusicBrainzAPIHelper(logger, genre_algorithm)
+        self._download_path: Path = download_csv_path
         musicbrainzngs.set_useragent("Music Organization Tool", "0.0", "https://github.com/LordMartron94/music-organization-tool")
 
     def find_and_embed_metadata(self, directory_path: Path):
@@ -196,7 +197,7 @@ class MetadataPopulater:
         file_path = input("Enter the file path containing the music URLs (csv, leave empty for default): ")
 
         if file_path == "":
-            file_path = DOWNLOAD_CSV_FILE
+            file_path = self._download_path
         else: file_path = Path(file_path)
 
         # validate file path

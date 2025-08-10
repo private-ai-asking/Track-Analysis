@@ -1,7 +1,6 @@
 from track_analysis.components.md_common_python.py_common.handlers import FileHandler
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.patterns import IPipe
-from track_analysis.components.track_analysis.constants import VERBOSE
 from track_analysis.components.track_analysis.features.data_generation.pipeline_context import LibraryDataGenerationPipelineContext
 
 
@@ -21,7 +20,5 @@ class GetAudioFiles(IPipe):
         data.all_audio_file_paths = track_paths
 
         self._logger.trace("Successfully gotten audio file paths.", separator=self._separator)
-
-        if VERBOSE:
-            self._logger.debug(f"Audio files: {track_paths}", separator=self._separator)
+        self._logger.trace(f"Audio files: {track_paths}", separator=self._separator)
         return data

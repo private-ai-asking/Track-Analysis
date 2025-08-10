@@ -6,7 +6,6 @@ import pprint
 import librosa
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.constants import VERBOSE
 
 
 @dataclass(frozen=True)
@@ -87,8 +86,7 @@ class NoteEventBuilder:
                     total_energy=total_e,
                 ))
 
-        if VERBOSE:
-            self._log_summary(events)
+        self._log_summary(events)
 
         return events
 
@@ -142,7 +140,7 @@ class NoteEventBuilder:
             }
 
         formatted = pprint.pformat(summary)
-        self._logger.debug(f"NoteEvent summary per pitch class:\n{formatted}",
+        self._logger.trace(f"NoteEvent summary per pitch class:\n{formatted}",
                            separator=self._separator)
 
 # TODO - see if we can cache here

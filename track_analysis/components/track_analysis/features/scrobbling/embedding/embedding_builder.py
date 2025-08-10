@@ -6,9 +6,10 @@ import numpy as np
 from pandas import DataFrame
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.constants import DATA_DIRECTORY
 from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
+from track_analysis.components.track_analysis.library.configuration.model.configuration import \
+    TrackAnalysisConfigurationModel
 
 
 class EmbeddingBuilder:
@@ -22,6 +23,7 @@ class EmbeddingBuilder:
             logger: HoornLogger,
             scrobble_data_loader: ScrobbleDataLoader,
             scrobble_utils: ScrobbleUtility,
+            track_analysis_config: TrackAnalysisConfigurationModel,
             sample_scrobbles: int = None
     ):
         self._logger = logger
@@ -30,8 +32,8 @@ class EmbeddingBuilder:
         self._scrobble_utils = scrobble_utils
         self._sample_scrobbles = sample_scrobbles
 
-        base = DATA_DIRECTORY / "__internal__"
-        self._keys_path: Path = base / "lib_keys.pkl"
+        base = track_analysis_config.paths.library_keys.parent
+        self._keys_path = track_analysis_config.paths.library_keys
         self._combined_emb_path: Path = base / 'lib_emb_combined.npy'
         self._combined_index_path: Path = base / 'lib_combined.index'
 

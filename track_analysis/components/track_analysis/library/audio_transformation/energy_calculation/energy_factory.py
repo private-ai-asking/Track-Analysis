@@ -1,7 +1,7 @@
 from enum import Enum
+from pathlib import Path
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.default_calculator import \
     DefaultEnergyAlgorithm
 from track_analysis.components.track_analysis.library.audio_transformation.energy_calculation.energy_calculator import \
@@ -32,17 +32,18 @@ class Implementation(Enum):
 
 class EnergyFactory:
     """Creates components for the energy feature calculation process."""
-    def __init__(self, logger: HoornLogger):
+    def __init__(self, logger: HoornLogger, cache_dir: Path):
         self._logger = logger
         self._separator = self.__class__.__name__
         self._energy_preparer: EnergyDataPreparer = EnergyDataPreparer(self._logger)
         self._energy_calculator: EnergyModelProcessor = EnergyModelProcessor()
+        self._cache_dir = cache_dir
 
     def create_lifecycle_manager(self, impl: Implementation) -> EnergyModelLifecycleManager | None:
         """Creates an instance of a model lifecycle manager."""
         if impl == Implementation.Default:
             inspection_persistence = DefaultInspectionDataPersistence(self._logger)
-            persistence = DefaultModelPersistence(self._logger, CACHE_DIRECTORY, inspection_persistence)
+            persistence = DefaultModelPersistence(self._logger, self._cache_dir, inspection_persistence)
             trainer = DefaultEnergyModelTrainer(self._logger, persistence, self._energy_calculator)
             validator = DefaultEnergyModelValidator(self._logger)
             return DefaultEnergyModelLifecycleManager(

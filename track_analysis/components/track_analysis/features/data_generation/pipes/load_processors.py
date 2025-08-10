@@ -24,7 +24,8 @@ class CreateProcessors(IPipe):
                  hop_length: int, n_fft: int,
                  max_rate_cache: MaxRateCache,
                  timing_analyzer: TimingAnalyzer,
-                 num_workers: int):
+                 num_workers: int,
+                 number_of_mfccs: int):
         self._separator = "BuildCSV.CreateProcessorsPipe"
         self._logger = logger
         self._logger.trace("Successfully initialized pipe.", separator=self._separator)
@@ -34,6 +35,7 @@ class CreateProcessors(IPipe):
         self._max_rate_cache = max_rate_cache
         self._num_workers = num_workers
         self._timing_analyzer = timing_analyzer
+        self._number_of_mfccs = number_of_mfccs
 
     def flow(self, data: LibraryDataGenerationPipelineContext) -> LibraryDataGenerationPipelineContext:
         self._logger.trace("Creating processors.", separator=self._separator)
@@ -41,7 +43,7 @@ class CreateProcessors(IPipe):
         audio_feature_orchestrator_factory = AudioFeatureOrchestratorFactory(self._logger)
         orchestrator = audio_feature_orchestrator_factory.create_audio_feature_orchestrator(
             hop_length=self._hop_length, n_fft=self._n_fft, max_rate_cache=self._max_rate_cache,
-            energy_calculator=data.energy_calculator, key_extraction_config=DEFAULT_KEY_PROGRESSION_CONFIG, timing_analyzer=self._timing_analyzer
+            energy_calculator=data.energy_calculator, key_extraction_config=DEFAULT_KEY_PROGRESSION_CONFIG, timing_analyzer=self._timing_analyzer, number_of_mfccs=self._number_of_mfccs
         )
         main_processor: MainFeatureProcessor = MainFeatureProcessor(
             orchestrator, self._logger,

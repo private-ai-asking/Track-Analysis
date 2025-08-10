@@ -4,7 +4,6 @@ from pathlib import Path
 
 import numpy as np
 
-from track_analysis.components.track_analysis.constants import NUMBER_OF_MFCCS
 from track_analysis.components.track_analysis.library.audio_transformation.feature_extraction.providers.calculated.spectral.calculator.mfcc import \
     MfccExtractor
 from track_analysis.components.track_analysis.shared.caching.hdf5_memory import TimedCacheResult
@@ -20,14 +19,15 @@ class MFCCResult:
     delta2_stds:  np.ndarray
 
 class MFCCHelper:
-    def __init__(self, mfcc_extractor: MfccExtractor):
+    def __init__(self, mfcc_extractor: MfccExtractor, number_of_mfccs: int):
         self._mfcc_extractor: MfccExtractor = mfcc_extractor
+        self._number_of_mfccs = number_of_mfccs
 
     def get_mffcs(self,
                   audio_path: Path,
                   audio: np.ndarray,
                   sample_rate: int) -> TimedCacheResult[MFCCResult]:
-        mffccs = self._mfcc_extractor.extract_mfccs(file_path=audio_path, start_sample=0, end_sample=len(audio), sample_rate=sample_rate, n_mfcc=NUMBER_OF_MFCCS, audio=audio)
+        mffccs = self._mfcc_extractor.extract_mfccs(file_path=audio_path, start_sample=0, end_sample=len(audio), sample_rate=sample_rate, n_mfcc=self._number_of_mfccs, audio=audio)
         mffccs_value = mffccs.value
 
         deltas = self._mfcc_extractor.extract_deltas(file_path=audio_path, start_sample=0, end_sample=len(audio), sample_rate=sample_rate, order=1, axis=-1, mffccs=mffccs_value)

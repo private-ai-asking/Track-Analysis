@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Dict
 
 import pandas as pd
 from pandas import DataFrame
@@ -8,17 +7,17 @@ from sentence_transformers import SentenceTransformer
 from track_analysis.components.md_common_python.py_common.cache_helpers import CacheBuilder
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.utils import StringUtils, SimilarityScorer
-from track_analysis.components.track_analysis.constants import TEST_SAMPLE_SIZE, \
-    NO_MATCH_LABEL, TEST_CACHE_BUILDER_MODE
-from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_builder import EmbeddingBuilder
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.model.scrabble_cache_algorithm_parameters import \
     ScrobbleCacheAlgorithmParameters
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_cache_builder import ScrobbleCacheBuilder
-from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.scrobble_matcher import ScrobbleMatcher
+from track_analysis.components.track_analysis.features.scrobbling.utils.cache_helper import ScrobbleCacheHelper
+from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
+from track_analysis.components.track_analysis.library.configuration.model.configuration import \
+    TrackAnalysisConfigurationModel
 
 
 class ScrobbleLinkerService:
@@ -29,25 +28,20 @@ class ScrobbleLinkerService:
                  data_loader: ScrobbleDataLoader,
                  string_utils: StringUtils,
                  embedder: SentenceTransformer,
-                 keys_path: Path,
-                 gold_standard_csv_path: Path,
-                 manual_override_path: Path,
                  scrobble_utils: ScrobbleUtility,
                  cache_builder: CacheBuilder,
-                 embed_weights: Dict,
                  cache_helper: ScrobbleCacheHelper,
                  embedding_searcher: EmbeddingSearcher,
                  scorer: SimilarityScorer,
-                 combo_key: str = "||",
-                 minimum_confidence_threshold: float = 90.0,
-                 token_accept_threshold: float = 70):
+                 app_config: TrackAnalysisConfigurationModel):
         self._logger: HoornLogger = logger
         self._separator: str = "ScrobbleLinker"
         self._string_utils: StringUtils = string_utils
-        self._combo_key: str = combo_key
+        self._combo_key: str = app_config.scrobble_linker.field_combination_key
         self._scrobble_data_loader: ScrobbleDataLoader = data_loader
-        self._keys_path: Path = keys_path
-        self._minimum_confidence_threshold: float = minimum_confidence_threshold
+        self._keys_path: Path = app_config.paths.library_keys
+        self._minimum_confidence_threshold: float = app_config.scrobble_linker.token_accept_threshold
+        self._config = app_config
 
         cache_builder: CacheBuilder = cache_builder
 
@@ -55,35 +49,38 @@ class ScrobbleLinkerService:
             logger,
             cache_builder,
             scrobble_utils,
-            data_loader=self._scrobble_data_loader
+            data_loader=self._scrobble_data_loader,
+            app_config=app_config
         )
 
         self._embedding_builder: EmbeddingBuilder = EmbeddingBuilder(
             logger,
             self._scrobble_data_loader,
-            sample_scrobbles=TEST_SAMPLE_SIZE,
-            scrobble_utils=scrobble_utils
+            sample_scrobbles=app_config.additional_config.test_sample_size,
+            scrobble_utils=scrobble_utils,
+            track_analysis_config=app_config
         )
 
         self._scrobble_cache_builder: ScrobbleCacheBuilder = ScrobbleCacheBuilder(
             logger,
             cache_builder,
             data_loader,
-            sample_size=TEST_SAMPLE_SIZE,
+            sample_size=app_config.additional_config.test_sample_size,
             scrobble_utils=scrobble_utils,
-            keys_path=keys_path,
+            keys_path=app_config.paths.library_keys,
             embedding_model=embedder,
-            test=TEST_CACHE_BUILDER_MODE,
+            test=app_config.development.test_cache_builder_mode,
             parameters=ScrobbleCacheAlgorithmParameters(
-                gold_standard_csv_path=gold_standard_csv_path,
-                embed_weights=embed_weights,
-                manual_override_path=manual_override_path,
-                token_accept_threshold=token_accept_threshold
+                gold_standard_csv_path=app_config.paths.gold_standard_data,
+                embed_weights=app_config.scrobble_linker.embedding_weights,
+                manual_override_path=app_config.paths.manual_override,
+                token_accept_threshold=app_config.scrobble_linker.token_accept_threshold,
             ),
             cache_helper=cache_helper,
-            manual_override_path=manual_override_path,
+            manual_override_path=app_config.paths.manual_override,
             searcher=embedding_searcher,
-            scorer=scorer
+            scorer=scorer,
+            app_config=app_config
         )
 
         self._logger.trace("Successfully initialized.", separator=self._separator)
@@ -110,7 +107,7 @@ class ScrobbleLinkerService:
 
     def _log_unmatched_amount(self, enriched_scrobble_date: pd.DataFrame) -> None:
         # Log unmatched count
-        unmatched: int = enriched_scrobble_date["track_uuid"].eq(NO_MATCH_LABEL).sum()
+        unmatched: int = enriched_scrobble_date["track_uuid"].eq(self._config.additional_config.no_match_label).sum()
         total: int = len(enriched_scrobble_date)
         self._logger.info(
             f"Linked {total - unmatched} of {total} scrobbles. {unmatched} remain unmatched.",

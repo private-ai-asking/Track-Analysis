@@ -1,15 +1,15 @@
 import json
-from pathlib import Path
 from typing import List, Tuple, Union
 
 import pandas as pd
 
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
 from track_analysis.components.md_common_python.py_common.user_input.user_input_helper import UserInputHelper
-from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
 from track_analysis.components.track_analysis.features.scrobbling.embedding.embedding_searcher import EmbeddingSearcher
 from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
+from track_analysis.components.track_analysis.library.configuration.model.configuration import \
+    TrackAnalysisConfigurationModel
 
 
 class UncertainKeysProcessor:
@@ -20,7 +20,7 @@ class UncertainKeysProcessor:
             embedding_searcher: EmbeddingSearcher,
             scrobble_utility: ScrobbleUtility,
             data_loader: ScrobbleDataLoader,
-            manual_override_json_path: Path
+            app_config: TrackAnalysisConfigurationModel
     ):
         self._logger = logger
         self._separator = "UncertainKeysProcessor"
@@ -28,7 +28,8 @@ class UncertainKeysProcessor:
         self._searcher = embedding_searcher
         self._utils = scrobble_utility
         self._loader = data_loader
-        self._override_path = manual_override_json_path
+        self._override_path = app_config.paths.manual_override
+        self._cache_dir = app_config.paths.cache_dir
 
         self._top_k = self._searcher.get_top_k_num()
         self.accepted: List[Tuple[str, str]] = []
@@ -36,9 +37,8 @@ class UncertainKeysProcessor:
 
         self._logger.trace("Initialized.", separator=self._separator)
 
-    @staticmethod
-    def _get_uncertain_df() -> pd.DataFrame:
-        return pd.read_csv(CACHE_DIRECTORY / "uncertain_keys_temp.csv")
+    def _get_uncertain_df(self) -> pd.DataFrame:
+        return pd.read_csv(self._cache_dir / "uncertain_keys_temp.csv")
 
     def process(self) -> List[Tuple[str, Union[str, None]]]:
         df = self._get_uncertain_df()
@@ -113,7 +113,7 @@ class UncertainKeysProcessor:
         # Remove processed from uncertain_keys_temp.csv
         processed = {k for k, _ in self.accepted} | set(self.rejected)
         df_left = df[~df["__key"].isin(processed)]
-        df_left.to_csv(CACHE_DIRECTORY / "uncertain_keys_temp.csv", encoding='utf-8')
+        df_left.to_csv(self._cache_dir / "uncertain_keys_temp.csv", encoding='utf-8')
 
         # Merge into manual-override JSON
         overrides = {}

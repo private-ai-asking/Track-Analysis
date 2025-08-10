@@ -10,17 +10,19 @@ from track_analysis.components.track_analysis.features.track_downloading.utils.m
 from track_analysis.components.track_analysis.features.track_downloading.utils.metadata_populater import MetadataPopulater
 from track_analysis.components.track_analysis.features.track_downloading.model.download_model import DownloadModel
 from track_analysis.components.track_analysis.features.track_downloading.model.track_model import TrackModel
+from track_analysis.components.track_analysis.library.configuration.model.configuration import \
+    TrackAnalysisConfigurationModel
 
 
 class MetadataAPI:
     """Facade class for manipulating music metadata."""
 
-    def __init__(self, logger: HoornLogger, genre_algorithm: GenreAlgorithm):
+    def __init__(self, logger: HoornLogger, genre_algorithm: GenreAlgorithm, app_config: TrackAnalysisConfigurationModel):
         self._logger = logger
-        self._metadata_clear_tool: ClearMetadata = ClearMetadata(logger)
+        self._library_file_handler: LibraryFileHandler = LibraryFileHandler(logger, app_config.additional_config.supported_music_extensions)
         self._metadata_manipulator: MetadataManipulator = MetadataManipulator(logger)
-        self._musicbrainz_metadata_populater: MetadataPopulater = MetadataPopulater(logger, genre_algorithm)
-        self._library_file_handler: LibraryFileHandler = LibraryFileHandler(logger)
+        self._metadata_clear_tool: ClearMetadata = ClearMetadata(logger, self._library_file_handler, self._metadata_manipulator)
+        self._musicbrainz_metadata_populater: MetadataPopulater = MetadataPopulater(logger, genre_algorithm, self._library_file_handler, app_config.paths.download_csv_file)
 
     def clear_genres(self, music_directory: Path) -> None:
         self._metadata_clear_tool.clear_genres(music_directory)

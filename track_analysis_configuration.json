@@ -1,0 +1,64 @@
+{
+  "Path Configuration": {
+    "_placeholders": {
+      "output": "X:\\Track Analysis\\output",
+      "data": "X:\\Track Analysis\\data",
+      "cache-normal": "X:\\Track Analysis\\cache",
+      "cache-expensive": "N:\\",
+      "benchmarks": "X:\\Track Analysis\\track_analysis\\benchmarks"
+    },
+    "library-data": "{Path Configuration/_placeholders/output}\\data.csv",
+    "mfcc-data": "{Path Configuration/_placeholders/output}\\mfcc.csv",
+    "scrobble-data": "{Path Configuration/_placeholders/data}\\scrobbles.csv",
+    "enriched-scrobble-data": "{Path Configuration/_placeholders/data}\\enriched_scrobbles.csv",
+    "key-progression-data": "{Path Configuration/_placeholders/data}\\key_progression.csv",
+    "scrobble-cache": "{Path Configuration/_placeholders/cache-normal}\\scrobble_cache.json",
+    "gold-standard-data": "{Path Configuration/_placeholders/data}\\training\\gold_standard.csv",
+    "manual-override": "{Path Configuration/_placeholders/cache-normal}\\manual_override.json",
+    "music-track-downloads": "{Path Configuration/_placeholders/output}\\Music Track Downloads",
+    "library-keys": "{Path Configuration/_placeholders/data}\\__internal__\\lib_keys.pkl",
+    "max-rate-cache": "{Path Configuration/_placeholders/cache-expensive}\\max_rate_cache.pkl",
+    "root-music-library": "W:\\media\\music\\[02] organized",
+    "benchmark-directory": "{Path Configuration/_placeholders/benchmarks}",
+    "ffmpeg-path": "D:\\[97] Installations\\[01] Software\\FFMPEG\\bin\\ffmpeg.exe",
+    "cookies-file": "D:\\[98] PC Related\\cookies.txt",
+    "download-csv-file": "X:\\Track Analysis\\track_analysis\\downloads.csv",
+    "cache-dir": "{Path Configuration/_placeholders/cache-normal}",
+    "expensive-cache-dir": "{Path Configuration/_placeholders/cache-expensive}"
+  },
+  "Scrobble Linking Configuration": {
+    "embedder-path": "{Path Configuration/_placeholders/data}\\__internal__\\all-MiniLM-l12-v2-embed",
+    "embedding-weights": {
+      "title": 0.35,
+      "artist": 0.4,
+      "album": 0.25
+    },
+    "field-combination-key": "||",
+    "token-accept-threshold": 70.0,
+    "scrobble-index-dir": "{Path Configuration/_placeholders/data}\\__internal__",
+    "embedding-batch-size": 1500
+  },
+  "Development Configuration": {
+    "debug": true,
+    "verbose": false,
+    "profile-data-loading": false,
+    "clear-cache": false,
+    "delete-final-data-before-start": true,
+    "test-cache-builder-mode": false
+  },
+  "Additional Configuration": {
+    "test-sample-size": -1,
+    "supported-music-extensions": [
+      ".mp3", ".wav", ".flac", ".m4a", ".ogg", ".wma", ".aiff", ".opus"
+    ],
+    "energy-calculation-regenerate-library-growth-perc": 0.1,
+    "current-energy-training-version-to-use": -1,
+    "number-of-mfccs": 20,
+    "no-match-label": "<NO MATCH>",
+    "max-new-tracks-per-run": 50,
+    "keys-to-be-ignored-in-cache-check": [
+      "nujabes||luv sic hexalogy||luv sic pt2",
+      "max richter||the blue notebooks 15 years||on the nature of daylight"
+    ]
+  }
+}

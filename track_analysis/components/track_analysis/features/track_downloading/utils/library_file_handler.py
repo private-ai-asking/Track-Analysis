@@ -5,7 +5,6 @@ from typing import List
 
 from track_analysis.components.md_common_python.py_common.handlers import FileHandler
 from track_analysis.components.md_common_python.py_common.logging import HoornLogger
-from track_analysis.components.track_analysis.constants import SUPPORTED_MUSIC_EXTENSIONS
 from track_analysis.components.track_analysis.features.track_downloading.utils.metadata_manipulator import \
     MetadataManipulator, MetadataKey
 from track_analysis.components.track_analysis.features.track_downloading.utils.missing_metadata_finder import \
@@ -15,8 +14,12 @@ from track_analysis.components.track_analysis.features.track_downloading.model.r
 
 class LibraryFileHandler:
     """Wrapper class around the low-level file handler for use with music libraries."""
-    def __init__(self, logger: HoornLogger):
+    def __init__(self, logger: HoornLogger, supported_music_extensions: List[str]):
         self._logger = logger
+
+        self._supported_music_extensions = supported_music_extensions
+        self._separator = self.__class__.__name__
+
         self._file_handler = FileHandler()
         self._metadata_manipulator = MetadataManipulator(logger)
         self._missing_metadata_finder: MissingMetadataFinder = MissingMetadataFinder(logger)
@@ -27,9 +30,8 @@ class LibraryFileHandler:
         """
         files: List[Path] = []
 
-        for extension in SUPPORTED_MUSIC_EXTENSIONS:
-            self._logger.debug("Searching for files with extension '{}'.".format(extension))
-            files.extend(self._file_handler.get_children_paths(directory, extension, recursive=True))
+        self._logger.trace("Searching for files with extensions '{}'.".format(self._supported_music_extensions), separator=self._separator)
+        files.extend(self._file_handler.get_children_paths_fast(directory, self._supported_music_extensions, recursive=True))
 
         return files
 

@@ -137,6 +137,7 @@ class AudioFeatureOrchestratorFactory:
                                           timing_analyzer: TimingAnalyzer,
                                           hop_length: int = 512,
                                           n_fft: int = 2048,
+                                          number_of_mfccs: int = 20,
                                           ) -> AudioDataFeatureProviderOrchestrator:
         """Factory function to assemble and configure all audio feature calculators."""
         magnitude_extractor = MagnitudeSpectrogramExtractor(self._logger, n_fft=n_fft, hop_length=hop_length)
@@ -160,7 +161,7 @@ class AudioFeatureOrchestratorFactory:
             SpectralCentroidProvider(), SpectralCentroidAndFluxProvider(),
             SpectralContrastProvider(self._logger, hop_length=hop_length),
             SpectralFlatnessProvider(self._logger, hop_length=hop_length), SpectralFluxProvider(),
-            HarmonicityProvider(self._logger), MfccProvider(self._logger),
+            HarmonicityProvider(self._logger), MfccProvider(self._logger, number_of_mfccs),
             MultiBandOnsetPeaksProvider(onset_multi_extractor), MultiBandOnsetEnvelopeProvider(onset_multi_extractor),
             OnsetEnvMeanProvider(), OnsetEnvMeanKickProvider(), OnsetEnvMeanSnareProvider(),
             OnsetEnvMeanLowMidProvider(), OnsetEnvMeanHiHatProvider(), OnsetRateProvider(),

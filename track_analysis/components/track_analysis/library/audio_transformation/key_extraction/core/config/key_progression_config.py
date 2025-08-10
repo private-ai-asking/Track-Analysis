@@ -1,8 +1,6 @@
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 
-from track_analysis.components.track_analysis.constants import CACHE_DIRECTORY
 from track_analysis.components.track_analysis.library.audio_transformation.key_extraction.core.definitions.definition_templates import \
     TemplateMode
 

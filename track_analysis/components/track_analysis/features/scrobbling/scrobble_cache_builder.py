@@ -19,6 +19,8 @@ from track_analysis.components.track_analysis.features.scrobbling.model.scrabble
 from track_analysis.components.track_analysis.features.scrobbling.parameter_tester import ParameterTester
 from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_data_loader import ScrobbleDataLoader
 from track_analysis.components.track_analysis.features.scrobbling.utils.scrobble_utility import ScrobbleUtility
+from track_analysis.components.track_analysis.library.configuration.model.configuration import \
+    TrackAnalysisConfigurationModel
 
 
 class ScrobbleCacheBuilder:
@@ -40,6 +42,7 @@ class ScrobbleCacheBuilder:
             cache_helper: ScrobbleCacheHelper,
             searcher: EmbeddingSearcher,
             scorer: SimilarityScorer,
+            app_config: TrackAnalysisConfigurationModel,
             sample_size: Optional[int] = None,
             test: bool = False,
     ):
@@ -70,7 +73,8 @@ class ScrobbleCacheBuilder:
             parameters=parameters,
             test_mode=test,
             cache_helper=cache_helper,
-            embedding_searcher=searcher
+            embedding_searcher=searcher,
+            app_config=app_config
         )
         self._pipeline.build_pipeline()
 
